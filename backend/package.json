@@ -1,0 +1,33 @@
+{
+  "name": "modagest-pro-backend",
+  "version": "1.0.0",
+  "description": "Backend API - ModaGest Pro (Sistema Integral de Gestión Comercial)",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "keywords": [
+    "modagest",
+    "ecommerce",
+    "mern",
+    "backend",
+    "api"
+  ],
+  "author": "Tu Nombre",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.9.7",
+    "sequelize": "^6.37.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
