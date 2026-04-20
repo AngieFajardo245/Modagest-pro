@@ -1,20 +1,35 @@
 import { Link, useNavigate } from "react-router-dom";
 
 export default function ClienteNavbar() {
+
   const navigate = useNavigate();
 
+  const usuario = JSON.parse(localStorage.getItem("usuario"));
+  const nombre = usuario?.nombre || "Cliente";
+
   const cerrarSesion = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("rol");
+
+    localStorage.clear();
+
     navigate("/login", { replace: true });
+
   };
 
   return (
+
     <nav style={estilos.nav}>
-      <h3 style={estilos.titulo}>Panel Cliente</h3>
+
+      <h3 style={estilos.titulo}>
+        ModaGest Pro
+      </h3>
 
       <div style={estilos.linksContainer}>
-        <Link to="/cliente/dashboard" style={estilos.link}>
+
+        <span style={estilos.saludo}>
+          Hola, {nombre}
+        </span>
+
+        <Link to="/cliente" style={estilos.link}>
           Inicio
         </Link>
 
@@ -22,19 +37,23 @@ export default function ClienteNavbar() {
           Productos
         </Link>
 
-        <Link to="/perfil" style={estilos.link}>
-          Mi Perfil
+        <Link to="/cliente/compras" style={estilos.link}>
+          Mis Compras
         </Link>
 
         <button onClick={cerrarSesion} style={estilos.boton}>
           Cerrar sesión
         </button>
+
       </div>
+
     </nav>
+
   );
 }
 
 const estilos = {
+
   nav: {
     background: "#0d6efd",
     color: "white",
@@ -43,19 +62,28 @@ const estilos = {
     justifyContent: "space-between",
     alignItems: "center",
   },
+
   titulo: {
     margin: 0,
   },
+
+  saludo: {
+    marginRight: "20px",
+    fontWeight: "500"
+  },
+
   linksContainer: {
     display: "flex",
     alignItems: "center",
   },
+
   link: {
     color: "white",
     textDecoration: "none",
     marginRight: "20px",
     fontWeight: "500",
   },
+
   boton: {
     background: "#dc3545",
     border: "none",
@@ -64,4 +92,5 @@ const estilos = {
     borderRadius: "6px",
     cursor: "pointer",
   },
+
 };

@@ -1,55 +1,112 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
+/* ================= PAGINAS PUBLICAS ================= */
+
 import HomePage from "./pages/HomePage";
 import Login from "./pages/Login";
+
+/* ================= LAYOUTS ================= */
 
 import AdminLayout from "./components/Layout/AdminLayout";
 import ClienteLayout from "./components/Layout/ClienteLayout";
 import EmpleadoLayout from "./components/Layout/EmpleadoLayout";
+
+/* ================= ADMIN ================= */
 
 import Dashboard from "./pages/admin/Dashboard";
 import Productos from "./pages/admin/Productos";
 import Usuarios from "./pages/admin/Usuarios";
 import AdminVentas from "./pages/admin/Ventas";
 
+/* ================= CLIENTE ================= */
+
 import DashboardCliente from "./pages/cliente/DashboardCliente";
+import ProductosCliente from "./pages/cliente/ProductosCliente";
+import ComprasCliente from "./pages/cliente/ComprasCliente";
+
+/* ================= EMPLEADO ================= */
+
 import DashboardEmpleado from "./pages/empleado/DashboardEmpleado";
 import ProductosEmpleado from "./pages/empleado/ProductosEmpleado";
 
+/* ================= SEGURIDAD ================= */
+
+import ProtectedRoute from "./routes/ProtectedRoute";
+
 function App() {
+
   return (
+
     <Routes>
 
-      {/* PÁGINA PRINCIPAL PÚBLICA */}
-      <Route path="/" element={<HomePage />} />
+      {/* ================= PUBLICO ================= */}
 
-      {/* LOGIN */}
+      <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<Login />} />
 
-      {/* ADMIN */}
-      <Route path="/admin" element={<AdminLayout />}>
+      {/* ================= ADMIN ================= */}
+
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute role="administrador">
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      >
+
         <Route index element={<Dashboard />} />
         <Route path="productos" element={<Productos />} />
         <Route path="usuarios" element={<Usuarios />} />
         <Route path="ventas" element={<AdminVentas />} />
+
       </Route>
 
-      {/* CLIENTE */}
-      <Route path="/cliente" element={<ClienteLayout />}>
+      {/* ================= CLIENTE ================= */}
+
+      <Route
+        path="/cliente"
+        element={
+          <ProtectedRoute role="cliente">
+            <ClienteLayout />
+          </ProtectedRoute>
+        }
+      >
+
         <Route index element={<DashboardCliente />} />
+
+        {/* TIENDA */}
+        <Route path="productos" element={<ProductosCliente />} />
+
+        {/* HISTORIAL */}
+        <Route path="compras" element={<ComprasCliente />} />
+
       </Route>
 
-      {/* EMPLEADO */}
-      <Route path="/empleado" element={<EmpleadoLayout />}>
+      {/* ================= EMPLEADO ================= */}
+
+      <Route
+        path="/empleado"
+        element={
+          <ProtectedRoute role="empleado">
+            <EmpleadoLayout />
+          </ProtectedRoute>
+        }
+      >
+
         <Route index element={<DashboardEmpleado />} />
-        <Route path="productos" element={<ProductosEmpleado/>} /> 
+        <Route path="productos" element={<ProductosEmpleado />} />
+
       </Route>
 
-      {/* Ruta no encontrada */}
+      {/* ================= RUTA NO ENCONTRADA ================= */}
+
       <Route path="*" element={<Navigate to="/" replace />} />
 
     </Routes>
+
   );
+
 }
 
 export default App;

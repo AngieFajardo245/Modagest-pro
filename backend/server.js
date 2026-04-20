@@ -1,18 +1,23 @@
 require("dotenv").config();
-console.log("JWT_SECRET:", process.env.JWT_SECRET);
 
 const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const ExcelJS = require("exceljs");
+const { Op } = require("sequelize");
+const path = require("path");
+const fs = require("fs");
 
 const sequelize = require("./config/database");
+
 const Usuario = require("./models/Usuario");
 const Producto = require("./models/Producto");
-const Venta = require("./models/Ventas"); 
+const Venta = require("./models/Ventas");
 
 const verificarToken = require("./middlewares/authMiddleware");
 const verificarRol = require("./middlewares/rolMiddleware");
+const upload = require("./uploads/upload");
 
 const app = express();
 
@@ -20,20 +25,38 @@ app.use(cors());
 app.use(express.json());
 
 /* ===============================
-   RELACIONES
+CREAR CARPETA UPLOADS SI NO EXISTE
 =================================*/
-Venta.belongsTo(Producto, { foreignKey: "productoId" });
-Venta.belongsTo(Usuario, { foreignKey: "empleadoId" });
+const uploadPath = path.join(__dirname, "uploads");
+
+if (!fs.existsSync(uploadPath)) {
+  fs.mkdirSync(uploadPath);
+}
 
 /* ===============================
-   RUTA PRINCIPAL
+SERVIR IMÁGENES
+=================================*/
+app.use("/uploads", express.static(uploadPath));
+
+/* ===============================
+RELACIONES
+=================================*/
+Venta.belongsTo(Producto, { foreignKey: "productoId" });
+
+Venta.belongsTo(Usuario, {
+  foreignKey: "clienteId",
+  as: "Cliente"
+});
+
+/* ===============================
+RUTA PRINCIPAL
 =================================*/
 app.get("/", (req, res) => {
   res.send("ModaGest Pro API funcionando 🚀");
 });
 
 /* ===============================
-   REGISTRO DE USUARIO
+REGISTER
 =================================*/
 app.post("/auth/register", async (req, res) => {
   try {
@@ -45,43 +68,36 @@ app.post("/auth/register", async (req, res) => {
       });
     }
 
-    const usuarioExistente = await Usuario.findOne({ where: { email } });
+    const existe = await Usuario.findOne({ where: { email } });
 
-    if (usuarioExistente) {
+    if (existe) {
       return res.status(400).json({
         message: "El email ya está registrado"
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashed = await bcrypt.hash(password, 10);
 
-    const nuevoUsuario = await Usuario.create({
+    const usuario = await Usuario.create({
       nombre,
       email,
-      password: hashedPassword,
+      password: hashed,
       rol: "cliente"
     });
 
     res.status(201).json({
-      message: "Usuario registrado correctamente ✅",
-      usuario: {
-        id: nuevoUsuario.id,
-        nombre: nuevoUsuario.nombre,
-        email: nuevoUsuario.email,
-        rol: nuevoUsuario.rol
-      }
+      message: "Usuario registrado correctamente",
+      usuario
     });
 
   } catch (error) {
-    res.status(500).json({
-      error: "Error al registrar usuario",
-      detalle: error.message
-    });
+    console.error(error);
+    res.status(500).json({ error: error.message });
   }
 });
 
 /* ===============================
-   LOGIN
+LOGIN
 =================================*/
 app.post("/auth/login", async (req, res) => {
   try {
@@ -90,70 +106,146 @@ app.post("/auth/login", async (req, res) => {
     const usuario = await Usuario.findOne({ where: { email } });
 
     if (!usuario) {
-      return res.status(401).json({ message: "Credenciales inválidas" });
+      return res.status(401).json({
+        message: "Credenciales inválidas"
+      });
     }
 
-    const passwordValida = await bcrypt.compare(password, usuario.password);
+    const valido = await bcrypt.compare(password, usuario.password);
 
-    if (!passwordValida) {
-      return res.status(401).json({ message: "Credenciales inválidas" });
+    if (!valido) {
+      return res.status(401).json({
+        message: "Credenciales inválidas"
+      });
     }
 
     const token = jwt.sign(
-      {
-        id: usuario.id,
-        email: usuario.email,
-        rol: usuario.rol
-      },
+      { id: usuario.id, rol: usuario.rol },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
-    res.status(200).json({
-      message: "Login exitoso ✅",
-      token,
-      usuario: {
-        id: usuario.id,
-        nombre: usuario.nombre,
-        email: usuario.email,
-        rol: usuario.rol
-      }
-    });
+    res.json({ token, usuario });
 
   } catch (error) {
-    res.status(500).json({
-      error: "Error en el servidor",
-      detalle: error.message
-    });
-  }
-});
-
-/* ===============================
-   PERFIL
-=================================*/
-app.get("/perfil", verificarToken, async (req, res) => {
-  try {
-    const usuario = await Usuario.findByPk(req.usuario.id, {
-      attributes: ["id", "nombre", "email", "rol"],
-    });
-
-    res.json(usuario);
-  } catch (error) {
+    console.error(error);
     res.status(500).json({ error: error.message });
   }
 });
 
 /* ===============================
-   ADMIN - USUARIOS
+PRODUCTOS
+=================================*/
+app.get("/productos", verificarToken, async (req, res) => {
+  try {
+    const productos = await Producto.findAll({
+      order: [["createdAt", "DESC"]]
+    });
+
+    res.json(productos);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* ===============================
+CREAR PRODUCTO CON IMAGEN
+=================================*/
+app.post("/productos",
+  verificarToken,
+  verificarRol("administrador"),
+  upload.single("imagen"),
+  async (req, res) => {
+
+    try {
+
+      const { nombre, descripcion, precio, stock } = req.body;
+
+      if (!nombre || !precio) {
+        return res.status(400).json({
+          message: "Nombre y precio son obligatorios"
+        });
+      }
+
+      const imagen = req.file
+        ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`
+        : null;
+
+      const producto = await Producto.create({
+        nombre,
+        descripcion,
+        precio: Number(precio),
+        stock: Number(stock) || 0,
+        imagen
+      });
+
+      res.status(201).json(producto);
+
+    } catch (error) {
+      console.error("Error crear producto:", error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+/* ===============================
+ELIMINAR PRODUCTO
+=================================*/
+app.delete("/productos/:id",
+  verificarToken,
+  verificarRol("administrador"),
+  async (req, res) => {
+
+    try {
+
+      const producto = await Producto.findByPk(req.params.id);
+
+      if (!producto) {
+        return res.status(404).json({ message: "Producto no encontrado" });
+      }
+
+      // 🔥 ELIMINAR IMAGEN DEL DISCO
+      if (producto.imagen) {
+        const nombreArchivo = producto.imagen.split("/uploads/")[1];
+        const ruta = path.join(uploadPath, nombreArchivo);
+
+        if (fs.existsSync(ruta)) {
+          fs.unlinkSync(ruta);
+        }
+      }
+
+      await producto.destroy();
+
+      res.json({ message: "Producto eliminado" });
+
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+/* ===============================
+ADMIN - USUARIOS
 =================================*/
 app.get("/admin/usuarios",
   verificarToken,
   verificarRol("administrador"),
   async (req, res) => {
-    const usuarios = await Usuario.findAll({
-      attributes: ["id", "nombre", "email", "rol"]
-    });
-    res.json(usuarios);
+
+    try {
+      const usuarios = await Usuario.findAll({
+        attributes: ["id", "nombre", "email", "rol"],
+        order: [["createdAt", "DESC"]]
+      });
+
+      res.json(usuarios);
+
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
   }
 );
 
@@ -161,57 +253,68 @@ app.delete("/admin/usuarios/:id",
   verificarToken,
   verificarRol("administrador"),
   async (req, res) => {
-    const usuario = await Usuario.findByPk(req.params.id);
-    if (!usuario) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
+
+    try {
+
+      const usuario = await Usuario.findByPk(req.params.id);
+
+      if (!usuario) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+
+      if (usuario.email === "admin@modagest.com") {
+        return res.status(403).json({
+          message: "No se puede eliminar el administrador principal"
+        });
+      }
+
+      await usuario.destroy();
+
+      res.json({ message: "Usuario eliminado" });
+
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
-    await usuario.destroy();
-    res.json({ message: "Usuario eliminado correctamente ✅" });
   }
 );
 
+/* ===============================
+CAMBIAR ROL
+=================================*/
 app.put("/admin/usuarios/:id/rol",
   verificarToken,
   verificarRol("administrador"),
   async (req, res) => {
-    const usuario = await Usuario.findByPk(req.params.id);
-    if (!usuario) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
-    }
-    usuario.rol = req.body.rol;
-    await usuario.save();
-    res.json({ message: "Rol actualizado correctamente ✅" });
-  }
-);
 
-/* ===============================
-   PRODUCTOS
-=================================*/
-app.get("/productos", verificarToken, async (req, res) => {
-  const productos = await Producto.findAll();
-  res.json(productos);
-});
-
-app.post("/productos",
-  verificarToken,
-  verificarRol("administrador"),
-  async (req, res) => {
-    const nuevoProducto = await Producto.create(req.body);
-    res.status(201).json({
-      message: "Producto creado ✅",
-      producto: nuevoProducto
-    });
-  }
-);
-
-/* ===============================
-   REGISTRAR VENTA (EMPLEADO)
-=================================*/
-app.post("/empleado/vender",
-  verificarToken,
-  verificarRol("empleado"),
-  async (req, res) => {
     try {
+
+      const usuario = await Usuario.findByPk(req.params.id);
+
+      if (!usuario) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+
+      usuario.rol = req.body.rol;
+      await usuario.save();
+
+      res.json({ message: "Rol actualizado" });
+
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+/* ===============================
+CLIENTE - COMPRAR
+=================================*/
+app.post("/cliente/comprar",
+  verificarToken,
+  verificarRol("cliente"),
+  async (req, res) => {
+
+    try {
+
       const { productoId, cantidad } = req.body;
 
       const producto = await Producto.findByPk(productoId);
@@ -231,15 +334,12 @@ app.post("/empleado/vender",
 
       await Venta.create({
         productoId,
-        empleadoId: req.usuario.id,
+        clienteId: req.usuario.id,
         cantidad,
-        total,
+        total
       });
 
-      res.json({
-        message: "Venta registrada correctamente ✅",
-        stockRestante: producto.stock
-      });
+      res.json({ message: "Compra realizada" });
 
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -248,212 +348,42 @@ app.post("/empleado/vender",
 );
 
 /* ===============================
-   HISTORIAL DE VENTAS (ADMIN)
+CREAR ADMIN
 =================================*/
-const { Op } = require("sequelize");
+const crearAdmin = async () => {
 
-app.get("/admin/ventas",
-  verificarToken,
-  verificarRol("administrador"),
-  async (req, res) => {
-    try {
-      const { desde, hasta } = req.query;
-
-      let whereCondition = {};
-
-      if (desde && hasta) {
-        whereCondition.createdAt = {
-          [Op.between]: [new Date(desde), new Date(hasta)]
-        };
-      }
-
-      const ventas = await Venta.findAll({
-        where: whereCondition,
-        include: [Producto, Usuario],
-        order: [["createdAt", "DESC"]]
-      });
-
-      res.json(ventas);
-
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  }
-);
-
-/* ===============================
-   ESTADÍSTICAS ADMIN (DEBUG)
-=================================*/
-app.get("/admin/estadisticas", verificarToken, async (req, res) => {
-  try {
-    console.log("===== DEBUG ESTADÍSTICAS =====");
-
-    // Traer todas las ventas
-    const todasLasVentas = await Venta.findAll();
-    console.log("Ventas encontradas:", todasLasVentas.length);
-    console.log("Datos completos:", todasLasVentas);
-
-    // Contar ventas
-    const totalVentas = await Venta.count();
-    console.log("Total ventas:", totalVentas);
-
-    // Sumar ingresos
-    const ingresos = await Venta.sum("total");
-    console.log("Suma total ingresos:", ingresos);
-
-    // Ventas de hoy
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-
-    const ventasHoy = await Venta.count({
-      where: {
-        createdAt: {
-          [Op.gte]: hoy,
-        },
-      },
-    });
-
-    console.log("Ventas hoy:", ventasHoy);
-
-    console.log("===== FIN DEBUG =====");
-
-    res.json({
-      totalVentas,
-      ingresosTotales: ingresos || 0,
-      ventasHoy,
-    });
-
-  } catch (error) {
-    console.error("ERROR EN ESTADÍSTICAS:", error);
-    res.status(500).json({ error: "Error al obtener estadísticas" });
-  }
-});
-
-/* ===============================
-   VENTAS POR PRODUCTO
-=================================*/
-app.get("/admin/ventas-por-producto",
-  verificarToken,
-  verificarRol("administrador"),
-  async (req, res) => {
-    try {
-      const ventas = await Venta.findAll({
-        include: [{ model: Producto }]
-      });
-
-      const resumen = {};
-
-      ventas.forEach((venta) => {
-        const nombreProducto = venta.Producto.nombre;
-
-        if (!resumen[nombreProducto]) {
-          resumen[nombreProducto] = 0;
-        }
-
-        resumen[nombreProducto] += venta.cantidad;
-      });
-
-      res.json(resumen);
-
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  }
-);
-
-/* ===============================
-   EXPORTAR VENTAS A EXCEL
-=================================*/
-const ExcelJS = require("exceljs");
-
-app.get("/admin/exportar-ventas",
-  verificarToken,
-  verificarRol("administrador"),
-  async (req, res) => {
-    try {
-
-      const ventas = await Venta.findAll({
-        include: [Producto, Usuario],
-        order: [["createdAt", "DESC"]]
-      });
-
-      const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet("Ventas");
-
-      worksheet.columns = [
-        { header: "ID", key: "id", width: 10 },
-        { header: "Producto", key: "producto", width: 25 },
-        { header: "Empleado", key: "empleado", width: 25 },
-        { header: "Cantidad", key: "cantidad", width: 15 },
-        { header: "Total", key: "total", width: 15 },
-        { header: "Fecha", key: "fecha", width: 25 },
-      ];
-
-      ventas.forEach((venta) => {
-        worksheet.addRow({
-          id: venta.id,
-          producto: venta.Producto?.nombre,
-          empleado: venta.Usuario?.nombre,
-          cantidad: venta.cantidad,
-          total: venta.total,
-          fecha: venta.createdAt,
-        });
-      });
-
-      res.setHeader(
-        "Content-Type",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-      );
-      res.setHeader(
-        "Content-Disposition",
-        "attachment; filename=ventas.xlsx"
-      );
-
-      await workbook.xlsx.write(res);
-      res.end();
-
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  }
-);
-/* ===============================
-   CREAR ADMIN AUTOMÁTICO
-=================================*/
-const crearAdminAutomatico = async () => {
-  const adminExistente = await Usuario.findOne({
+  const existe = await Usuario.findOne({
     where: { email: "admin@modagest.com" }
   });
 
-  if (!adminExistente) {
-    const hashedPassword = await bcrypt.hash("123456", 10);
+  if (!existe) {
+
+    const pass = await bcrypt.hash("123456", 10);
 
     await Usuario.create({
       nombre: "Administrador",
       email: "admin@modagest.com",
-      password: hashedPassword,
+      password: pass,
       rol: "administrador"
     });
 
-    console.log("Administrador creado automáticamente ✅");
+    console.log("Admin creado");
   }
 };
 
 /* ===============================
-   SINCRONIZAR BASE
+INICIAR SERVIDOR
 =================================*/
-sequelize.sync()
-  .then(async () => {
-    console.log("Tablas sincronizadas correctamente ✅");
+sequelize.sync().then(async () => {
 
-    await crearAdminAutomatico();
+  console.log("Base de datos conectada");
 
-    const PORT = process.env.PORT || 5000;
+  await crearAdmin();
 
-    app.listen(PORT, () => {
-      console.log(`Servidor corriendo en puerto ✅ ${PORT}`);
-    });
-  })
-  .catch((error) => {
-    console.error("Error al sincronizar ❌:", error);
+  const PORT = process.env.PORT || 5000;
+
+  app.listen(PORT, () => {
+    console.log(`Servidor corriendo en puerto ${PORT}`);
   });
+
+});
