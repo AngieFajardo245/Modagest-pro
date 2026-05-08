@@ -13,6 +13,9 @@ const Producto = sequelize.define(
     nombre: {
       type: DataTypes.STRING,
       allowNull: false,
+      set(value) {
+        this.setDataValue("nombre", value.trim());
+      },
       validate: {
         notEmpty: {
           msg: "El nombre del producto es obligatorio"
@@ -29,10 +32,14 @@ const Producto = sequelize.define(
       allowNull: true
     },
 
-    // 🔥 CORREGIDO (mejor que FLOAT)
+    /* IMPORTANTE: que nos permitan convertir a número automáticamente */
     precio: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
+      get() {
+        const value = this.getDataValue("precio");
+        return value ? parseFloat(value) : 0;
+      },
       validate: {
         notNull: {
           msg: "El precio es obligatorio"
@@ -61,7 +68,12 @@ const Producto = sequelize.define(
 
     imagen: {
       type: DataTypes.STRING,
-      allowNull: true,  
+      allowNull: true,
+      validate: {
+        isUrl: {
+          msg: "La imagen debe ser una URL válida"
+        }
+      }
     }
   },
 

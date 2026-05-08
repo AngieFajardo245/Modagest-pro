@@ -1,4 +1,3 @@
-// src/components/Navbar.jsx
 import { Link, useNavigate, useLocation } from "react-router-dom";
 
 function Navbar() {
@@ -9,16 +8,15 @@ function Navbar() {
   const rol = localStorage.getItem("rol");
 
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("rol");
+    localStorage.clear();
     navigate("/");
   };
 
   const linkStyle = (path) => ({
     color: location.pathname === path ? "#d4af37" : "#fff",
-    marginRight: "20px",
+    marginRight: "18px",
     textDecoration: "none",
-    fontWeight: "500",
+    fontWeight: "500"
   });
 
   return (
@@ -29,7 +27,7 @@ function Navbar() {
         alignItems: "center",
         padding: "15px 40px",
         backgroundColor: "#111",
-        color: "#fff",
+        color: "#fff"
       }}
     >
       <h2 style={{ margin: 0, cursor: "pointer" }} onClick={() => navigate("/")}>
@@ -37,11 +35,8 @@ function Navbar() {
       </h2>
 
       <div>
-        {/* Siempre visible */}
-        <Link to="/" style={linkStyle("/")}>
-          Inicio
-        </Link>
 
+        {/* PÚBLICO */}
         {!token && (
           <Link to="/login" style={linkStyle("/login")}>
             Iniciar sesión
@@ -52,27 +47,20 @@ function Navbar() {
         {token && rol === "administrador" && (
           <>
             <Link to="/admin" style={linkStyle("/admin")}>
-              Panel Admin
+              Dashboard
+            </Link>
+
+            <Link to="/admin/usuarios" style={linkStyle("/admin/usuarios")}>
+              Usuarios
             </Link>
 
             <Link to="/admin/productos" style={linkStyle("/admin/productos")}>
               Productos
             </Link>
 
-            <button
-              onClick={logout}
-              style={{
-                marginLeft: "10px",
-                padding: "6px 12px",
-                backgroundColor: "#e63946",
-                color: "#fff",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-              }}
-            >
-              Cerrar sesión
-            </button>
+            <Link to="/admin/ventas" style={linkStyle("/admin/ventas")}>
+              Ventas
+            </Link>
           </>
         )}
 
@@ -80,25 +68,37 @@ function Navbar() {
         {token && rol === "cliente" && (
           <>
             <Link to="/cliente" style={linkStyle("/cliente")}>
-              Mi Panel
+              Panel
             </Link>
 
-            <button
-              onClick={logout}
-              style={{
-                marginLeft: "10px",
-                padding: "6px 12px",
-                backgroundColor: "#e63946",
-                color: "#fff",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-              }}
-            >
-              Cerrar sesión
-            </button>
+            <Link to="/cliente/productos" style={linkStyle("/cliente/productos")}>
+              Productos
+            </Link>
+
+            <Link to="/cliente/compras" style={linkStyle("/cliente/compras")}>
+              Mis Compras
+            </Link>
           </>
         )}
+
+        {/* LOGOUT */}
+        {token && (
+          <button
+            onClick={logout}
+            style={{
+              marginLeft: "10px",
+              padding: "6px 12px",
+              backgroundColor: "#e63946",
+              color: "#fff",
+              border: "none",
+              borderRadius: "6px",
+              cursor: "pointer"
+            }}
+          >
+            Cerrar sesión
+          </button>
+        )}
+
       </div>
     </nav>
   );

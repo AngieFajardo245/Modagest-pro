@@ -3,14 +3,17 @@ import { Navigate } from "react-router-dom";
 function ProtectedRoute({ children, role }) {
 
   const token = localStorage.getItem("token");
-  const userRole = localStorage.getItem("rol");
 
-  // Si no hay token -> login
+  // SACAR ROL DESDE USUARIO (NO DESDE "rol")
+  const usuario = JSON.parse(localStorage.getItem("usuario"));
+  const userRole = usuario?.rol;
+
+  /* ================= SIN TOKEN ================= */
   if (!token) {
     return <Navigate to="/login" replace />;
   }
 
-  // Si se requiere rol específico
+  /* ================= VALIDAR ROL ================= */
   if (role && userRole !== role) {
     return <Navigate to="/" replace />;
   }

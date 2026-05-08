@@ -6,284 +6,332 @@ function Login() {
 
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [nombre, setNombre] = useState("");
-
-  const [viewPassword, setViewPassword] = useState(false);
   const [view, setView] = useState("login");
 
+  const [form, setForm] = useState({
+    nombre: "",
+    email: "",
+    password: ""
+  });
+
+  const [viewPassword, setViewPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
 
-  /* =========================
-      LOGIN
-  ========================= */
+  const handleChange = (e) => {
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  /* ================= REDIRECCIÓN PRO ================= */
+
+  const redirigirDespuesLogin = (usuario) => {
+
+    const redirect = localStorage.getItem("redirectAfterLogin");
+
+    // Si venía del carrito u otra página
+    if (redirect) {
+      localStorage.removeItem("redirectAfterLogin");
+      navigate(redirect);
+      return;
+    }
+
+    //  Si no, redirección normal por rol
+    if (usuario.rol === "administrador") navigate("/admin");
+    else if (usuario.rol === "empleado") navigate("/empleado");
+    else navigate("/cliente");
+  };
+
+  /* ================= LOGIN ================= */
+
   const handleLogin = async (e) => {
-
     e.preventDefault();
 
+    setLoading(true);
     setErrorMessage("");
-    setSuccessMessage("");
 
     try {
-
-      const response = await api.post("/auth/login", {
-        email: email.trim(),
-        password: password.trim()
+      const res = await api.post("/auth/login", {
+        email: form.email.trim(),
+        password: form.password.trim()
       });
 
-      const { token, usuario } = response.data;
+      const { token, usuario } = res.data;
 
-      if (!token || !usuario) {
-        throw new Error("Respuesta inválida del servidor");
-      }
-
-      // limpiar storage
       localStorage.clear();
-
-      const rolNormalizado = usuario.rol.toLowerCase().trim();
-
-      // guardar datos correctamente
       localStorage.setItem("token", token);
-      localStorage.setItem("rol", rolNormalizado);
-      localStorage.setItem("usuario", JSON.stringify(usuario));
-
-      console.log("Login exitoso:", usuario);
-
-      /* ===== REDIRECCIÓN SEGURA ===== */
-
-      if (rolNormalizado === "administrador") {
-        navigate("/admin");
-      } else if (rolNormalizado === "empleado") {
-        navigate("/empleado");
-      } else if (rolNormalizado === "cliente") {
-        navigate("/cliente");
-      } else {
-        setErrorMessage("Rol desconocido");
-      }
+      localStorage.setItem("rol", usuario.rol.toLowerCase());
+      localStorage.setItem("usuario", JSON.stringify(usuario))
+      
+      redirigirDespuesLogin(usuario);
 
     } catch (error) {
-
-      console.error("Error login:", error);
-
       setErrorMessage(
         error.response?.data?.message ||
         "Credenciales incorrectas ❌"
       );
+    } finally {
+      setLoading(false);
     }
   };
 
-  /* =========================
-      REGISTER
-  ========================= */
-  const handleRegister = async (e) => {
+  /* ================= REGISTER ================= */
 
+  const handleRegister = async (e) => {
     e.preventDefault();
 
+    setLoading(true);
     setErrorMessage("");
-    setSuccessMessage("");
+
+    if (!form.nombre || !form.email || !form.password) {
+      setErrorMessage("Todos los campos son obligatorios");
+      setLoading(false);
+      return;
+    }
 
     try {
 
       await api.post("/auth/register", {
-        nombre: nombre.trim(),
-        email: email.trim(),
-        password: password.trim()
+        nombre: form.nombre.trim(),
+        email: form.email.trim(),
+        password: form.password.trim()
       });
 
-      setSuccessMessage("Usuario registrado correctamente ✅");
+      // LOGIN AUTOMÁTICO
+      const res = await api.post("/auth/login", {
+        email: form.email.trim(),
+        password: form.password.trim()
+      });
 
-      // limpiar campos
-      setNombre("");
-      setEmail("");
-      setPassword("");
+      const { token, usuario } = res.data;
 
-      // volver a login
-      setView("login");
+      localStorage.setItem("token", token);
+      localStorage.setItem("rol", usuario.rol.toLowerCase());
+      localStorage.setItem("usuario", JSON.stringify(usuario));
+
+      redirigirDespuesLogin(usuario);
 
     } catch (error) {
-
-      console.error("Error register:", error);
-
       setErrorMessage(
         error.response?.data?.message ||
-        "Error al registrar usuario ❌"
+        "No se pudo registrar ❌"
       );
+    } finally {
+      setLoading(false);
     }
   };
 
-  /* =========================
-      UI
-  ========================= */
   return (
 
-    <div
-      style={{
-        maxWidth: "420px",
-        margin: "80px auto",
-        padding: "35px",
-        background: "#fff",
-        borderRadius: "12px",
-        boxShadow: "0 8px 25px rgba(0,0,0,0.15)"
-      }}
-    >
+    <div style={styles.container}>
 
-      <h2 style={{ textAlign: "center", marginBottom: "25px" }}>
-        ModaGest Pro
-      </h2>
+      <div style={styles.card}>
 
-      {/* ================= LOGIN ================= */}
+        <h2 style={styles.title}>ModaGest Pro</h2>
 
-      {view === "login" && (
+        {/* LOGIN */}
+        {view === "login" && (
+          <form onSubmit={handleLogin}>
 
-        <form onSubmit={handleLogin}>
+            <input
+              name="email"
+              placeholder="Correo"
+              value={form.email}
+              onChange={handleChange}
+              required
+              style={styles.input}
+            />
 
-          <input
-            type="email"
-            placeholder="Correo electrónico"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{ width: "100%", padding: "12px", marginBottom: "15px" }}
-          />
+            <div style={styles.passwordContainer}>
+              <input
+                type={viewPassword ? "text" : "password"}
+                name="password"
+                placeholder="Contraseña"
+                value={form.password}
+                onChange={handleChange}
+                required
+                style={styles.passwordInput}
+              />
+              <span
+                onClick={() => setViewPassword(!viewPassword)}
+                style={styles.eye}
+              >
+                👁
+              </span>
+            </div>
 
-          <input
-            type={viewPassword ? "text" : "password"}
-            placeholder="Contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={{ width: "100%", padding: "12px", marginBottom: "10px" }}
-          />
+            <button style={styles.primaryBtn} disabled={loading}>
+              {loading ? "Ingresando..." : "Ingresar"}
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setViewPassword(!viewPassword)}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#007bff",
-              cursor: "pointer",
-              marginBottom: "15px"
-            }}
-          >
-            {viewPassword ? "Ocultar contraseña" : "Ver contraseña"}
-          </button>
+            <p style={styles.switch}>
+              ¿No tienes cuenta?{" "}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setView("register");
+                }}
+                style={styles.linkBtn}
+              >
+                Regístrate
+              </button>
+            </p>
 
-          <button
-            type="submit"
-            style={{
-              width: "100%",
-              padding: "12px",
-              background: "#007bff",
-              color: "#fff",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer"
-            }}
-          >
-            Ingresar
-          </button>
+          </form>
+        )}
 
-          <div style={{ marginTop: "18px", textAlign: "center" }}>
-            <span
-              style={{ cursor: "pointer", color: "#007bff" }}
-              onClick={() => {
-                setView("register");
-                setErrorMessage("");
-                setSuccessMessage("");
-              }}
-            >
-              Crear cuenta
-            </span>
-          </div>
+        {/* REGISTER */}
+        {view === "register" && (
+          <form onSubmit={handleRegister}>
 
-        </form>
+            <input
+              name="nombre"
+              placeholder="Nombre"
+              value={form.nombre}
+              onChange={handleChange}
+              required
+              style={styles.input}
+            />
 
-      )}
+            <input
+              name="email"
+              placeholder="Correo"
+              value={form.email}
+              onChange={handleChange}
+              required
+              style={styles.input}
+            />
 
-      {/* ================= REGISTER ================= */}
+            <div style={styles.passwordContainer}>
+              <input
+                type={viewPassword ? "text" : "password"}
+                name="password"
+                placeholder="Contraseña"
+                value={form.password}
+                onChange={handleChange}
+                required
+                style={styles.passwordInput}
+              />
+              <span
+                onClick={() => setViewPassword(!viewPassword)}
+                style={styles.eye}
+              >
+                👁
+              </span>
+            </div>
 
-      {view === "register" && (
+            <button style={styles.successBtn} disabled={loading}>
+              {loading ? "Registrando..." : "Registrarse"}
+            </button>
 
-        <form onSubmit={handleRegister}>
+            <p style={styles.switch}>
+              ¿Ya tienes cuenta?{" "}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setView("login");
+                }}
+                style={styles.linkBtn}
+              >
+                Inicia sesión
+              </button>
+            </p>
 
-          <input
-            type="text"
-            placeholder="Nombre"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            required
-            style={{ width: "100%", padding: "12px", marginBottom: "15px" }}
-          />
+          </form>
+        )}
 
-          <input
-            type="email"
-            placeholder="Correo electrónico"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{ width: "100%", padding: "12px", marginBottom: "15px" }}
-          />
+        {errorMessage && <p style={styles.error}>{errorMessage}</p>}
 
-          <input
-            type={viewPassword ? "text" : "password"}
-            placeholder="Contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={{ width: "100%", padding: "12px", marginBottom: "15px" }}
-          />
-
-          <button
-            type="submit"
-            style={{
-              width: "100%",
-              padding: "12px",
-              background: "#28a745",
-              color: "#fff",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer"
-            }}
-          >
-            Registrarse
-          </button>
-
-          <div style={{ marginTop: "18px", textAlign: "center" }}>
-            <span
-              style={{ cursor: "pointer", color: "#007bff" }}
-              onClick={() => {
-                setView("login");
-                setErrorMessage("");
-                setSuccessMessage("");
-              }}
-            >
-              Volver al login
-            </span>
-          </div>
-
-        </form>
-
-      )}
-
-      {/* MENSAJES */}
-
-      {errorMessage && (
-        <p style={{ color: "red", marginTop: "15px" }}>
-          {errorMessage}
-        </p>
-      )}
-
-      {successMessage && (
-        <p style={{ color: "green", marginTop: "15px" }}>
-          {successMessage}
-        </p>
-      )}
-
+      </div>
     </div>
   );
 }
+
+/* ================= ESTILOS ================= */
+
+const styles = {
+  container: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    height: "100vh",
+    background: "linear-gradient(135deg, #141e30, #243b55)"
+  },
+  card: {
+    background: "#fff",
+    padding: "30px",
+    borderRadius: "12px",
+    width: "380px",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.3)"
+  },
+  title: {
+    textAlign: "center",
+    marginBottom: "20px"
+  },
+  input: {
+    width: "100%",
+    padding: "10px",
+    marginBottom: "10px",
+    borderRadius: "6px",
+    border: "1px solid #ccc"
+  },
+  passwordContainer: {
+    position: "relative",
+    marginBottom: "10px"
+  },
+  passwordInput: {
+    width: "100%",
+    padding: "10px",
+    borderRadius: "6px",
+    border: "1px solid #ccc",
+    paddingRight: "40px"
+  },
+  eye: {
+    position: "absolute",
+    right: "10px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    cursor: "pointer"
+  },
+  primaryBtn: {
+    width: "100%",
+    padding: "10px",
+    background: "#007bff",
+    color: "#fff",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer"
+  },
+  successBtn: {
+    width: "100%",
+    padding: "10px",
+    background: "#28a745",
+    color: "#fff",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer"
+  },
+  switch: {
+    textAlign: "center",
+    marginTop: "15px"
+  },
+  linkBtn: {
+    background: "none",
+    border: "none",
+    color: "#007bff",
+    fontWeight: "bold",
+    cursor: "pointer",
+    padding: 0
+  },
+  error: {
+    color: "red",
+    marginTop: "10px",
+    textAlign: "center"
+  }
+};
 
 export default Login;

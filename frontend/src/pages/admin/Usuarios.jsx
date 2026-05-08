@@ -4,7 +4,8 @@ import api from "../../services/api";
 function Usuarios() {
 
   const [usuarios, setUsuarios] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   /* ================= OBTENER USUARIOS ================= */
 
@@ -13,15 +14,21 @@ function Usuarios() {
     try {
 
       setLoading(true);
+      setError("");
 
       const response = await api.get("/admin/usuarios");
 
-      setUsuarios(response.data);
+      console.log("Usuarios:", response.data);
+
+      const data = Array.isArray(response.data) ? response.data : [];
+
+      setUsuarios(data);
 
     } catch (error) {
 
       console.error("Error al obtener usuarios:", error);
-      alert("No se pudieron cargar los usuarios");
+
+      setError("No se pudieron cargar los usuarios");
 
     } finally {
 
@@ -35,7 +42,7 @@ function Usuarios() {
     obtenerUsuarios();
   }, []);
 
-  /* ================= ELIMINAR USUARIO ================= */
+  /* ================= ELIMINAR ================= */
 
   const eliminarUsuario = async (id) => {
 
@@ -46,9 +53,7 @@ function Usuarios() {
 
       await api.delete(`/admin/usuarios/${id}`);
 
-      alert("Usuario eliminado correctamente");
-
-      obtenerUsuarios();
+      setUsuarios(prev => prev.filter(u => u.id !== id));
 
     } catch (error) {
 
@@ -63,17 +68,18 @@ function Usuarios() {
 
   const cambiarRol = async (id, nuevoRol) => {
 
-    const confirmar = window.confirm("¿Deseas cambiar el rol de este usuario?");
-
+    const confirmar = window.confirm("¿Deseas cambiar el rol?");
     if (!confirmar) return;
 
     try {
 
       await api.put(`/admin/usuarios/${id}/rol`, { rol: nuevoRol });
 
-      alert("Rol actualizado correctamente");
-
-      obtenerUsuarios();
+      setUsuarios(prev =>
+        prev.map(u =>
+          u.id === id ? { ...u, rol: nuevoRol } : u
+        )
+      );
 
     } catch (error) {
 
@@ -84,7 +90,15 @@ function Usuarios() {
 
   };
 
-  /* ================= INTERFAZ ================= */
+  /* ================= UI ================= */
+
+  if (loading) {
+    return <p style={{ padding: "20px" }}>Cargando usuarios...</p>;
+  }
+
+  if (error) {
+    return <p style={{ color: "red", padding: "20px" }}>{error}</p>;
+  }
 
   return (
 
@@ -92,107 +106,89 @@ function Usuarios() {
 
       <h2>Gestión de Usuarios</h2>
 
-      {loading ? (
+      <table className="table table-striped mt-3">
 
-        <p>Cargando usuarios...</p>
+        <thead>
 
-      ) : (
+          <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th>Rol</th>
+            <th>Acciones</th>
+          </tr>
 
-        <table className="table table-striped mt-3">
+        </thead>
 
-          <thead>
+        <tbody>
 
-            <tr>
+          {usuarios.length > 0 ? (
 
-              <th>ID</th>
-              <th>Nombre</th>
-              <th>Email</th>
-              <th>Rol</th>
-              <th>Acciones</th>
+            usuarios.map((usuario) => (
 
-            </tr>
+              <tr key={usuario.id}>
 
-          </thead>
+                <td>{usuario.id}</td>
+                <td>{usuario.nombre}</td>
+                <td>{usuario.email}</td>
 
-          <tbody>
+                <td>
 
-            {usuarios.length > 0 ? (
+                  {usuario.rol === "administrador" ? (
 
-              usuarios.map((usuario) => (
+                    <span className="badge bg-dark">
+                      Administrador
+                    </span>
 
-                <tr key={usuario.id}>
+                  ) : (
 
-                  <td>{usuario.id}</td>
-                  <td>{usuario.nombre}</td>
-                  <td>{usuario.email}</td>
+                    <select
+                      className="form-select form-select-sm"
+                      value={usuario.rol}
+                      onChange={(e) =>
+                        cambiarRol(usuario.id, e.target.value)
+                      }
+                    >
+                      <option value="cliente">Cliente</option>
+                      <option value="empleado">Empleado</option>
+                    </select>
 
-                  <td>
+                  )}
 
-                    {usuario.rol === "administrador" ? (
+                </td>
 
-                      <span className="badge bg-dark">
-                        Administrador
-                      </span>
+                <td>
 
-                    ) : (
+                  {usuario.rol !== "administrador" && (
 
-                      <select
-                        className="form-select form-select-sm"
-                        value={usuario.rol}
-                        onChange={(e) =>
-                          cambiarRol(usuario.id, e.target.value)
-                        }
-                      >
+                    <button
+                      className="btn btn-danger btn-sm"
+                      onClick={() => eliminarUsuario(usuario.id)}
+                    >
+                      Eliminar
+                    </button>
 
-                        <option value="cliente">Cliente</option>
-                        <option value="empleado">Empleado</option>
-
-                      </select>
-
-                    )}
-
-                  </td>
-
-                  <td>
-
-                    {usuario.rol !== "administrador" && (
-
-                      <button
-                        className="btn btn-danger btn-sm"
-                        onClick={() => eliminarUsuario(usuario.id)}
-                      >
-
-                        Eliminar
-
-                      </button>
-
-                    )}
-
-                  </td>
-
-                </tr>
-
-              ))
-
-            ) : (
-
-              <tr>
-
-                <td colSpan="5" className="text-center">
-
-                  No hay usuarios registrados
+                  )}
 
                 </td>
 
               </tr>
 
-            )}
+            ))
 
-          </tbody>
+          ) : (
 
-        </table>
+            <tr>
+              <td colSpan="5" className="text-center">
+                No hay usuarios registrados
+              </td>
+            </tr>
 
-      )}
+          )}
+
+        </tbody>
+
+      </table>
 
     </div>
 

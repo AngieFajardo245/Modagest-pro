@@ -1,32 +1,48 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 
 function ProductosCliente() {
 
+  const navigate = useNavigate();
+
   const [productos, setProductos] = useState([]);
+  const [filtrados, setFiltrados] = useState([]);
+
   const [cantidades, setCantidades] = useState({});
   const [loading, setLoading] = useState(true);
 
-  const [productoSeleccionado, setProductoSeleccionado] = useState(null);
-  const [metodoPago, setMetodoPago] = useState("");
+  /* ================= FILTROS ================= */
 
-  /* ================= CARGAR PRODUCTOS ================= */
+  const [busqueda, setBusqueda] = useState("");
+  const [precioMax, setPrecioMax] = useState("");
+  const [soloStock, setSoloStock] = useState(false);
+  const [orden, setOrden] = useState("");
+
+  /* ================= FORMATO ================= */
+
+  const formatear = (valor) => {
+    return new Intl.NumberFormat("es-CO").format(valor);
+  };
+
+  /* ================= CARGAR ================= */
 
   const obtenerProductos = async () => {
     try {
       setLoading(true);
+
       const res = await api.get("/productos");
-
       const data = Array.isArray(res.data) ? res.data : [];
-      setProductos(data);
 
-      // Inicializar cantidades en 1
+      setProductos(data);
+      setFiltrados(data);
+
       const inicial = {};
       data.forEach(p => inicial[p.id] = 1);
       setCantidades(inicial);
 
     } catch (error) {
-      console.error("Error cargando productos:", error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -36,13 +52,47 @@ function ProductosCliente() {
     obtenerProductos();
   }, []);
 
-  /* ================= CONTROL CANTIDAD ================= */
+  /* ================= FILTRAR ================= */
 
-  const aumentar = (id) => {
-    setCantidades({
-      ...cantidades,
-      [id]: cantidades[id] + 1
-    });
+  useEffect(() => {
+
+    let data = [...productos];
+
+    if (busqueda) {
+      data = data.filter(p =>
+        p.nombre.toLowerCase().includes(busqueda.toLowerCase())
+      );
+    }
+
+    if (precioMax) {
+      data = data.filter(p => p.precio <= Number(precioMax));
+    }
+
+    if (soloStock) {
+      data = data.filter(p => p.stock > 0);
+    }
+
+    if (orden === "precio-asc") {
+      data.sort((a, b) => a.precio - b.precio);
+    }
+
+    if (orden === "precio-desc") {
+      data.sort((a, b) => b.precio - a.precio);
+    }
+
+    setFiltrados(data);
+
+  }, [busqueda, precioMax, soloStock, orden, productos]);
+
+  /* ================= CANTIDAD ================= */
+
+  const aumentar = (id, stock) => {
+    if (cantidades[id] < stock) {
+      setCantidades({
+        ...cantidades,
+        [id]: cantidades[id] + 1
+      });
+    }
   };
 
   const disminuir = (id) => {
@@ -54,39 +104,37 @@ function ProductosCliente() {
     }
   };
 
-  /* ================= ABRIR MODAL ================= */
+  /* ================= CARRITO ================= */
 
-  const abrirCompra = (producto) => {
-    setProductoSeleccionado(producto);
-    setMetodoPago("");
-  };
+  const agregarAlCarrito = (producto) => {
 
-  /* ================= CONFIRMAR COMPRA ================= */
+    const token = localStorage.getItem("token");
 
-  const confirmarCompra = async () => {
-
-    if (!metodoPago) {
-      alert("Selecciona un método de pago");
+    if (!token) {
+      alert("Debes iniciar sesión para comprar 🛍");
+      navigate("/login");
       return;
     }
 
-    try {
+    const carrito = JSON.parse(localStorage.getItem("carrito")) || [];
 
-      await api.post("/cliente/comprar", {
-        productoId: productoSeleccionado.id,
-        cantidad: cantidades[productoSeleccionado.id]
+    const existe = carrito.find(p => p.id === producto.id);
+
+    if (existe) {
+      existe.cantidad += cantidades[producto.id];
+    } else {
+      carrito.push({
+        ...producto,
+        cantidad: cantidades[producto.id]
       });
-
-      alert("Compra realizada con éxito 🛍");
-
-      setProductoSeleccionado(null);
-
-      obtenerProductos();
-
-    } catch (error) {
-      console.error(error);
-      alert("Error al realizar la compra");
     }
+
+    localStorage.setItem("carrito", JSON.stringify(carrito));
+
+    // me permita refrescar navbar
+    window.dispatchEvent(new Event("storage"));
+
+    alert("Producto agregado al carrito 🛒");
   };
 
   /* ================= UI ================= */
@@ -99,146 +147,156 @@ function ProductosCliente() {
 
     <div className="container mt-4">
 
-      <h2 className="mb-4">🛍️ Tienda de Productos</h2>
+      <h2 className="mb-4 text-center">🛍️ Tienda</h2>
+
+      {/* FILTROS */}
+
+      <div className="row mb-4">
+
+        <div className="col-md-3">
+          <input
+            type="text"
+            placeholder="Buscar producto..."
+            className="form-control"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
+        </div>
+
+        <div className="col-md-3">
+          <input
+            type="number"
+            placeholder="Precio máximo"
+            className="form-control"
+            value={precioMax}
+            onChange={(e) => setPrecioMax(e.target.value)}
+          />
+        </div>
+
+        <div className="col-md-3">
+          <select
+            className="form-control"
+            value={orden}
+            onChange={(e) => setOrden(e.target.value)}
+          >
+            <option value="">Ordenar</option>
+            <option value="precio-asc">Menor precio</option>
+            <option value="precio-desc">Mayor precio</option>
+          </select>
+        </div>
+
+        <div className="col-md-3 d-flex align-items-center">
+          <input
+            type="checkbox"
+            checked={soloStock}
+            onChange={(e) => setSoloStock(e.target.checked)}
+          />
+          <span className="ms-2">Solo disponibles</span>
+        </div>
+
+      </div>
+
+      {/* PRODUCTOS */}
 
       <div className="row">
 
-        {productos.map((p) => {
+        {filtrados.length === 0 ? (
+          <p className="text-center">No hay resultados</p>
+        ) : (
 
-          const cantidad = cantidades[p.id] || 1;
-          const total = p.precio * cantidad;
+          filtrados.map((p) => {
 
-          return (
+            const cantidad = cantidades[p.id] || 1;
+            const total = p.precio * cantidad;
 
-            <div className="col-md-4 mb-4" key={p.id}>
+            return (
 
-              <div className="card shadow-sm h-100">
+              <div className="col-md-4 mb-4" key={p.id}>
 
-                {/* IMAGEN */}
-                {p.imagen && (
-                  <img
-                    src={p.imagen}
-                    alt={p.nombre}
-                    style={{
-                      height: "200px",
-                      objectFit: "cover"
-                    }}
-                  />
-                )}
+                <div className="card shadow-sm h-100 border-0">
 
-                <div className="card-body">
+                  <div style={styles.imageBox}>
+                    <img
+                      src={p.imagen || "https://via.placeholder.com/300x200"}
+                      alt={p.nombre}
+                      style={styles.image}
+                    />
+                  </div>
 
-                  <h5>{p.nombre}</h5>
+                  <div className="card-body text-center">
 
-                  <p className="text-muted">{p.descripcion}</p>
+                    <h5>{p.nombre}</h5>
 
-                  <p><strong>${p.precio}</strong></p>
+                    <p className="text-muted small">{p.descripcion}</p>
 
-                  <p>Stock: {p.stock}</p>
+                    <h5 className="text-success">
+                      ${formatear(p.precio)}
+                    </h5>
 
-                  {/* CONTADOR */}
-                  <div className="d-flex align-items-center mb-2">
+                    <p className="small">Stock: {p.stock}</p>
 
+                    {/* CONTADOR */}
+                    <div className="d-flex justify-content-center align-items-center mb-2">
+                      <button
+                        className="btn btn-outline-secondary btn-sm"
+                        onClick={() => disminuir(p.id)}
+                      >-</button>
+
+                      <span className="mx-3">{cantidad}</span>
+
+                      <button
+                        className="btn btn-outline-secondary btn-sm"
+                        onClick={() => aumentar(p.id, p.stock)}
+                      >+</button>
+                    </div>
+
+                    <p><strong>Total: ${formatear(total)}</strong></p>
+
+                    {/* nuevo boton */}
                     <button
-                      className="btn btn-outline-secondary"
-                      onClick={() => disminuir(p.id)}
+                      className="btn btn-primary w-100"
+                      onClick={() => agregarAlCarrito(p)}
                     >
-                      -
-                    </button>
-
-                    <span className="mx-3">{cantidad}</span>
-
-                    <button
-                      className="btn btn-outline-secondary"
-                      onClick={() => aumentar(p.id)}
-                    >
-                      +
+                      🛒 Agregar al carrito
                     </button>
 
                   </div>
-
-                  {/* TOTAL */}
-                  <p><strong>Total: ${total}</strong></p>
-
-                  {/* BOTÓN */}
-                  <button
-                    className="btn btn-success w-100"
-                    disabled={p.stock <= 0}
-                    onClick={() => abrirCompra(p)}
-                  >
-                    Comprar
-                  </button>
 
                 </div>
 
               </div>
 
-            </div>
+            );
 
-          );
+          })
 
-        })}
+        )}
 
       </div>
 
-      {/* ================= MODAL ================= */}
-
-      {productoSeleccionado && (
-
-        <div className="modal show d-block" style={{ background: "rgba(0,0,0,0.5)" }}>
-
-          <div className="modal-dialog">
-
-            <div className="modal-content p-3">
-
-              <h4>Confirmar Compra</h4>
-
-              <p><strong>{productoSeleccionado.nombre}</strong></p>
-
-              <p>Cantidad: {cantidades[productoSeleccionado.id]}</p>
-
-              <p>
-                Total: $
-                {productoSeleccionado.precio *
-                  cantidades[productoSeleccionado.id]}
-              </p>
-
-              <select
-                className="form-control mb-3"
-                value={metodoPago}
-                onChange={(e) => setMetodoPago(e.target.value)}
-              >
-                <option value="">Seleccione método de pago</option>
-                <option value="efectivo">Efectivo</option>
-                <option value="tarjeta">Tarjeta</option>
-                <option value="nequi">Nequi</option>
-              </select>
-
-              <button
-                className="btn btn-primary mb-2"
-                onClick={confirmarCompra}
-              >
-                Confirmar Compra
-              </button>
-
-              <button
-                className="btn btn-secondary"
-                onClick={() => setProductoSeleccionado(null)}
-              >
-                Cancelar
-              </button>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      )}
-
     </div>
-
   );
 }
 
 export default ProductosCliente;
+
+/* ================= ESTILOS ================= */
+
+const styles = {
+
+  imageBox: {
+    height: "220px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "#fff",
+    padding: "10px"
+  },
+
+  image: {
+    maxHeight: "100%",
+    maxWidth: "100%",
+    objectFit: "contain"
+  }
+
+};

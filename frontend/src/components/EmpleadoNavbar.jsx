@@ -1,57 +1,98 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 
 export default function EmpleadoNavbar() {
+
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const usuario = JSON.parse(localStorage.getItem("usuario"));
+  const nombre = usuario?.nombre || "Empleado";
 
   const cerrarSesion = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("rol");
+    localStorage.clear();
     navigate("/login", { replace: true });
   };
 
-  return (
-    <nav style={estilos.nav}>
-      <h3 style={estilos.titulo}>Panel Empleado</h3>
+  const linkStyle = (path) => ({
+    color: location.pathname === path ? "#d4af37" : "#fff",
+    textDecoration: "none",
+    marginRight: "20px",
+    fontWeight: "500",
+    transition: "0.2s"
+  });
 
-      <div style={estilos.linksContainer}>
-        <Link to="/empleado" style={estilos.link}>
-          Panel 
+  return (
+
+    <nav style={styles.nav}>
+
+      {/* LOGO */}
+      <h3
+        style={styles.titulo}
+        onClick={() => navigate("/empleado")}
+      >
+        👨‍💼 Panel Empleado
+      </h3>
+
+      <div style={styles.linksContainer}>
+
+        {/* SALUDO */}
+        <span style={styles.saludo}>
+          Hola, {nombre}
+        </span>
+
+        {/* LINKS */}
+        <Link to="/empleado" style={linkStyle("/empleado")}>
+          Panel
         </Link>
 
-        <Link to="/empleado/productos" style={estilos.link}>
+        <Link to="/empleado/productos" style={linkStyle("/empleado/productos")}>
           Productos
         </Link>
 
-        <button onClick={cerrarSesion} style={estilos.boton}>
+        {/* LOGOUT */}
+        <button
+          onClick={cerrarSesion}
+          style={styles.boton}
+        >
           Cerrar sesión
         </button>
+
       </div>
+
     </nav>
+
   );
 }
 
-const estilos = {
+/* ================= ESTILOS ================= */
+
+const styles = {
+
   nav: {
-    background: "#198754",
+    background: "linear-gradient(90deg, #198754, #157347)",
     color: "white",
     padding: "15px 30px",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+    boxShadow: "0 4px 10px rgba(0,0,0,0.1)"
   },
+
   titulo: {
     margin: 0,
+    cursor: "pointer"
   },
+
+  saludo: {
+    marginRight: "20px",
+    fontWeight: "500"
+  },
+
   linksContainer: {
     display: "flex",
-    alignItems: "center",
+    alignItems: "center"
   },
-  link: {
-    color: "white",
-    textDecoration: "none",
-    marginRight: "20px",
-    fontWeight: "500",
-  },
+
   boton: {
     background: "#dc3545",
     border: "none",
@@ -59,5 +100,7 @@ const estilos = {
     padding: "6px 12px",
     borderRadius: "6px",
     cursor: "pointer",
-  },
+    transition: "0.2s"
+  }
+
 };

@@ -2,7 +2,7 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL: "http://localhost:5000",
-  timeout: 15000 // un poco más tolerante
+  timeout: 15000
 });
 
 /* ===============================
@@ -15,6 +15,7 @@ api.interceptors.request.use(
 
     const token = localStorage.getItem("token");
 
+    // AGREGAR TOKEN SI EXISTE
     if (
       token &&
       config.url &&
@@ -22,17 +23,24 @@ api.interceptors.request.use(
       !config.url.includes("/auth/register")
     ) {
 
-      // limpiar token si ya viene con Bearer
+      // limpiar "Bearer " si ya viene incluido
       const cleanToken = token.replace("Bearer ", "");
 
-      config.headers.Authorization = `Bearer ${cleanToken}`;
+      config.headers = {
+        ...config.headers,
+        Authorization: `Bearer ${cleanToken}`
+      };
     }
 
-    // 🔥 IMPORTANTE: dejar que Axios maneje multipart automáticamente
+    // MANEJO CORRECTO DE HEADERS
     if (config.data instanceof FormData) {
+      // Axios se encarga solo
       delete config.headers["Content-Type"];
     } else {
-      config.headers["Content-Type"] = "application/json";
+      config.headers = {
+        ...config.headers,
+        "Content-Type": "application/json"
+      };
     }
 
     return config;
@@ -40,7 +48,7 @@ api.interceptors.request.use(
   },
 
   (error) => {
-    console.error("Error en request:", error);
+    console.error("❌ Error en request:", error);
     return Promise.reject(error);
   }
 
@@ -49,7 +57,6 @@ api.interceptors.request.use(
 /* ===============================
 RESPONSE INTERCEPTOR
 ================================= */
-
 api.interceptors.response.use(
 
   (response) => response,
@@ -60,38 +67,25 @@ api.interceptors.response.use(
 
       const status = error.response.status;
 
-      if (status === 401) {
+      const rutasPrivadas = [
+        "/admin",
+        "/cliente",
+        "/empleado"
+      ];
 
-        console.warn("Sesión expirada o token inválido");
+      const esRutaPrivada = rutasPrivadas.some(r =>
+        window.location.pathname.startsWith(r)
+      );
 
-        localStorage.removeItem("token");
+      if (status === 401 && esRutaPrivada) {
 
-        // evitar bucle infinito
-        if (window.location.pathname !== "/login") {
-          window.location.href = "/login";
-        }
+        console.warn("⚠️ Sesión expirada");
 
+        localStorage.clear();
+        window.location.replace("/login");
       }
 
-      console.error(
-        "Error API:",
-        status,
-        error.response.data
-      );
-
-    } else if (error.request) {
-
-      console.error(
-        "No hubo respuesta del servidor",
-        error.request
-      );
-
-    } else {
-
-      console.error(
-        "Error configurando petición",
-        error.message
-      );
+      console.error("❌ Error API:", status, error.response.data);
 
     }
 

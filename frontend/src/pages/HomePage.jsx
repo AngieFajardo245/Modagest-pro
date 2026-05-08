@@ -1,215 +1,443 @@
-// src/pages/HomePage.jsx
 import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import PublicNavbar from "../components/PublicNavbar";
+import api from "../services/api";
 import {
+  FaShoppingCart,
   FaShippingFast,
   FaTshirt,
   FaHeadset,
-  FaFacebook,
-  FaInstagram,
-  FaTwitter,
+  FaStar,
+  FaSearch
 } from "react-icons/fa";
 
-// Productos destacados
-const productosEjemplo = [
-  {
-    id: 1,
-    nombre: "Camisa Casual",
-    descripcion: "Camisa cómoda y elegante para cualquier ocasión.",
-    precio: 45,
-    stock: 10,
-    imagen: "/img/camisa.jpg",
-  },
-  {
-    id: 2,
-    nombre: "Chaqueta de Cuero",
-    descripcion: "Chaqueta elegante y resistente.",
-    precio: 120,
-    stock: 5,
-    imagen: "/img/chaqueta.jpg",
-  },
-  {
-    id: 3,
-    nombre: "Pantalón Jeans",
-    descripcion: "Jeans cómodos y modernos.",
-    precio: 60,
-    stock: 15,
-    imagen: "/img/jeans.jpg",
-  },
-];
-
 function HomePage() {
+
   const navigate = useNavigate();
+
+  const [productos, setProductos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [busqueda, setBusqueda] = useState("");
+  const [precioMax, setPrecioMax] = useState("");
+  const [mensaje, setMensaje] = useState("");
+
+  /* ================= OBTENER PRODUCTOS ================= */
+
+  useEffect(() => {
+    const obtenerProductos = async () => {
+      try {
+        const res = await api.get("/productos");
+        setProductos(res.data);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    obtenerProductos();
+  }, []);
+
+  /* ================= FILTROS ================= */
+
+  const productosFiltrados = productos.filter(p => {
+
+    const coincideNombre = p.nombre
+      .toLowerCase()
+      .includes(busqueda.toLowerCase());
+
+    const coincidePrecio = precioMax
+      ? p.precio <= Number(precioMax)
+      : true;
+
+    return coincideNombre && coincidePrecio;
+  });
+
+  /* ================= MENSAJE BONITO ================= */
+
+  const mostrarMensaje = (texto) => {
+    setMensaje(texto);
+    setTimeout(() => setMensaje(""), 2000);
+  };
+
+  /* ================= AGREGAR AL CARRITO  ================= */
+
+  const agregarAlCarrito = (producto) => {
+
+    // ❌ SIN STOCK
+    if (producto.stock <= 0) {
+      mostrarMensaje("Producto sin stock ❌");
+      return;
+    }
+
+    let carrito = JSON.parse(localStorage.getItem("carrito")) || [];
+
+    const existe = carrito.find(p => p.id === producto.id);
+
+    if (existe) {
+
+      // ❌ VALIDAR STOCK
+      if (existe.cantidad >= producto.stock) {
+        mostrarMensaje("No puedes agregar más de lo disponible ⚠️");
+        return;
+      }
+
+      existe.cantidad += 1;
+
+    } else {
+
+      // IMPORTANTE: GUARDAR STOCK
+      carrito.push({
+        ...producto,
+        cantidad: 1,
+        stock: producto.stock
+      });
+    }
+
+    localStorage.setItem("carrito", JSON.stringify(carrito));
+    window.dispatchEvent(new Event("storage"));
+
+    mostrarMensaje("Producto agregado 🛒");
+  };
 
   return (
     <>
       <PublicNavbar />
 
-      {/* HERO */}
-      <section
-        className="text-white text-center py-5"
-        style={{
-          backgroundImage:
-            "url(https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1350&q=80)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      >
-        <div
-          style={{
-            backgroundColor: "rgba(0,0,0,0.6)",
-            padding: "80px 20px",
-          }}
-        >
-          <h1 className="display-4 fw-bold">Bienvenido a ModaGest Pro</h1>
-          <p className="lead mb-4">
-            Tu tienda integral de moda, accesorios y más.
+      {/* ================= HERO ================= */}
+      <section style={styles.hero}>
+        <div style={styles.overlay}>
+          <h1 style={styles.heroTitle}>ModaGest Pro</h1>
+          <p style={styles.heroText}>
+            Descubre estilo, calidad y tendencias
           </p>
 
           <button
-            className="btn btn-primary btn-lg"
-            onClick={() => navigate("/login")}
+            style={styles.heroBtn}
+            onClick={() =>
+              document
+                .getElementById("productos")
+                .scrollIntoView({ behavior: "smooth" })
+            }
           >
-            Iniciar Sesión
+            Explorar productos
           </button>
         </div>
       </section>
 
-      {/* PRODUCTOS DESTACADOS */}
-      <section className="container py-5">
-        <h2 className="mb-5 text-center">Productos Destacados</h2>
-
-        <div className="row">
-          {productosEjemplo.map((p) => (
-            <div className="col-12 col-md-6 col-lg-4 mb-4" key={p.id}>
-              <div className="card h-100 shadow-sm border-0">
-                <img
-                  src={p.imagen}
-                  className="card-img-top"
-                  alt={p.nombre}
-                  style={{ height: "200px", objectFit: "cover" }}
-                />
-
-                <div className="card-body text-center">
-                  <h5 className="card-title">{p.nombre}</h5>
-                  <p className="card-text">{p.descripcion}</p>
-                  <p className="fw-bold">${p.precio}</p>
-
-                  <button
-                    className="btn btn-outline-primary mt-2"
-                    onClick={() => navigate("/login")}
-                  >
-                    Ver Producto
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+      {/* ================= MENSAJE ================= */}
+      {mensaje && (
+        <div style={styles.toast}>
+          {mensaje}
         </div>
-      </section>
+      )}
 
-      {/* BENEFICIOS */}
-      <section className="bg-light py-5">
-        <div className="container">
-          <h2 className="mb-5 text-center">Nuestros Beneficios</h2>
+      {/* ================= PRODUCTOS ================= */}
+      <section id="productos" style={styles.container}>
 
-          <div className="row text-center">
-            <div className="col-md-4 mb-4">
-              <div
-                className="mx-auto mb-3 d-flex align-items-center justify-content-center"
-                style={{
-                  width: "80px",
-                  height: "80px",
-                  backgroundColor: "#0d6efd",
-                  borderRadius: "50%",
-                }}
-              >
-                <FaShippingFast size={35} className="text-white" />
-              </div>
-              <h5>Envíos rápidos</h5>
-              <p>Recibe tus pedidos en tiempo récord.</p>
-            </div>
+        <h2 style={styles.title}>Productos</h2>
 
-            <div className="col-md-4 mb-4">
-              <div
-                className="mx-auto mb-3 d-flex align-items-center justify-content-center"
-                style={{
-                  width: "80px",
-                  height: "80px",
-                  backgroundColor: "#0d6efd",
-                  borderRadius: "50%",
-                }}
-              >
-                <FaTshirt size={35} className="text-white" />
-              </div>
-              <h5>Variedad de ropa</h5>
-              <p>Moda para todos los estilos.</p>
-            </div>
+        {/* FILTROS */}
+        <div style={styles.filtros}>
 
-            <div className="col-md-4 mb-4">
-              <div
-                className="mx-auto mb-3 d-flex align-items-center justify-content-center"
-                style={{
-                  width: "80px",
-                  height: "80px",
-                  backgroundColor: "#0d6efd",
-                  borderRadius: "50%",
-                }}
-              >
-                <FaHeadset size={35} className="text-white" />
-              </div>
-              <h5>Soporte 24/7</h5>
-              <p>Siempre disponibles para ayudarte.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* FOOTER */}
-      <footer className="bg-dark text-white pt-4 pb-3">
-        <div className="container text-center text-md-start">
-          <div className="row">
-            <div className="col-md-6 mb-3">
-              <h5>ModaGest Pro</h5>
-              <p>Tu tienda integral de moda y accesorios.</p>
-            </div>
-
-            <div className="col-md-3 mb-3">
-              <h6>Enlaces</h6>
-              <ul className="list-unstyled">
-                <li
-                  style={{ cursor: "pointer" }}
-                  onClick={() => navigate("/")}
-                >
-                  Inicio
-                </li>
-                <li
-                  style={{ cursor: "pointer" }}
-                  onClick={() => navigate("/login")}
-                >
-                  Iniciar sesión
-                </li>
-              </ul>
-            </div>
-
-            <div className="col-md-3 mb-3">
-              <h6>Síguenos</h6>
-              <div className="d-flex gap-3">
-                <FaFacebook size={24} />
-                <FaInstagram size={24} />
-                <FaTwitter size={24} />
-              </div>
-            </div>
+          <div style={styles.searchBox}>
+            <FaSearch />
+            <input
+              type="text"
+              placeholder="Buscar producto..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              style={styles.input}
+            />
           </div>
 
-          <hr className="bg-white" />
-          <p className="text-center mb-0">
-            © 2026 ModaGest Pro. Todos los derechos reservados.
+          <input
+            type="number"
+            placeholder="Precio máximo"
+            value={precioMax}
+            onChange={(e) => setPrecioMax(e.target.value)}
+            style={styles.input}
+          />
+
+        </div>
+
+        {loading ? (
+          <p style={{ textAlign: "center" }}>Cargando...</p>
+        ) : productosFiltrados.length === 0 ? (
+          <p style={{ textAlign: "center" }}>
+            No hay productos
           </p>
+        ) : (
+
+          <div style={styles.grid}>
+
+            {productosFiltrados.map((p) => (
+
+              <div key={p.id} style={styles.card}>
+
+                <div style={styles.imageBox}>
+                  <img src={p.imagen} alt={p.nombre} style={styles.image} />
+                </div>
+
+                <div style={styles.cardBody}>
+
+                  <h5>{p.nombre}</h5>
+
+                  <div style={styles.stars}>
+                    <FaStar /><FaStar /><FaStar /><FaStar /><FaStar />
+                  </div>
+
+                  <h4 style={styles.price}>
+                    ${p.precio.toLocaleString()}
+                  </h4>
+
+                  {/* STOCK */}
+                  <p style={{
+                    color: p.stock > 0 ? "#28a745" : "#dc3545",
+                    fontSize: "14px"
+                  }}>
+                    {p.stock > 0
+                      ? `Stock: ${p.stock}`
+                      : "Sin stock"}
+                  </p>
+
+                  <div style={styles.buttons}>
+
+                    {/* AGREGAR */}
+                    <button
+                      style={{
+                        ...styles.cartBtn,
+                        opacity: p.stock === 0 ? 0.5 : 1,
+                        cursor: p.stock === 0 ? "not-allowed" : "pointer"
+                      }}
+                      disabled={p.stock === 0}
+                      onClick={() => agregarAlCarrito(p)}
+                    >
+                      🛒
+                    </button>
+
+                    {/* COMPRAR */}
+                    <button
+                      style={{
+                        ...styles.buyBtn,
+                        opacity: p.stock === 0 ? 0.5 : 1,
+                        cursor: p.stock === 0 ? "not-allowed" : "pointer"
+                      }}
+                      disabled={p.stock === 0}
+                      onClick={() => {
+                        agregarAlCarrito(p);
+                        navigate("/carrito");
+                      }}
+                    >
+                      Comprar
+                    </button>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            ))}
+
+          </div>
+
+        )}
+
+      </section>
+
+      {/* ================= BENEFICIOS ================= */}
+      <section style={styles.benefits}>
+        <div style={styles.benefitCard}>
+          <FaShippingFast size={40} />
+          <h5>Envíos rápidos</h5>
+          <p>Entrega segura</p>
         </div>
+
+        <div style={styles.benefitCard}>
+          <FaTshirt size={40} />
+          <h5>Gran variedad</h5>
+          <p>Moda para todos</p>
+        </div>
+
+        <div style={styles.benefitCard}>
+          <FaHeadset size={40} />
+          <h5>Soporte 24/7</h5>
+          <p>Siempre contigo</p>
+        </div>
+      </section>
+
+      <footer style={styles.footer}>
+        <p>© 2026 ModaGest Pro</p>
       </footer>
     </>
   );
 }
 
 export default HomePage;
+
+const styles = {
+
+  hero: {
+    height: "90vh",
+    backgroundImage:
+      "url(https://images.unsplash.com/photo-1512436991641-6745cdb1723f)",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+
+  overlay: {
+    background: "rgba(0,0,0,0.6)",
+    padding: "50px",
+    borderRadius: "12px",
+    textAlign: "center",
+    color: "white"
+  },
+
+  heroTitle: {
+    fontSize: "50px",
+    fontWeight: "bold"
+  },
+
+  heroText: {
+    marginBottom: "20px"
+  },
+
+  heroBtn: {
+    padding: "12px 25px",
+    background: "#ff4d4d",
+    border: "none",
+    color: "white",
+    borderRadius: "8px",
+    cursor: "pointer"
+  },
+
+  toast: {
+    position: "fixed",
+    top: "80px",
+    right: "20px",
+    background: "#28a745",
+    color: "white",
+    padding: "10px 20px",
+    borderRadius: "6px",
+    zIndex: 999
+  },
+
+  container: {
+    padding: "60px 40px",
+    background: "#f5f7fb"
+  },
+
+  title: {
+    textAlign: "center",
+    marginBottom: "30px"
+  },
+
+  filtros: {
+    display: "flex",
+    gap: "10px",
+    justifyContent: "center",
+    marginBottom: "30px",
+    flexWrap: "wrap"
+  },
+
+  searchBox: {
+    display: "flex",
+    alignItems: "center",
+    background: "#fff",
+    padding: "8px",
+    borderRadius: "6px",
+    gap: "5px"
+  },
+
+  input: {
+    border: "none",
+    outline: "none",
+    padding: "6px"
+  },
+
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: "30px"
+  },
+
+  card: {
+    background: "#fff",
+    borderRadius: "16px",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.1)"
+  },
+
+  imageBox: {
+    height: "220px",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+
+  image: {
+    maxWidth: "100%",
+    maxHeight: "100%",
+    objectFit: "contain"
+  },
+
+  cardBody: {
+    padding: "20px",
+    textAlign: "center"
+  },
+
+  stars: {
+    color: "#ffc107"
+  },
+
+  price: {
+    color: "#28a745"
+  },
+
+  buttons: {
+    display: "flex",
+    gap: "10px",
+    marginTop: "10px"
+  },
+
+  cartBtn: {
+    flex: 1,
+    background: "#0d6efd",
+    color: "white",
+    border: "none",
+    padding: "8px",
+    cursor: "pointer"
+  },
+
+  buyBtn: {
+    flex: 2,
+    background: "#198754",
+    color: "white",
+    border: "none",
+    padding: "8px",
+    cursor: "pointer"
+  },
+
+  benefits: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+    padding: "50px",
+    background: "#fff"
+  },
+
+  benefitCard: {
+    textAlign: "center"
+  },
+
+  footer: {
+    background: "#111",
+    color: "white",
+    textAlign: "center",
+    padding: "20px"
+  }
+
+};

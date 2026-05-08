@@ -4,6 +4,11 @@ import { Routes, Route, Navigate } from "react-router-dom";
 
 import HomePage from "./pages/HomePage";
 import Login from "./pages/Login";
+import Carrito from "./pages/Carrito"; 
+
+/* ================= PROTECCION ================= */
+
+import ProtectedRoute from "./routes/ProtectedRoute";
 
 /* ================= LAYOUTS ================= */
 
@@ -29,10 +34,6 @@ import ComprasCliente from "./pages/cliente/ComprasCliente";
 import DashboardEmpleado from "./pages/empleado/DashboardEmpleado";
 import ProductosEmpleado from "./pages/empleado/ProductosEmpleado";
 
-/* ================= SEGURIDAD ================= */
-
-import ProtectedRoute from "./routes/ProtectedRoute";
-
 function App() {
 
   return (
@@ -44,6 +45,9 @@ function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<Login />} />
 
+      {/* 🔥 CARRITO (PUBLICO PERO REQUIERE LOGIN PARA COMPRAR) */}
+      <Route path="/carrito" element={<Carrito />} />
+
       {/* ================= ADMIN ================= */}
 
       <Route
@@ -54,12 +58,10 @@ function App() {
           </ProtectedRoute>
         }
       >
-
         <Route index element={<Dashboard />} />
         <Route path="productos" element={<Productos />} />
         <Route path="usuarios" element={<Usuarios />} />
         <Route path="ventas" element={<AdminVentas />} />
-
       </Route>
 
       {/* ================= CLIENTE ================= */}
@@ -72,15 +74,9 @@ function App() {
           </ProtectedRoute>
         }
       >
-
         <Route index element={<DashboardCliente />} />
-
-        {/* TIENDA */}
         <Route path="productos" element={<ProductosCliente />} />
-
-        {/* HISTORIAL */}
         <Route path="compras" element={<ComprasCliente />} />
-
       </Route>
 
       {/* ================= EMPLEADO ================= */}
@@ -93,13 +89,11 @@ function App() {
           </ProtectedRoute>
         }
       >
-
         <Route index element={<DashboardEmpleado />} />
         <Route path="productos" element={<ProductosEmpleado />} />
-
       </Route>
 
-      {/* ================= RUTA NO ENCONTRADA ================= */}
+      {/* ================= 404 ================= */}
 
       <Route path="*" element={<Navigate to="/" replace />} />
 

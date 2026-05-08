@@ -2,6 +2,7 @@ import { Navigate, Outlet } from "react-router-dom";
 import AdminNavbar from "../AdminNavbar";
 
 export default function AdminLayout() {
+
   const token = localStorage.getItem("token");
   const rol = localStorage.getItem("rol");
 
@@ -10,9 +11,11 @@ export default function AdminLayout() {
   }
 
   return (
-    <>
+    <div>
       <AdminNavbar />
-      <Outlet />
-    </>
+      <main style={{ padding: "20px" }}>
+        <Outlet />
+      </main>
+    </div>
   );
 }

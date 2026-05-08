@@ -1,13 +1,27 @@
-import { Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import ClienteNavbar from "../ClienteNavbar";
 
-function ClienteLayout() {
-  return (
-    <div>
+export default function ClienteLayout() {
 
+  const token = localStorage.getItem("token");
+  const rol = localStorage.getItem("rol");
+
+  // Normalizar rol
+  const rolNormalizado = rol?.toLowerCase().trim();
+
+  // Protección SOLO si intenta entrar a rutas cliente
+  if (!token || rolNormalizado !== "cliente") {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
+    <div style={styles.container}>
+
+      {/* NAVBAR */}
       <ClienteNavbar />
 
-      <main style={{ padding: "20px" }}>
+      {/* CONTENIDO */}
+      <main style={styles.main}>
         <Outlet />
       </main>
 
@@ -15,4 +29,15 @@ function ClienteLayout() {
   );
 }
 
-export default ClienteLayout;
+/* ================= ESTILOS ================= */
+
+const styles = {
+  container: {
+    minHeight: "100vh",
+    background: "#f5f7fb"
+  },
+
+  main: {
+    padding: "20px"
+  }
+};

@@ -7,30 +7,47 @@ function DashboardCliente() {
   const [nombre, setNombre] = useState("");
   const [compras, setCompras] = useState([]);
 
-  /* ================= CARGAR USUARIO ================= */
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  /* ================= CARGAR DATOS ================= */
 
   useEffect(() => {
+
     const usuario = localStorage.getItem("usuario");
 
     if (usuario) {
-      const data = JSON.parse(usuario);
-      setNombre(data.nombre);
+      try {
+        const data = JSON.parse(usuario);
+        setNombre(data.nombre || "Cliente");
+      } catch {
+        setNombre("Cliente");
+      }
     }
 
     obtenerCompras();
-  }, []);
 
-  /* ================= OBTENER COMPRAS ================= */
+  }, []);
 
   const obtenerCompras = async () => {
     try {
 
+      setLoading(true);
+
       const res = await api.get("/cliente/compras");
 
-      setCompras(Array.isArray(res.data) ? res.data : []);
+      const data = Array.isArray(res.data) ? res.data : [];
+      setCompras(data);
 
     } catch (error) {
+
       console.error("Error cargando compras:", error);
+      setError("No se pudieron cargar tus compras");
+
+    } finally {
+
+      setLoading(false);
+
     }
   };
 
@@ -38,7 +55,10 @@ function DashboardCliente() {
 
   const totalCompras = compras.length;
 
-  const dineroGastado = compras.reduce((acc, c) => acc + c.total, 0);
+  const dineroGastado = compras.reduce(
+    (acc, c) => acc + (c.total || 0),
+    0
+  );
 
   const hoy = new Date().toDateString();
 
@@ -46,68 +66,83 @@ function DashboardCliente() {
     new Date(c.createdAt).toDateString() === hoy
   ).length;
 
+  /* ================= FORMATO ================= */
+
+  const formatearDinero = (valor) => {
+    return new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP"
+    }).format(valor || 0);
+  };
+
   /* ================= UI ================= */
+
+  if (loading) {
+    return (
+      <div style={styles.center}>
+        <p>Cargando panel...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={styles.center}>
+        <p style={{ color: "red" }}>{error}</p>
+      </div>
+    );
+  }
 
   return (
 
-    <div className="container mt-4">
+    <div style={styles.container}>
 
-      <h2 className="mb-2">👤 Panel del Cliente</h2>
+      {/* HEADER */}
+      <div style={styles.header}>
+        <h2>👤 Panel del Cliente</h2>
+        <p style={styles.subtext}>
+          Bienvenido <strong>{nombre}</strong> a ModaGest Pro
+        </p>
+      </div>
 
-      <p className="text-muted mb-4">
-        Bienvenido {nombre} a <strong>ModaGest Pro</strong>
-      </p>
+      {/* ESTADÍSTICAS */}
+      <div style={styles.grid}>
 
-      {/* ================= ESTADÍSTICAS ================= */}
-
-      <div className="row mb-4">
-
-        <div className="col-md-4">
-          <div className="card text-center shadow-sm p-3">
-            <h5>🧾 Compras</h5>
-            <h3>{totalCompras}</h3>
-          </div>
+        <div style={styles.card}>
+          <h5>🧾 Compras</h5>
+          <p style={styles.number}>{totalCompras}</p>
         </div>
 
-        <div className="col-md-4">
-          <div className="card text-center shadow-sm p-3">
-            <h5>💰 Gastado</h5>
-            <h3>${dineroGastado}</h3>
-          </div>
+        <div style={styles.card}>
+          <h5>💰 Total Gastado</h5>
+          <p style={styles.number}>
+            {formatearDinero(dineroGastado)}
+          </p>
         </div>
 
-        <div className="col-md-4">
-          <div className="card text-center shadow-sm p-3">
-            <h5>📅 Hoy</h5>
-            <h3>{comprasHoy}</h3>
-          </div>
+        <div style={styles.card}>
+          <h5>📅 Hoy</h5>
+          <p style={styles.number}>{comprasHoy}</p>
         </div>
 
       </div>
 
-      {/* ================= ACCIONES ================= */}
+      {/* ACCIONES */}
+      <div style={styles.actions}>
 
-      <div className="row">
+        <Link to="/cliente/productos" style={styles.link}>
+          <div style={{ ...styles.actionCard, background: "#0d6efd" }}>
+            <h4>🛍 Ver Productos</h4>
+            <p>Explorar catálogo completo</p>
+          </div>
+        </Link>
 
-        {/* PRODUCTOS */}
-        <div className="col-md-6 mb-3">
-          <Link to="/cliente/productos" style={{ textDecoration: "none" }}>
-            <div className="card p-4 shadow-sm text-center hover-card">
-              <h4>🛍 Ver Productos</h4>
-              <p>Explorar catálogo</p>
-            </div>
-          </Link>
-        </div>
-
-        {/* COMPRAS */}
-        <div className="col-md-6 mb-3">
-          <Link to="/cliente/compras" style={{ textDecoration: "none" }}>
-            <div className="card p-4 shadow-sm text-center hover-card">
-              <h4>📦 Mis Compras</h4>
-              <p>Ver historial</p>
-            </div>
-          </Link>
-        </div>
+        <Link to="/cliente/compras" style={styles.link}>
+          <div style={{ ...styles.actionCard, background: "#198754" }}>
+            <h4>📦 Mis Compras</h4>
+            <p>Revisar historial</p>
+          </div>
+        </Link>
 
       </div>
 
@@ -117,3 +152,70 @@ function DashboardCliente() {
 }
 
 export default DashboardCliente;
+
+/* ================= ESTILOS ================= */
+
+const styles = {
+
+  container: {
+    padding: "30px",
+    background: "#f5f7fb",
+    minHeight: "100vh"
+  },
+
+  header: {
+    marginBottom: "30px"
+  },
+
+  subtext: {
+    color: "#666"
+  },
+
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: "20px",
+    marginBottom: "30px"
+  },
+
+  card: {
+    background: "#fff",
+    padding: "20px",
+    borderRadius: "12px",
+    boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+    textAlign: "center",
+    transition: "0.3s"
+  },
+
+  number: {
+    fontSize: "22px",
+    fontWeight: "bold",
+    marginTop: "10px"
+  },
+
+  actions: {
+    display: "flex",
+    gap: "20px",
+    flexWrap: "wrap"
+  },
+
+  link: {
+    textDecoration: "none",
+    flex: 1
+  },
+
+  actionCard: {
+    color: "white",
+    padding: "25px",
+    borderRadius: "12px",
+    textAlign: "center",
+    cursor: "pointer",
+    transition: "0.3s"
+  },
+
+  center: {
+    padding: "40px",
+    textAlign: "center"
+  }
+
+};

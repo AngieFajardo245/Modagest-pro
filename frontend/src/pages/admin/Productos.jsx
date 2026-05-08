@@ -5,14 +5,16 @@ function Productos() {
 
   const [productos, setProductos] = useState([]);
 
-  const [nombre, setNombre] = useState("");
-  const [descripcion, setDescripcion] = useState("");
-  const [precio, setPrecio] = useState("");
-  const [stock, setStock] = useState("");
+  const [form, setForm] = useState({
+    nombre: "",
+    descripcion: "",
+    precio: "",
+    stock: ""
+  });
+
   const [imagen, setImagen] = useState(null);
   const [preview, setPreview] = useState(null);
 
-  // 🔥 EDITAR
   const [productoEditando, setProductoEditando] = useState(null);
   const [previewEdit, setPreviewEdit] = useState(null);
 
@@ -37,6 +39,15 @@ function Productos() {
     obtenerProductos();
   }, []);
 
+  /* ================= MANEJO INPUT ================= */
+
+  const handleChange = (e) => {
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value
+    });
+  };
+
   /* ================= IMAGEN ================= */
 
   const handleImagen = (e) => {
@@ -58,17 +69,28 @@ function Productos() {
     }
   };
 
+  /* ================= VALIDACIÓN ================= */
+
+  const validar = () => {
+    if (!form.nombre.trim()) return "El nombre es obligatorio";
+    if (!form.precio || form.precio <= 0) return "Precio inválido";
+    return null;
+  };
+
   /* ================= CREAR ================= */
 
   const crearProducto = async (e) => {
     e.preventDefault();
 
+    const error = validar();
+    if (error) return alert(error);
+
     try {
       const formData = new FormData();
-      formData.append("nombre", nombre);
-      formData.append("descripcion", descripcion);
-      formData.append("precio", precio);
-      formData.append("stock", stock || 0);
+
+      Object.keys(form).forEach(key => {
+        formData.append(key, form[key]);
+      });
 
       if (imagen) {
         formData.append("imagen", imagen);
@@ -76,12 +98,15 @@ function Productos() {
 
       await api.post("/productos", formData);
 
-      alert("Producto creado");
+      alert("Producto creado correctamente");
 
-      setNombre("");
-      setDescripcion("");
-      setPrecio("");
-      setStock("");
+      setForm({
+        nombre: "",
+        descripcion: "",
+        precio: "",
+        stock: ""
+      });
+
       setImagen(null);
       setPreview(null);
 
@@ -98,14 +123,18 @@ function Productos() {
   const eliminarProducto = async (id) => {
     if (!window.confirm("¿Eliminar producto?")) return;
 
-    await api.delete(`/productos/${id}`);
-    obtenerProductos();
+    try {
+      await api.delete(`/productos/${id}`);
+      obtenerProductos();
+    } catch (error) {
+      alert("Error al eliminar");
+    }
   };
 
   /* ================= EDITAR ================= */
 
   const abrirModal = (producto) => {
-    setProductoEditando(producto);
+    setProductoEditando({ ...producto });
     setPreviewEdit(producto.imagen);
   };
 
@@ -145,83 +174,136 @@ function Productos() {
 
       <h2 className="mb-4">🛒 Gestión de Productos</h2>
 
-      {/* CREAR */}
-      <form onSubmit={crearProducto} className="card p-3 mb-4">
+      {/* FORMULARIO */}
+      <form onSubmit={crearProducto} className="card p-4 shadow-sm mb-4">
 
-        <div className="row g-2">
+        <div className="row g-3">
 
-          <input className="form-control col" placeholder="Nombre"
-            value={nombre} onChange={e => setNombre(e.target.value)} />
+          <div className="col-md-3">
+            <input
+              type="text"
+              name="nombre"
+              className="form-control"
+              placeholder="Nombre"
+              value={form.nombre}
+              onChange={handleChange}
+            />
+          </div>
 
-          <input className="form-control col" placeholder="Descripción"
-            value={descripcion} onChange={e => setDescripcion(e.target.value)} />
+          <div className="col-md-3">
+            <input
+              type="text"
+              name="descripcion"
+              className="form-control"
+              placeholder="Descripción"
+              value={form.descripcion}
+              onChange={handleChange}
+            />
+          </div>
 
-          <input className="form-control col" type="number" placeholder="Precio"
-            value={precio} onChange={e => setPrecio(e.target.value)} />
+          <div className="col-md-2">
+            <input
+              type="number"
+              name="precio"
+              className="form-control"
+              placeholder="Precio"
+              value={form.precio}
+              onChange={handleChange}
+            />
+          </div>
 
-          <input className="form-control col" type="number" placeholder="Stock"
-            value={stock} onChange={e => setStock(e.target.value)} />
+          <div className="col-md-2">
+            <input
+              type="number"
+              name="stock"
+              className="form-control"
+              placeholder="Stock"
+              value={form.stock}
+              onChange={handleChange}
+            />
+          </div>
 
-          <input type="file" className="form-control col"
-            onChange={handleImagen} />
+          <div className="col-md-2">
+            <input
+              type="file"
+              className="form-control"
+              onChange={handleImagen}
+            />
+          </div>
 
         </div>
 
-        {preview && <img src={preview} width="100" className="mt-2" />}
+        {preview && (
+          <div className="mt-3 text-center">
+            <img src={preview} width="100" className="rounded" />
+          </div>
+        )}
 
-        <button className="btn btn-success mt-3">Crear Producto</button>
+        <button className="btn btn-success mt-3 w-100">
+          ➕ Crear Producto
+        </button>
 
       </form>
 
       {/* TABLA */}
-      <table className="table">
+      <div className="card shadow-sm">
+        <table className="table table-hover mb-0">
 
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Imagen</th>
-            <th>Nombre</th>
-            <th>Precio</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {productos.map(p => (
-            <tr key={p.id}>
-              <td>{p.id}</td>
-
-              <td>
-                {p.imagen && <img src={p.imagen} width="50" />}
-              </td>
-
-              <td>{p.nombre}</td>
-              <td>${p.precio}</td>
-
-              <td>
-                <button
-                  className="btn btn-warning btn-sm me-2"
-                  onClick={() => abrirModal(p)}
-                >
-                  Editar
-                </button>
-
-                <button
-                  className="btn btn-danger btn-sm"
-                  onClick={() => eliminarProducto(p.id)}
-                >
-                  Eliminar
-                </button>
-              </td>
+          <thead className="table-dark">
+            <tr>
+              <th>ID</th>
+              <th>Imagen</th>
+              <th>Nombre</th>
+              <th>Precio</th>
+              <th>Stock</th>
+              <th>Acciones</th>
             </tr>
-          ))}
-        </tbody>
+          </thead>
 
-      </table>
+          <tbody>
 
-      {/* 🔥 MODAL */}
+            {productos.map(p => (
+              <tr key={p.id}>
+
+                <td>{p.id}</td>
+
+                <td>
+                  {p.imagen
+                    ? <img src={p.imagen} width="50" className="rounded" />
+                    : "Sin imagen"}
+                </td>
+
+                <td>{p.nombre}</td>
+                <td>${p.precio}</td>
+                <td>{p.stock}</td>
+
+                <td>
+                  <button
+                    className="btn btn-warning btn-sm me-2"
+                    onClick={() => abrirModal(p)}
+                  >
+                    Editar
+                  </button>
+
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={() => eliminarProducto(p.id)}
+                  >
+                    Eliminar
+                  </button>
+                </td>
+
+              </tr>
+            ))}
+
+          </tbody>
+
+        </table>
+      </div>
+
+      {/* MODAL */}
       {productoEditando && (
-        <div className="modal show d-block" style={{ background: "#00000099" }}>
+        <div className="modal show d-block" style={{ background: "#00000088" }}>
 
           <div className="modal-dialog">
             <div className="modal-content p-3">
@@ -270,14 +352,18 @@ function Productos() {
 
               <input type="file" onChange={handleImagenEdit} />
 
-              {previewEdit && <img src={previewEdit} width="100" className="mt-2" />}
+              {previewEdit && (
+                <img src={previewEdit} width="100" className="mt-2 rounded" />
+              )}
 
-              <button className="btn btn-primary mt-3" onClick={actualizarProducto}>
+              <button className="btn btn-primary mt-3 w-100" onClick={actualizarProducto}>
                 Guardar cambios
               </button>
 
-              <button className="btn btn-secondary mt-2"
-                onClick={() => setProductoEditando(null)}>
+              <button
+                className="btn btn-secondary mt-2 w-100"
+                onClick={() => setProductoEditando(null)}
+              >
                 Cancelar
               </button>
 
