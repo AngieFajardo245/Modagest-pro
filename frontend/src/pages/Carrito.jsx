@@ -8,13 +8,13 @@ function Carrito() {
   const [carrito, setCarrito] = useState([]);
   const [cargando, setCargando] = useState(true);
 
-  /* ================= PAGO ================= */
+  /* ================= PASARELA ================= */
 
   const [mostrarPago, setMostrarPago] = useState(false);
   const [metodoPago, setMetodoPago] = useState("");
   const [procesando, setProcesando] = useState(false);
 
-  /* ================= CARGAR ================= */
+  /* ================= CARGAR CARRITO ================= */
 
   useEffect(() => {
 
@@ -37,7 +37,7 @@ function Carrito() {
 
   }, []);
 
-  /* ================= FORMATO ================= */
+  /* ================= FORMATO MONEDA ================= */
 
   const formatoMoneda = (valor) => {
 
@@ -54,7 +54,7 @@ function Carrito() {
 
     return (
       acc +
-      (Number(p.precio) * Number(p.cantidad))
+      Number(p.precio) * Number(p.cantidad)
     );
 
   }, 0);
@@ -76,14 +76,15 @@ function Carrito() {
 
   const eliminar = (id) => {
 
-    const nuevo =
-      carrito.filter(p => p.id !== id);
+    const nuevo = carrito.filter(
+      p => p.id !== id
+    );
 
     guardarCarrito(nuevo);
 
   };
 
-  /* ================= CANTIDAD ================= */
+  /* ================= CAMBIAR CANTIDAD ================= */
 
   const cambiarCantidad = (
     id,
@@ -113,12 +114,10 @@ function Carrito() {
     const nuevo = carrito.map(p =>
 
       p.id === id
-
         ? {
             ...p,
             cantidad: nuevaCantidad
           }
-
         : p
 
     );
@@ -127,7 +126,42 @@ function Carrito() {
 
   };
 
-  /* ================= ABRIR PAGO ================= */
+  /* ================= CORREGIR STOCK ================= */
+
+  useEffect(() => {
+
+    if (carrito.length === 0) return;
+
+    const corregido = carrito.map(p => {
+
+      if (
+        p.stock !== undefined &&
+        Number(p.cantidad) > Number(p.stock)
+      ) {
+
+        return {
+          ...p,
+          cantidad: Number(p.stock)
+        };
+
+      }
+
+      return p;
+
+    });
+
+    if (
+      JSON.stringify(corregido) !==
+      JSON.stringify(carrito)
+    ) {
+
+      guardarCarrito(corregido);
+
+    }
+
+  }, [carrito]);
+
+  /* ================= ABRIR PASARELA ================= */
 
   const abrirPago = () => {
 
@@ -158,7 +192,7 @@ function Carrito() {
 
   };
 
-  /* ================= CONFIRMAR ================= */
+  /* ================= CONFIRMAR PAGO ================= */
 
   const confirmarPago = async () => {
 
@@ -222,6 +256,8 @@ function Carrito() {
 
   }
 
+  /* ================= UI ================= */
+
   return (
 
     <div style={styles.container}>
@@ -274,9 +310,7 @@ function Carrito() {
                 {p.stock !== undefined && (
 
                   <p style={styles.stock}>
-                    Stock disponible:
-                    {" "}
-                    {p.stock}
+                    Stock disponible: {p.stock}
                   </p>
 
                 )}
@@ -350,11 +384,7 @@ function Carrito() {
           ))}
 
           <h3 style={styles.total}>
-
-            Total:
-            {" "}
-            {formatoMoneda(total)}
-
+            Total: {formatoMoneda(total)}
           </h3>
 
           <button
@@ -368,7 +398,7 @@ function Carrito() {
 
       )}
 
-      {/* ================= MODAL ================= */}
+      {/* ================= MODAL PASARELA ================= */}
 
       {mostrarPago && (
 
@@ -698,8 +728,6 @@ const styles = {
     fontWeight: "bold"
   },
 
-  /* ================= MODAL ================= */
-
   overlay: {
     position: "fixed",
     top: 0,
@@ -744,7 +772,6 @@ const styles = {
   actions: {
     marginTop: "25px",
     display: "flex",
-    justifyContent: "space-between",
     gap: "10px"
   },
 
@@ -764,8 +791,6 @@ const styles = {
     cursor: "pointer",
     fontWeight: "bold"
   },
-
-  /* ================= FORMULARIOS ================= */
 
   cardForm: {
     marginTop: "15px",
