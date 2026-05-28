@@ -28,24 +28,38 @@ function ProductosCliente() {
   /* ================= CARGAR ================= */
 
   const obtenerProductos = async () => {
+
     try {
+
       setLoading(true);
 
       const res = await api.get("/productos");
-      const data = Array.isArray(res.data) ? res.data : [];
+
+      const data = Array.isArray(res.data)
+        ? res.data
+        : [];
 
       setProductos(data);
       setFiltrados(data);
 
       const inicial = {};
-      data.forEach(p => inicial[p.id] = 1);
+
+      data.forEach((p) => {
+        inicial[p.id] = 1;
+      });
+
       setCantidades(inicial);
 
     } catch (error) {
+
       console.error(error);
+
     } finally {
+
       setLoading(false);
+
     }
+
   };
 
   useEffect(() => {
@@ -59,208 +73,376 @@ function ProductosCliente() {
     let data = [...productos];
 
     if (busqueda) {
-      data = data.filter(p =>
-        p.nombre.toLowerCase().includes(busqueda.toLowerCase())
+
+      data = data.filter((p) =>
+        p.nombre
+          .toLowerCase()
+          .includes(busqueda.toLowerCase())
       );
+
     }
 
     if (precioMax) {
-      data = data.filter(p => p.precio <= Number(precioMax));
+
+      data = data.filter(
+        (p) => p.precio <= Number(precioMax)
+      );
+
     }
 
     if (soloStock) {
-      data = data.filter(p => p.stock > 0);
+
+      data = data.filter((p) => p.stock > 0);
+
     }
 
     if (orden === "precio-asc") {
+
       data.sort((a, b) => a.precio - b.precio);
+
     }
 
     if (orden === "precio-desc") {
+
       data.sort((a, b) => b.precio - a.precio);
+
     }
 
     setFiltrados(data);
 
-  }, [busqueda, precioMax, soloStock, orden, productos]);
+  }, [
+    busqueda,
+    precioMax,
+    soloStock,
+    orden,
+    productos
+  ]);
 
   /* ================= CANTIDAD ================= */
 
   const aumentar = (id, stock) => {
+
     if (cantidades[id] < stock) {
+
       setCantidades({
         ...cantidades,
         [id]: cantidades[id] + 1
       });
+
     }
+
   };
 
   const disminuir = (id) => {
+
     if (cantidades[id] > 1) {
+
       setCantidades({
         ...cantidades,
         [id]: cantidades[id] - 1
       });
+
     }
+
   };
 
   /* ================= CARRITO ================= */
+const agregarAlCarrito = (producto) => {
 
-  const agregarAlCarrito = (producto) => {
+  const token = localStorage.getItem("token");
 
-    const token = localStorage.getItem("token");
+  if (!token) {
 
-    if (!token) {
-      alert("Debes iniciar sesión para comprar 🛍");
-      navigate("/login");
+    alert("Debes iniciar sesión");
+
+    navigate("/login");
+
+    return;
+
+  }
+
+  const carrito =
+    JSON.parse(localStorage.getItem("carrito")) || [];
+
+  const cantidadAgregar =
+    cantidades[producto.id] || 1;
+
+  const existe = carrito.find(
+    (p) => p.id === producto.id
+  );
+
+  if (existe) {
+
+    const nuevaCantidad =
+      existe.cantidad + cantidadAgregar;
+
+    if (nuevaCantidad > producto.stock) {
+
+      alert(
+        `Solo hay ${producto.stock} unidades disponibles`
+      );
+
       return;
+
     }
 
-    const carrito = JSON.parse(localStorage.getItem("carrito")) || [];
+    existe.cantidad = nuevaCantidad;
 
-    const existe = carrito.find(p => p.id === producto.id);
+  } else {
 
-    if (existe) {
-      existe.cantidad += cantidades[producto.id];
-    } else {
-      carrito.push({
-        ...producto,
-        cantidad: cantidades[producto.id]
-      });
-    }
+    carrito.push({
 
-    localStorage.setItem("carrito", JSON.stringify(carrito));
+      ...producto,
 
-    // me permita refrescar navbar
-    window.dispatchEvent(new Event("storage"));
+      cantidad: cantidadAgregar
 
-    alert("Producto agregado al carrito 🛒");
-  };
+    });
+
+  }
+
+  localStorage.setItem(
+    "carrito",
+    JSON.stringify(carrito)
+  );
+
+  window.dispatchEvent(
+    new Event("carritoActualizado")
+  );
+
+  alert("Producto agregado al carrito 🛒");
+
+};
+
+  /* ================= LOADING ================= */
+
+  if (loading) {
+
+    return (
+
+      <div style={styles.loadingContainer}>
+
+        <div style={styles.loader}></div>
+
+        <p style={styles.loadingText}>
+          Cargando productos...
+        </p>
+
+      </div>
+
+    );
+
+  }
 
   /* ================= UI ================= */
 
-  if (loading) {
-    return <p style={{ padding: "30px" }}>Cargando productos...</p>;
-  }
-
   return (
 
-    <div className="container mt-4">
+    <div style={styles.container}>
 
-      <h2 className="mb-4 text-center">🛍️ Tienda</h2>
+      {/* HEADER */}
+
+      <div style={styles.header}>
+
+        <h1 style={styles.title}>
+          🛍️ Tienda ModaGest
+        </h1>
+
+        <p style={styles.subtitle}>
+          Descubre productos premium para tu estilo
+        </p>
+
+      </div>
 
       {/* FILTROS */}
 
-      <div className="row mb-4">
+      <div style={styles.filters}>
 
-        <div className="col-md-3">
-          <input
-            type="text"
-            placeholder="Buscar producto..."
-            className="form-control"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-          />
-        </div>
+        <input
+          type="text"
+          placeholder="Buscar producto..."
+          style={styles.input}
+          value={busqueda}
+          onChange={(e) =>
+            setBusqueda(e.target.value)
+          }
+        />
 
-        <div className="col-md-3">
-          <input
-            type="number"
-            placeholder="Precio máximo"
-            className="form-control"
-            value={precioMax}
-            onChange={(e) => setPrecioMax(e.target.value)}
-          />
-        </div>
+        <input
+          type="number"
+          placeholder="Precio máximo"
+          style={styles.input}
+          value={precioMax}
+          onChange={(e) =>
+            setPrecioMax(e.target.value)
+          }
+        />
 
-        <div className="col-md-3">
-          <select
-            className="form-control"
-            value={orden}
-            onChange={(e) => setOrden(e.target.value)}
-          >
-            <option value="">Ordenar</option>
-            <option value="precio-asc">Menor precio</option>
-            <option value="precio-desc">Mayor precio</option>
-          </select>
-        </div>
+        <select
+          style={styles.input}
+          value={orden}
+          onChange={(e) =>
+            setOrden(e.target.value)
+          }
+        >
+          <option value="">
+            Ordenar
+          </option>
 
-        <div className="col-md-3 d-flex align-items-center">
+          <option value="precio-asc">
+            Menor precio
+          </option>
+
+          <option value="precio-desc">
+            Mayor precio
+          </option>
+
+        </select>
+
+        <label style={styles.stockLabel}>
+
           <input
             type="checkbox"
             checked={soloStock}
-            onChange={(e) => setSoloStock(e.target.checked)}
+            onChange={(e) =>
+              setSoloStock(e.target.checked)
+            }
           />
-          <span className="ms-2">Solo disponibles</span>
-        </div>
+
+          <span style={{ marginLeft: "8px" }}>
+            Solo disponibles
+          </span>
+
+        </label>
 
       </div>
 
       {/* PRODUCTOS */}
 
-      <div className="row">
+      {filtrados.length === 0 ? (
 
-        {filtrados.length === 0 ? (
-          <p className="text-center">No hay resultados</p>
-        ) : (
+        <div style={styles.empty}>
 
-          filtrados.map((p) => {
+          <h3>No hay productos disponibles</h3>
 
-            const cantidad = cantidades[p.id] || 1;
-            const total = p.precio * cantidad;
+        </div>
+
+      ) : (
+
+        <div style={styles.grid}>
+
+          {filtrados.map((p) => {
+
+            const cantidad =
+              cantidades[p.id] || 1;
+
+            const total =
+              p.precio * cantidad;
 
             return (
 
-              <div className="col-md-4 mb-4" key={p.id}>
+              <div
+                key={p.id}
+                style={styles.card}
+              >
 
-                <div className="card shadow-sm h-100 border-0">
+                {/* STOCK */}
 
-                  <div style={styles.imageBox}>
-                    <img
-                      src={p.imagen || "https://via.placeholder.com/300x200"}
-                      alt={p.nombre}
-                      style={styles.image}
-                    />
-                  </div>
+                <div
+                  style={{
+                    ...styles.stockBadge,
+                    background:
+                      p.stock > 0
+                        ? "#22c55e"
+                        : "#ef4444"
+                  }}
+                >
+                  {p.stock > 0
+                    ? "Disponible"
+                    : "Agotado"}
+                </div>
 
-                  <div className="card-body text-center">
+                {/* IMAGEN */}
 
-                    <h5>{p.nombre}</h5>
+                <div style={styles.imageBox}>
 
-                    <p className="text-muted small">{p.descripcion}</p>
+                  <img
+                    src={
+                      p.imagen ||
+                      "https://via.placeholder.com/300x200"
+                    }
+                    alt={p.nombre}
+                    style={styles.image}
+                  />
 
-                    <h5 className="text-success">
-                      ${formatear(p.precio)}
-                    </h5>
+                </div>
 
-                    <p className="small">Stock: {p.stock}</p>
+                {/* BODY */}
 
-                    {/* CONTADOR */}
-                    <div className="d-flex justify-content-center align-items-center mb-2">
-                      <button
-                        className="btn btn-outline-secondary btn-sm"
-                        onClick={() => disminuir(p.id)}
-                      >-</button>
+                <div style={styles.body}>
 
-                      <span className="mx-3">{cantidad}</span>
+                  <h3 style={styles.productName}>
+                    {p.nombre}
+                  </h3>
 
-                      <button
-                        className="btn btn-outline-secondary btn-sm"
-                        onClick={() => aumentar(p.id, p.stock)}
-                      >+</button>
-                    </div>
+                  <p style={styles.description}>
+                    {p.descripcion}
+                  </p>
 
-                    <p><strong>Total: ${formatear(total)}</strong></p>
+                  <h2 style={styles.price}>
+                    ${formatear(p.precio)}
+                  </h2>
 
-                    {/* nuevo boton */}
+                  <p style={styles.stock}>
+                    Stock disponible: {p.stock}
+                  </p>
+
+                  {/* CONTADOR */}
+
+                  <div style={styles.counter}>
+
                     <button
-                      className="btn btn-primary w-100"
-                      onClick={() => agregarAlCarrito(p)}
+                      style={styles.counterBtn}
+                      onClick={() =>
+                        disminuir(p.id)
+                      }
                     >
-                      🛒 Agregar al carrito
+                      -
+                    </button>
+
+                    <span style={styles.counterValue}>
+                      {cantidad}
+                    </span>
+
+                    <button
+                      style={styles.counterBtn}
+                      onClick={() =>
+                        aumentar(
+                          p.id,
+                          p.stock
+                        )
+                      }
+                    >
+                      +
                     </button>
 
                   </div>
+
+                  <h4 style={styles.total}>
+                    Total:
+                    {" "}
+                    ${formatear(total)}
+                  </h4>
+
+                  {/* BOTON */}
+
+                  <button
+                    style={styles.button}
+                    onClick={() =>
+                      agregarAlCarrito(p)
+                    }
+                  >
+                    🛒 Agregar al carrito
+                  </button>
 
                 </div>
 
@@ -268,14 +450,16 @@ function ProductosCliente() {
 
             );
 
-          })
+          })}
 
-        )}
+        </div>
 
-      </div>
+      )}
 
     </div>
+
   );
+
 }
 
 export default ProductosCliente;
@@ -284,19 +468,217 @@ export default ProductosCliente;
 
 const styles = {
 
+  container: {
+    minHeight: "100vh",
+    padding: "35px",
+    background:
+      "linear-gradient(135deg, #0f172a, #1e1b4b, #312e81)",
+    color: "white"
+  },
+
+  header: {
+    marginBottom: "35px"
+  },
+
+  title: {
+    fontSize: "42px",
+    fontWeight: "700",
+    marginBottom: "10px"
+  },
+
+  subtitle: {
+    color: "#cbd5e1",
+    fontSize: "17px"
+  },
+
+  /* FILTROS */
+
+  filters: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(auto-fit,minmax(220px,1fr))",
+    gap: "15px",
+    marginBottom: "35px"
+  },
+
+  input: {
+    padding: "14px",
+    borderRadius: "14px",
+    border: "1px solid rgba(255,255,255,0.1)",
+    background: "rgba(255,255,255,0.08)",
+    color: "white",
+    outline: "none",
+    backdropFilter: "blur(12px)"
+  },
+
+  stockLabel: {
+    display: "flex",
+    alignItems: "center",
+    color: "#e2e8f0"
+  },
+
+  /* GRID */
+
+  grid: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(auto-fit,minmax(320px,1fr))",
+    gap: "28px"
+  },
+
+  /* CARD */
+
+  card: {
+    background:
+      "rgba(255,255,255,0.08)",
+    border:
+      "1px solid rgba(255,255,255,0.1)",
+    borderRadius: "24px",
+    overflow: "hidden",
+    backdropFilter: "blur(16px)",
+    boxShadow:
+      "0 10px 30px rgba(0,0,0,0.35)",
+    transition: "0.3s",
+    position: "relative"
+  },
+
+  stockBadge: {
+    position: "absolute",
+    top: "15px",
+    right: "15px",
+    padding: "8px 14px",
+    borderRadius: "20px",
+    fontSize: "12px",
+    fontWeight: "600",
+    color: "white",
+    zIndex: 10
+  },
+
   imageBox: {
-    height: "220px",
+    height: "260px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    background: "#fff",
-    padding: "10px"
+    background:
+      "linear-gradient(135deg,#1e1b4b,#312e81)",
+    padding: "20px"
   },
 
   image: {
-    maxHeight: "100%",
-    maxWidth: "100%",
+    width: "100%",
+    height: "100%",
     objectFit: "contain"
+  },
+
+  body: {
+    padding: "24px",
+    textAlign: "center"
+  },
+
+  productName: {
+    fontSize: "24px",
+    marginBottom: "10px"
+  },
+
+  description: {
+    color: "#cbd5e1",
+    minHeight: "50px"
+  },
+
+  price: {
+    color: "#a855f7",
+    marginTop: "18px",
+    fontSize: "30px",
+    fontWeight: "700"
+  },
+
+  stock: {
+    color: "#94a3b8",
+    marginBottom: "20px"
+  },
+
+  /* CONTADOR */
+
+  counter: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: "18px",
+    marginBottom: "20px"
+  },
+
+  counterBtn: {
+    width: "40px",
+    height: "40px",
+    borderRadius: "12px",
+    border: "none",
+    background:
+      "linear-gradient(135deg,#7c3aed,#4f46e5)",
+    color: "white",
+    fontSize: "18px",
+    cursor: "pointer",
+    fontWeight: "bold"
+  },
+
+  counterValue: {
+    fontSize: "20px",
+    fontWeight: "700"
+  },
+
+  total: {
+    marginBottom: "20px",
+    color: "#22c55e"
+  },
+
+  button: {
+    width: "100%",
+    padding: "14px",
+    border: "none",
+    borderRadius: "14px",
+    background:
+      "linear-gradient(135deg,#7c3aed,#4f46e5)",
+    color: "white",
+    fontWeight: "700",
+    fontSize: "15px",
+    cursor: "pointer",
+    transition: "0.3s"
+  },
+
+  /* EMPTY */
+
+  empty: {
+    textAlign: "center",
+    padding: "60px"
+  },
+
+  /* LOADING */
+
+  loadingContainer: {
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    background:
+      "linear-gradient(135deg,#0f172a,#1e1b4b)"
+  },
+
+  loader: {
+    width: "60px",
+    height: "60px",
+    border:
+      "5px solid rgba(255,255,255,0.2)",
+    borderTop:
+      "5px solid #8b5cf6",
+    borderRadius: "50%",
+    animation:
+      "spin 1s linear infinite"
+  },
+
+  loadingText: {
+    marginTop: "20px",
+    color: "white",
+    fontSize: "18px"
   }
 
 };

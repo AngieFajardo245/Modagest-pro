@@ -1,8 +1,8 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
-const Usuario = sequelize.define(
-  "Usuario",
+const Pago = sequelize.define(
+  "Pago",
   {
     id: {
       type: DataTypes.INTEGER,
@@ -10,35 +10,29 @@ const Usuario = sequelize.define(
       primaryKey: true
     },
 
-    nombre: {
+    ventaId: {
+      type: DataTypes.INTEGER,
+      allowNull: false
+    },
+
+    metodoPago: {
       type: DataTypes.STRING,
       allowNull: false
     },
 
-    email: {
+    estado: {
       type: DataTypes.STRING,
-      unique: true,
-      allowNull: false
+      defaultValue: "aprobado"
     },
 
-    password: {
-      type: DataTypes.STRING,
-      allowNull: false
-    },
-
-    rol: {
-      type: DataTypes.ENUM(
-        "administrador",
-        "cliente",
-        "empleado"
-      ),
-      defaultValue: "cliente"
+    referencia: {
+      type: DataTypes.STRING
     }
   },
   {
-    tableName: "usuarios",
+    tableName: "pagos",
     timestamps: true
   }
 );
 
-module.exports = Usuario;
+module.exports = Pago;

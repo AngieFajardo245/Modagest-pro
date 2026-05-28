@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "./../services/api";
 
 function Carrito() {
 
@@ -8,13 +9,18 @@ function Carrito() {
   const [carrito, setCarrito] = useState([]);
   const [cargando, setCargando] = useState(true);
 
-  /* ================= PAGO ================= */
+  /* ================= PASARELA ================= */
 
   const [mostrarPago, setMostrarPago] = useState(false);
   const [metodoPago, setMetodoPago] = useState("");
   const [procesando, setProcesando] = useState(false);
 
-  /* ================= CARGAR ================= */
+  /* ================= VALIDAR SI HAY SESIÓN ================= */
+
+  const token = localStorage.getItem("token");
+  const rol = localStorage.getItem("rol");
+
+  /* ================= CARGAR CARRITO ================= */
 
   useEffect(() => {
 
@@ -23,7 +29,7 @@ function Carrito() {
       const data =
         JSON.parse(localStorage.getItem("carrito")) || [];
 
-      setCarrito(data);
+      setCarrito(Array.isArray(data) ? data : []);
 
     } catch {
 
@@ -37,14 +43,62 @@ function Carrito() {
 
   }, []);
 
-  /* ================= FORMATO ================= */
+  /* ================= VALIDAR STOCK ================= */
+
+  useEffect(() => {
+
+    if (carrito.length === 0) return;
+
+    let cambios = false;
+
+    const corregido = carrito
+      .filter((p) => p && p.id)
+      .map((p) => {
+
+        const stock = Number(p.stock || 0);
+        const cantidad = Number(p.cantidad || 1);
+
+        if (
+          stock > 0 &&
+          cantidad > stock
+        ) {
+
+          cambios = true;
+
+          return {
+            ...p,
+            cantidad: stock
+          };
+
+        }
+
+        return {
+          ...p,
+          cantidad:
+            cantidad < 1 ? 1 : cantidad
+        };
+
+      });
+
+    if (cambios) {
+
+      guardarCarrito(corregido);
+
+    }
+
+  }, []);
+
+  /* ================= FORMATO MONEDA ================= */
 
   const formatoMoneda = (valor) => {
 
-    return Number(valor).toLocaleString("es-CO", {
-      style: "currency",
-      currency: "COP"
-    });
+    return Number(valor || 0).toLocaleString(
+      "es-CO",
+      {
+        style: "currency",
+        currency: "COP"
+      }
+    );
 
   };
 
@@ -54,12 +108,13 @@ function Carrito() {
 
     return (
       acc +
-      (Number(p.precio) * Number(p.cantidad))
+      Number(p.precio || 0) *
+      Number(p.cantidad || 0)
     );
 
   }, 0);
 
-  /* ================= GUARDAR ================= */
+  /* ================= GUARDAR CARRITO ================= */
 
   const guardarCarrito = (nuevo) => {
 
@@ -70,20 +125,25 @@ function Carrito() {
 
     setCarrito([...nuevo]);
 
+    window.dispatchEvent(
+      new Event("carritoActualizado")
+    );
+
   };
 
   /* ================= ELIMINAR ================= */
 
   const eliminar = (id) => {
 
-    const nuevo =
-      carrito.filter(p => p.id !== id);
+    const nuevo = carrito.filter(
+      (p) => p.id !== id
+    );
 
     guardarCarrito(nuevo);
 
   };
 
-  /* ================= CANTIDAD ================= */
+  /* ================= CAMBIAR CANTIDAD ================= */
 
   const cambiarCantidad = (
     id,
@@ -91,15 +151,18 @@ function Carrito() {
   ) => {
 
     const producto =
-      carrito.find(p => p.id === id);
+      carrito.find((p) => p.id === id);
 
     if (!producto) return;
 
-    if (nuevaCantidad < 1) return;
+    const cantidadNumero =
+      Number(nuevaCantidad);
+
+    if (cantidadNumero < 1) return;
 
     if (
       producto.stock !== undefined &&
-      nuevaCantidad > Number(producto.stock)
+      cantidadNumero > Number(producto.stock)
     ) {
 
       alert(
@@ -110,15 +173,13 @@ function Carrito() {
 
     }
 
-    const nuevo = carrito.map(p =>
+    const nuevo = carrito.map((p) =>
 
       p.id === id
-
         ? {
             ...p,
-            cantidad: nuevaCantidad
+            cantidad: cantidadNumero
           }
-
         : p
 
     );
@@ -127,12 +188,9 @@ function Carrito() {
 
   };
 
-  /* ================= ABRIR PAGO ================= */
+  /* ================= ABRIR PASARELA ================= */
 
   const abrirPago = () => {
-
-    const token =
-      localStorage.getItem("token");
 
     if (!token) {
 
@@ -148,7 +206,9 @@ function Carrito() {
 
     if (carrito.length === 0) {
 
-      alert("El carrito está vacío");
+      alert(
+        "El carrito está vacío"
+      );
 
       return;
 
@@ -158,7 +218,7 @@ function Carrito() {
 
   };
 
-  /* ================= CONFIRMAR ================= */
+  /* ================= CONFIRMAR COMPRA ================= */
 
   const confirmarPago = async () => {
 
@@ -172,15 +232,23 @@ function Carrito() {
 
     }
 
+    if (procesando) return;
+
     try {
 
       setProcesando(true);
 
-      /* ================= SIMULACION ================= */
+      for (const producto of carrito) {
 
-      await new Promise(resolve =>
-        setTimeout(resolve, 3500)
-      );
+        await api.post(
+          "/cliente/comprar",
+          {
+            productoId: producto.id,
+            cantidad: Number(producto.cantidad)
+          }
+        );
+
+      }
 
       alert(
         `Pago aprobado con ${metodoPago} ✅`
@@ -192,19 +260,65 @@ function Carrito() {
 
       setMostrarPago(false);
 
+      setMetodoPago("");
+
+      window.dispatchEvent(
+        new Event("carritoActualizado")
+      );
+
       navigate("/cliente/compras");
 
     } catch (error) {
 
       console.error(error);
 
-      alert(
-        "Error al procesar el pago"
-      );
+      const mensaje =
+        error.response?.data?.message ||
+        "Error al procesar la compra";
+
+      alert(mensaje);
 
     } finally {
 
       setProcesando(false);
+
+    }
+
+  };
+
+  /* ================= IR A TIENDA ================= */
+
+  const irATienda = () => {
+
+    if (!token) {
+
+      navigate("/");
+
+      return;
+
+    }
+
+    switch (rol?.toLowerCase()) {
+
+      case "cliente":
+
+        navigate("/cliente/productos");
+        break;
+
+      case "administrador":
+
+        navigate("/admin/productos");
+        break;
+
+      case "empleado":
+
+        navigate("/empleado/productos");
+        break;
+
+      default:
+
+        navigate("/");
+        break;
 
     }
 
@@ -215,158 +329,181 @@ function Carrito() {
   if (cargando) {
 
     return (
-      <p style={{ padding: "30px" }}>
-        Cargando carrito...
-      </p>
+
+      <div style={styles.loadingContainer}>
+
+        <p style={styles.loadingText}>
+          Cargando carrito...
+        </p>
+
+      </div>
+
     );
 
   }
 
+  /* ================= UI ================= */
+
   return (
 
-    <div style={styles.container}>
+    <div style={styles.page}>
 
-      <h2 style={styles.title}>
-        🛒 Carrito de Compras
-      </h2>
+      <div style={styles.container}>
 
-      {carrito.length === 0 ? (
+        <h2 style={styles.title}>
+          🛒 Carrito de Compras
+        </h2>
 
-        <div style={styles.empty}>
+        {carrito.length === 0 ? (
 
-          <p>
-            No hay productos en el carrito
-          </p>
+          <div style={styles.empty}>
 
-          <button
-            style={styles.shopBtn}
-            onClick={() => navigate("/")}
-          >
-            Ir a la tienda
-          </button>
+            <h3>
+              Tu carrito está vacío
+            </h3>
 
-        </div>
+            <p style={styles.emptyText}>
+              Agrega productos para comenzar tu compra.
+            </p>
 
-      ) : (
-
-        <>
-
-          {carrito.map(p => (
-
-            <div
-              key={p.id}
-              style={styles.card}
+            <button
+              style={styles.shopBtn}
+              onClick={irATienda}
             >
+              Ir a la tienda
+            </button>
 
-              <img
-                src={
-                  p.imagen ||
-                  "https://via.placeholder.com/100"
-                }
-                alt={p.nombre}
-                style={styles.img}
-              />
+          </div>
 
-              <div style={{ flex: 1 }}>
+        ) : (
 
-                <h4>{p.nombre}</h4>
+          <>
 
-                {p.stock !== undefined && (
+            {carrito.map((p) => (
 
-                  <p style={styles.stock}>
-                    Stock disponible:
+              <div
+                key={p.id}
+                style={styles.card}
+              >
+
+                <img
+                  src={
+                    p.imagen ||
+                    "https://via.placeholder.com/120"
+                  }
+                  alt={p.nombre}
+                  style={styles.img}
+                  onError={(e) => {
+                    e.target.src =
+                      "https://via.placeholder.com/120";
+                  }}
+                />
+
+                <div style={styles.info}>
+
+                  <h3 style={styles.productName}>
+                    {p.nombre}
+                  </h3>
+
+                  {p.stock !== undefined && (
+
+                    <p style={styles.stock}>
+                      Stock disponible: {p.stock}
+                    </p>
+
+                  )}
+
+                  <div style={styles.controls}>
+
+                    <button
+                      style={styles.btnQty}
+                      onClick={() =>
+                        cambiarCantidad(
+                          p.id,
+                          Number(p.cantidad) - 1
+                        )
+                      }
+                    >
+                      −
+                    </button>
+
+                    <span style={styles.qty}>
+                      {p.cantidad}
+                    </span>
+
+                    <button
+                      style={styles.btnQty}
+                      disabled={
+                        p.stock !== undefined &&
+                        Number(p.cantidad) >=
+                        Number(p.stock)
+                      }
+                      onClick={() =>
+                        cambiarCantidad(
+                          p.id,
+                          Number(p.cantidad) + 1
+                        )
+                      }
+                    >
+                      +
+                    </button>
+
+                  </div>
+
+                  <p style={styles.price}>
+                    Precio:
                     {" "}
-                    {p.stock}
+                    {formatoMoneda(p.precio)}
                   </p>
 
-                )}
-
-                <div style={styles.controls}>
-
-                  <button
-                    style={styles.btnQty}
-                    onClick={() =>
-                      cambiarCantidad(
-                        p.id,
-                        Number(p.cantidad) - 1
-                      )
-                    }
-                  >
-                    -
-                  </button>
-
-                  <span style={styles.qty}>
-                    {p.cantidad}
-                  </span>
-
-                  <button
-                    style={styles.btnQty}
-                    disabled={
-                      p.stock !== undefined &&
-                      Number(p.cantidad) >=
-                      Number(p.stock)
-                    }
-                    onClick={() =>
-                      cambiarCantidad(
-                        p.id,
-                        Number(p.cantidad) + 1
-                      )
-                    }
-                  >
-                    +
-                  </button>
+                  <p style={styles.subtotal}>
+                    Subtotal:
+                    {" "}
+                    {formatoMoneda(
+                      Number(p.precio) *
+                      Number(p.cantidad)
+                    )}
+                  </p>
 
                 </div>
 
-                <p>
-                  Precio:
-                  {" "}
-                  {formatoMoneda(p.precio)}
-                </p>
-
-                <p style={styles.subtotal}>
-
-                  Subtotal:
-                  {" "}
-
-                  {formatoMoneda(
-                    Number(p.precio) *
-                    Number(p.cantidad)
-                  )}
-
-                </p>
+                <button
+                  style={styles.deleteBtn}
+                  onClick={() => eliminar(p.id)}
+                >
+                  ✕
+                </button>
 
               </div>
 
+            ))}
+
+            <div style={styles.summary}>
+
+              <h3 style={styles.total}>
+                Total:
+                {" "}
+                {formatoMoneda(total)}
+              </h3>
+
               <button
-                style={styles.deleteBtn}
-                onClick={() => eliminar(p.id)}
+                style={{
+                  ...styles.buyBtn,
+                  opacity: procesando ? 0.7 : 1
+                }}
+                onClick={abrirPago}
+                disabled={procesando}
               >
-                ❌
+                Finalizar Compra
               </button>
 
             </div>
 
-          ))}
+          </>
 
-          <h3 style={styles.total}>
+        )}
 
-            Total:
-            {" "}
-            {formatoMoneda(total)}
-
-          </h3>
-
-          <button
-            style={styles.buyBtn}
-            onClick={abrirPago}
-          >
-            Finalizar Compra
-          </button>
-
-        </>
-
-      )}
+      </div>
 
       {/* ================= MODAL ================= */}
 
@@ -376,7 +513,7 @@ function Carrito() {
 
           <div style={styles.modal}>
 
-            <h2>
+            <h2 style={styles.modalTitle}>
               💳 Método de Pago
             </h2>
 
@@ -388,63 +525,23 @@ function Carrito() {
 
             <div style={styles.metodos}>
 
-              {/* ================= TARJETA ================= */}
-
               <label style={styles.option}>
 
                 <input
                   type="radio"
                   name="pago"
                   value="Tarjeta"
+                  checked={metodoPago === "Tarjeta"}
                   onChange={(e) =>
-                    setMetodoPago(e.target.value)
+                    setMetodoPago(
+                      e.target.value
+                    )
                   }
                 />
 
                 💳 Tarjeta Crédito/Débito
 
-                {metodoPago === "Tarjeta" && (
-
-                  <div style={styles.cardForm}>
-
-                    <input
-                      type="text"
-                      placeholder="Número de tarjeta"
-                      maxLength={16}
-                      style={styles.input}
-                    />
-
-                    <input
-                      type="text"
-                      placeholder="Nombre del titular"
-                      style={styles.input}
-                    />
-
-                    <div style={styles.row}>
-
-                      <input
-                        type="text"
-                        placeholder="MM/AA"
-                        maxLength={5}
-                        style={styles.input}
-                      />
-
-                      <input
-                        type="password"
-                        placeholder="CVV"
-                        maxLength={3}
-                        style={styles.input}
-                      />
-
-                    </div>
-
-                  </div>
-
-                )}
-
               </label>
-
-              {/* ================= PSE ================= */}
 
               <label style={styles.option}>
 
@@ -452,44 +549,17 @@ function Carrito() {
                   type="radio"
                   name="pago"
                   value="PSE"
+                  checked={metodoPago === "PSE"}
                   onChange={(e) =>
-                    setMetodoPago(e.target.value)
+                    setMetodoPago(
+                      e.target.value
+                    )
                   }
                 />
 
                 🏦 PSE
 
-                {metodoPago === "PSE" && (
-
-                  <div style={styles.cardForm}>
-
-                    <select style={styles.input}>
-
-                      <option>
-                        Selecciona tu banco
-                      </option>
-
-                      <option>Bancolombia</option>
-                      <option>Davivienda</option>
-                      <option>BBVA</option>
-                      <option>Banco de Bogotá</option>
-                      <option>Nequi</option>
-
-                    </select>
-
-                    <input
-                      type="email"
-                      placeholder="Correo electrónico"
-                      style={styles.input}
-                    />
-
-                  </div>
-
-                )}
-
               </label>
-
-              {/* ================= NEQUI ================= */}
 
               <label style={styles.option}>
 
@@ -497,31 +567,17 @@ function Carrito() {
                   type="radio"
                   name="pago"
                   value="Nequi"
+                  checked={metodoPago === "Nequi"}
                   onChange={(e) =>
-                    setMetodoPago(e.target.value)
+                    setMetodoPago(
+                      e.target.value
+                    )
                   }
                 />
 
                 📱 Nequi
 
-                {metodoPago === "Nequi" && (
-
-                  <div style={styles.cardForm}>
-
-                    <input
-                      type="text"
-                      placeholder="Número Nequi"
-                      maxLength={10}
-                      style={styles.input}
-                    />
-
-                  </div>
-
-                )}
-
               </label>
-
-              {/* ================= CONTRA ENTREGA ================= */}
 
               <label style={styles.option}>
 
@@ -529,32 +585,17 @@ function Carrito() {
                   type="radio"
                   name="pago"
                   value="Contra Entrega"
+                  checked={
+                    metodoPago === "Contra Entrega"
+                  }
                   onChange={(e) =>
-                    setMetodoPago(e.target.value)
+                    setMetodoPago(
+                      e.target.value
+                    )
                   }
                 />
 
                 🚚 Contra Entrega
-
-                {metodoPago === "Contra Entrega" && (
-
-                  <div style={styles.cardForm}>
-
-                    <input
-                      type="text"
-                      placeholder="Dirección de entrega"
-                      style={styles.input}
-                    />
-
-                    <input
-                      type="text"
-                      placeholder="Ciudad"
-                      style={styles.input}
-                    />
-
-                  </div>
-
-                )}
 
               </label>
 
@@ -574,15 +615,14 @@ function Carrito() {
               <button
                 style={{
                   ...styles.confirmBtn,
-                  opacity:
-                    procesando ? 0.7 : 1
+                  opacity: procesando ? 0.7 : 1
                 }}
                 onClick={confirmarPago}
                 disabled={procesando}
               >
 
                 {procesando
-                  ? "Procesando pago..."
+                  ? "Procesando..."
                   : "Confirmar Pago"}
 
               </button>
@@ -607,186 +647,439 @@ export default Carrito;
 
 const styles = {
 
+  page: {
+
+    minHeight: "100vh",
+
+    background:
+      "linear-gradient(135deg, #0f172a, #1e293b)",
+
+    padding: "40px 20px"
+
+  },
+
   container: {
-    padding: "30px",
-    maxWidth: "900px",
-    margin: "auto"
+
+    maxWidth: "1000px",
+
+    margin: "0 auto"
+
+  },
+
+  loadingContainer: {
+
+    minHeight: "100vh",
+
+    display: "flex",
+
+    justifyContent: "center",
+
+    alignItems: "center",
+
+    background:
+      "linear-gradient(135deg, #0f172a, #1e293b)"
+
+  },
+
+  loadingText: {
+
+    color: "#fff",
+
+    fontSize: "18px"
+
   },
 
   title: {
+
     textAlign: "center",
-    marginBottom: "20px"
+
+    color: "#fff",
+
+    marginBottom: "35px",
+
+    fontSize: "38px",
+
+    fontWeight: "700"
+
   },
 
   empty: {
-    textAlign: "center"
+
+    background:
+      "rgba(255,255,255,0.06)",
+
+    border:
+      "1px solid rgba(255,255,255,0.08)",
+
+    borderRadius: "24px",
+
+    padding: "50px",
+
+    textAlign: "center",
+
+    color: "#fff",
+
+    backdropFilter: "blur(10px)"
+
+  },
+
+  emptyText: {
+
+    color: "#cbd5e1",
+
+    marginTop: "10px"
+
   },
 
   shopBtn: {
-    marginTop: "10px",
-    padding: "10px 20px",
+
+    marginTop: "20px",
+
+    padding: "14px 24px",
+
     border: "none",
-    borderRadius: "8px",
+
+    borderRadius: "14px",
+
+    background:
+      "linear-gradient(135deg, #7c3aed, #9333ea)",
+
+    color: "#fff",
+
+    fontWeight: "600",
+
     cursor: "pointer"
+
   },
 
   card: {
+
     display: "flex",
+
+    gap: "20px",
+
     alignItems: "center",
-    gap: "15px",
-    marginBottom: "15px",
-    padding: "15px",
-    background: "#fff",
-    borderRadius: "12px",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.1)"
+
+    background:
+      "rgba(255,255,255,0.06)",
+
+    border:
+      "1px solid rgba(255,255,255,0.08)",
+
+    borderRadius: "22px",
+
+    padding: "20px",
+
+    marginBottom: "20px",
+
+    position: "relative",
+
+    backdropFilter: "blur(10px)"
+
   },
 
   img: {
-    width: "90px",
-    height: "90px",
+
+    width: "120px",
+
+    height: "120px",
+
     objectFit: "cover",
-    borderRadius: "8px"
+
+    borderRadius: "16px"
+
+  },
+
+  info: {
+
+    flex: 1,
+
+    color: "#fff"
+
+  },
+
+  productName: {
+
+    fontSize: "22px",
+
+    marginBottom: "10px"
+
   },
 
   stock: {
-    fontSize: "12px",
-    color: "#666"
+
+    color: "#cbd5e1",
+
+    marginBottom: "14px"
+
   },
 
   controls: {
+
     display: "flex",
+
     alignItems: "center",
-    gap: "10px",
-    margin: "10px 0"
+
+    gap: "14px",
+
+    marginBottom: "15px"
+
   },
 
   btnQty: {
-    padding: "5px 12px",
+
+    width: "36px",
+
+    height: "36px",
+
     border: "none",
-    borderRadius: "6px",
+
+    borderRadius: "10px",
+
+    background:
+      "linear-gradient(135deg,#7c3aed,#9333ea)",
+
+    color: "#fff",
+
+    fontSize: "20px",
+
     cursor: "pointer"
+
   },
 
   qty: {
-    fontWeight: "bold"
+
+    color: "#fff",
+
+    fontSize: "18px",
+
+    fontWeight: "700"
+
+  },
+
+  price: {
+
+    color: "#cbd5e1",
+
+    marginBottom: "8px"
+
   },
 
   subtotal: {
-    fontWeight: "bold"
+
+    color: "#22c55e",
+
+    fontWeight: "700"
+
   },
 
   deleteBtn: {
+
+    position: "absolute",
+
+    top: "15px",
+
+    right: "15px",
+
+    width: "35px",
+
+    height: "35px",
+
+    borderRadius: "50%",
+
     border: "none",
-    padding: "8px",
-    borderRadius: "6px",
-    cursor: "pointer"
+
+    background: "#ef4444",
+
+    color: "#fff",
+
+    cursor: "pointer",
+
+    fontSize: "18px"
+
+  },
+
+  summary: {
+
+    marginTop: "35px",
+
+    background:
+      "rgba(255,255,255,0.06)",
+
+    border:
+      "1px solid rgba(255,255,255,0.08)",
+
+    borderRadius: "24px",
+
+    padding: "30px",
+
+    textAlign: "center"
+
   },
 
   total: {
-    textAlign: "right",
-    marginTop: "20px"
+
+    color: "#fff",
+
+    fontSize: "32px",
+
+    marginBottom: "20px"
+
   },
 
   buyBtn: {
-    marginTop: "10px",
-    width: "100%",
-    padding: "14px",
+
+    padding: "16px 28px",
+
     border: "none",
-    borderRadius: "10px",
-    cursor: "pointer",
+
+    borderRadius: "14px",
+
+    background:
+      "linear-gradient(135deg,#22c55e,#16a34a)",
+
+    color: "#fff",
+
+    fontWeight: "700",
+
     fontSize: "16px",
-    fontWeight: "bold"
+
+    cursor: "pointer"
+
   },
 
-  /* ================= MODAL ================= */
-
   overlay: {
+
     position: "fixed",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-    background: "rgba(0,0,0,0.5)",
+
+    inset: 0,
+
+    background: "rgba(0,0,0,0.6)",
+
     display: "flex",
+
     justifyContent: "center",
+
     alignItems: "center",
+
     zIndex: 999
+
   },
 
   modal: {
-    background: "#fff",
+
+    width: "100%",
+
+    maxWidth: "450px",
+
+    background: "#111827",
+
+    borderRadius: "24px",
+
     padding: "30px",
-    borderRadius: "15px",
-    width: "450px",
-    maxWidth: "95%",
-    maxHeight: "90vh",
-    overflowY: "auto"
+
+    color: "#fff"
+
+  },
+
+  modalTitle: {
+
+    textAlign: "center",
+
+    marginBottom: "15px"
+
   },
 
   modalTotal: {
-    marginBottom: "20px",
-    fontWeight: "bold"
+
+    textAlign: "center",
+
+    color: "#22c55e",
+
+    fontWeight: "700",
+
+    marginBottom: "25px"
+
   },
 
   metodos: {
+
     display: "flex",
+
     flexDirection: "column",
+
     gap: "15px"
+
   },
 
   option: {
-    padding: "15px",
-    border: "1px solid #ddd",
+
+    background:
+      "rgba(255,255,255,0.05)",
+
+    padding: "14px",
+
     borderRadius: "12px",
+
+    display: "flex",
+
+    gap: "10px",
+
+    alignItems: "center",
+
     cursor: "pointer"
+
   },
 
   actions: {
+
     marginTop: "25px",
+
     display: "flex",
+
     justifyContent: "space-between",
-    gap: "10px"
+
+    gap: "15px"
+
   },
 
   cancelBtn: {
+
     flex: 1,
-    padding: "12px",
+
+    padding: "14px",
+
     border: "none",
-    borderRadius: "8px",
+
+    borderRadius: "12px",
+
+    background: "#374151",
+
+    color: "#fff",
+
     cursor: "pointer"
+
   },
 
   confirmBtn: {
+
     flex: 1,
-    padding: "12px",
+
+    padding: "14px",
+
     border: "none",
-    borderRadius: "8px",
+
+    borderRadius: "12px",
+
+    background:
+      "linear-gradient(135deg,#7c3aed,#9333ea)",
+
+    color: "#fff",
+
     cursor: "pointer",
-    fontWeight: "bold"
-  },
 
-  /* ================= FORMULARIOS ================= */
+    fontWeight: "700"
 
-  cardForm: {
-    marginTop: "15px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px"
-  },
-
-  input: {
-    width: "100%",
-    padding: "12px",
-    borderRadius: "8px",
-    border: "1px solid #ccc",
-    outline: "none",
-    fontSize: "14px",
-    boxSizing: "border-box"
-  },
-
-  row: {
-    display: "flex",
-    gap: "10px"
   }
 
 };

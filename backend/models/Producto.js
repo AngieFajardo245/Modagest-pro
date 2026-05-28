@@ -11,20 +11,31 @@ const Producto = sequelize.define(
     },
 
     nombre: {
-      type: DataTypes.STRING,
+      type: DataTypes.STRING(150),
       allowNull: false,
-      set(value) {
-        this.setDataValue("nombre", value.trim());
-      },
+
       validate: {
+
         notEmpty: {
-          msg: "El nombre del producto es obligatorio"
+          msg: "El nombre es obligatorio"
         },
+
         len: {
-          args: [3, 100],
-          msg: "El nombre debe tener entre 3 y 100 caracteres"
+          args: [2, 150],
+          msg: "El nombre debe tener entre 2 y 150 caracteres"
         }
+
+      },
+
+      set(value) {
+
+        this.setDataValue(
+          "nombre",
+          value?.trim()
+        );
+
       }
+
     },
 
     descripcion: {
@@ -32,55 +43,80 @@ const Producto = sequelize.define(
       allowNull: true
     },
 
-    /* IMPORTANTE: que nos permitan convertir a número automáticamente */
     precio: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
-      get() {
-        const value = this.getDataValue("precio");
-        return value ? parseFloat(value) : 0;
-      },
+
       validate: {
-        notNull: {
-          msg: "El precio es obligatorio"
-        },
+
         min: {
           args: [0],
           msg: "El precio no puede ser negativo"
         }
+
+      },
+
+      get() {
+
+        const value =
+          this.getDataValue("precio");
+
+        return value
+          ? parseFloat(value)
+          : 0;
+
       }
+
     },
 
     stock: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0,
+
       validate: {
-        notNull: {
-          msg: "El stock es obligatorio"
-        },
+
         min: {
           args: [0],
           msg: "El stock no puede ser negativo"
+        },
+
+        isInt: {
+          msg: "El stock debe ser un número entero"
         }
+
+      },
+
+      get() {
+
+        const value =
+          this.getDataValue("stock");
+
+        return value
+          ? parseInt(value)
+          : 0;
+
       }
+
+    },
+
+    categoriaId: {
+      type: DataTypes.INTEGER,
+      allowNull: true
     },
 
     imagen: {
-      type: DataTypes.STRING,
-      allowNull: true,
-      validate: {
-        isUrl: {
-          msg: "La imagen debe ser una URL válida"
-        }
-      }
+      type: DataTypes.TEXT,
+      allowNull: true
     }
+
   },
 
   {
     tableName: "productos",
     timestamps: true
   }
+
 );
 
 module.exports = Producto;

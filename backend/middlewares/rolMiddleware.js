@@ -1,54 +1,89 @@
 const verificarRol = (...rolesPermitidos) => {
 
-  // Normalizar roles permitidos una sola vez
-  const rolesNormalizados = rolesPermitidos.map(r =>
-    r.toLowerCase().trim()
-  );
+  /* ================= NORMALIZAR ROLES ================= */
+
+  const rolesNormalizados =
+    rolesPermitidos.map(rol =>
+
+      String(rol)
+        .toLowerCase()
+        .trim()
+
+    );
 
   return (req, res, next) => {
 
     try {
 
-      /* ===============================
-      VALIDAR AUTENTICACIÓN
-      ================================ */
+      /* ================= VALIDAR USUARIO ================= */
+
       if (!req.usuario) {
+
         return res.status(401).json({
-          message: "Usuario no autenticado"
+
+          message:
+            "Usuario no autenticado"
+
         });
+
       }
 
-      const { rol } = req.usuario;
+      /* ================= VALIDAR ROL ================= */
 
-      /* ===============================
-      VALIDAR QUE EXISTA ROL
-      ================================ */
-      if (!rol) {
-        return res.status(403).json({
-          message: "El usuario no tiene rol asignado"
-        });
-      }
+      const rolUsuario =
+        req.usuario.rol;
 
-      const rolNormalizado = rol.toLowerCase().trim();
-
-      /* ===============================
-      VALIDAR PERMISOS
-      ================================ */
-      if (!rolesNormalizados.includes(rolNormalizado)) {
+      if (!rolUsuario) {
 
         return res.status(403).json({
-          message: `Acceso denegado. Se requiere: ${rolesPermitidos.join(" o ")}`
+
+          message:
+            "Usuario sin rol asignado"
+
         });
+
       }
+
+      const rolNormalizado =
+        String(rolUsuario)
+          .toLowerCase()
+          .trim();
+
+      /* ================= VALIDAR PERMISOS ================= */
+
+      const tienePermiso =
+
+        rolesNormalizados.includes(
+          rolNormalizado
+        );
+
+      if (!tienePermiso) {
+
+        return res.status(403).json({
+
+          message:
+            `Acceso denegado. Roles permitidos: ${rolesPermitidos.join(", ")}`
+
+        });
+
+      }
+
+      /* ================= CONTINUAR ================= */
 
       next();
 
     } catch (error) {
 
-      console.error("Error en verificarRol:", error.message);
+      console.error(
+        "❌ Error verificarRol:",
+        error.message
+      );
 
-      return res.status(500).json({
-        message: "Error interno en autorización"
+      return res.status(403).json({
+
+        message:
+          "No autorizado"
+
       });
 
     }

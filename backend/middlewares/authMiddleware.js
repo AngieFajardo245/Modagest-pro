@@ -1,79 +1,165 @@
 const jwt = require("jsonwebtoken");
+
 require("dotenv").config();
+
+/* ================= VERIFICAR TOKEN ================= */
 
 const verificarToken = (req, res, next) => {
 
   try {
 
-    const authHeader = req.headers.authorization;
+    /* ================= HEADER ================= */
 
-    /* ===============================
-    VALIDAR HEADER
-    ================================ */
+    const authHeader =
+      req.headers.authorization;
+
     if (!authHeader) {
+
       return res.status(401).json({
-        message: "Acceso denegado. Token requerido."
+
+        message:
+          "Token requerido"
+
       });
+
     }
 
-    /* ===============================
-    VALIDAR FORMATO BEARER
-    ================================ */
-    const partes = authHeader.split(" ");
+    /* ================= FORMATO ================= */
 
-    if (partes.length !== 2 || partes[0] !== "Bearer") {
-      return res.status(400).json({
-        message: "Formato de token inválido. Use: Bearer <token>"
+    const partes =
+      authHeader.split(" ");
+
+    if (
+
+      partes.length !== 2 ||
+
+      partes[0].toLowerCase() !== "bearer"
+
+    ) {
+
+      return res.status(401).json({
+
+        message:
+          "Formato inválido. Use Bearer token"
+
       });
+
     }
 
     const token = partes[1];
 
-    /* ===============================
-    VERIFICAR TOKEN
-    ================================ */
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    /* ================= TOKEN VACIO ================= */
 
-    /* ===============================
-    VALIDAR CONTENIDO DEL TOKEN
-    ================================ */
-    if (!decoded.id || !decoded.rol) {
+    if (!token || token.trim() === "") {
+
       return res.status(401).json({
-        message: "Token inválido (datos incompletos)"
+
+        message:
+          "Token vacío"
+
       });
+
     }
 
-    /* ===============================
-    GUARDAR USUARIO EN REQUEST
-    ================================ */
+    /* ================= SECRET ================= */
+
+    if (!process.env.JWT_SECRET) {
+
+      console.error(
+        "❌ JWT_SECRET no definido"
+      );
+
+      return res.status(500).json({
+
+        message:
+          "Error interno del servidor"
+
+      });
+
+    }
+
+    /* ================= VERIFICAR ================= */
+
+    const decoded = jwt.verify(
+
+      token,
+
+      process.env.JWT_SECRET
+
+    );
+
+    /* ================= VALIDAR DATA ================= */
+
+    if (
+      !decoded.id ||
+      !decoded.rol
+    ) {
+
+      return res.status(401).json({
+
+        message:
+          "Token inválido"
+
+      });
+
+    }
+
+    /* ================= GUARDAR USUARIO ================= */
+
     req.usuario = {
+
       id: decoded.id,
+
       rol: decoded.rol
+
     };
 
     next();
 
   } catch (error) {
 
-    console.error("Error verificando token:", error.message);
+    console.error(
+      "❌ Error token:",
+      error.message
+    );
 
-    /* ===============================
-    ERRORES MÁS CLAROS
-    ================================ */
-    if (error.name === "TokenExpiredError") {
+    /* ================= TOKEN EXPIRADO ================= */
+
+    if (
+      error.name === "TokenExpiredError"
+    ) {
+
       return res.status(401).json({
-        message: "Token expirado"
+
+        message:
+          "Sesión expirada"
+
       });
+
     }
 
-    if (error.name === "JsonWebTokenError") {
+    /* ================= TOKEN INVALIDO ================= */
+
+    if (
+      error.name === "JsonWebTokenError"
+    ) {
+
       return res.status(401).json({
-        message: "Token inválido"
+
+        message:
+          "Token inválido"
+
       });
+
     }
 
-    return res.status(500).json({
-      message: "Error interno al validar el token"
+    /* ================= ERROR GENERAL ================= */
+
+    return res.status(401).json({
+
+      message:
+        "No autorizado"
+
     });
 
   }
