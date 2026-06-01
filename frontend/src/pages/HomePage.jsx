@@ -329,17 +329,20 @@ function HomePage() {
                 <div style={styles.imageBox}>
 
                   <img
-
                     src={
-                      p.imagen ||
-                      "https://via.placeholder.com/300x300?text=ModaGest"
-                    }
-
-                    alt={p.nombre}
-
-                    style={styles.image}
-
-                  />
+                      p.imagen
+                        ? p.imagen.startsWith("http")
+                          ? p.imagen
+                          : `http://localhost:5000/uploads/${p.imagen}`
+                        : "https://via.placeholder.com/300x300?text=ModaGest"
+             }
+             alt={p.nombre}
+             style={styles.image}
+             onError={(e) => {
+              e.target.src =
+                "https://via.placeholder.com/300x300?text=ModaGest";
+           }}
+                />
 
                 </div>
 
