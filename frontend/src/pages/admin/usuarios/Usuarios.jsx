@@ -7,15 +7,17 @@ import UsuarioStats from "./UsuarioStats";
 import UsuarioFilters from "./UsuarioFilters";
 import UsuarioTable from "./UsuarioTable";
 
-function Usuarios() {
-
+export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
+
   const [loading, setLoading] = useState(true);
+
   const [error, setError] = useState("");
 
   /* ================= FILTROS ================= */
 
   const [busqueda, setBusqueda] = useState("");
+
   const [filtroRol, setFiltroRol] = useState("todos");
 
   /* ===================================================== */
@@ -23,42 +25,25 @@ function Usuarios() {
   /* ===================================================== */
 
   const obtenerUsuarios = async () => {
-
     try {
-
       setLoading(true);
+
       setError("");
 
-      const response = await api.get(
-        "/admin/usuarios"
-      );
+      const response = await api.get("/admin/usuarios");
 
-      const data = Array.isArray(response.data)
-        ? response.data
-        : [];
+      setUsuarios(Array.isArray(response.data) ? response.data : []);
+    } catch (err) {
+      console.error(err);
 
-      setUsuarios(data);
-
-    } catch (error) {
-
-      console.error(error);
-
-      setError(
-        "No se pudieron cargar los usuarios"
-      );
-
+      setError("No se pudieron cargar los usuarios");
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
   useEffect(() => {
-
     obtenerUsuarios();
-
   }, []);
 
   /* ===================================================== */
@@ -66,219 +51,134 @@ function Usuarios() {
   /* ===================================================== */
 
   const eliminarUsuario = async (id) => {
-
     const confirmar = window.confirm(
-      "¿Seguro que deseas eliminar este usuario?"
+      "¿Seguro que deseas eliminar este usuario?",
     );
 
     if (!confirmar) return;
 
     try {
+      await api.delete(`/admin/usuarios/${id}`);
 
-      await api.delete(
-        `/admin/usuarios/${id}`
-      );
+      setUsuarios((prev) => prev.filter((usuario) => usuario.id !== id));
 
-      setUsuarios((prev) =>
-        prev.filter((u) => u.id !== id)
-      );
+      alert("Usuario eliminado correctamente");
+    } catch (err) {
+      console.error(err);
 
-      alert("✅ Usuario eliminado");
-
-    } catch (error) {
-
-      console.error(error);
-
-      alert(
-        "❌ No se pudo eliminar el usuario"
-      );
-
+      alert("No se pudo eliminar el usuario");
     }
-
   };
 
   /* ===================================================== */
-  /* ==================== CAMBIAR ROL ==================== */
+  /* ================= CAMBIAR ROL ======================= */
   /* ===================================================== */
 
-  const cambiarRol = async (
-    id,
-    nuevoRol
-  ) => {
-
+  const cambiarRol = async (id, nuevoRol) => {
     try {
-
       await api.put(
         `/admin/usuarios/${id}/rol`,
+
         {
-          rol: nuevoRol
-        }
+          rol: nuevoRol,
+        },
       );
 
       setUsuarios((prev) =>
-        prev.map((u) =>
-          u.id === id
+        prev.map((usuario) =>
+          usuario.id === id
             ? {
-                ...u,
-                rol: nuevoRol
+                ...usuario,
+                rol: nuevoRol,
               }
-            : u
-        )
+            : usuario,
+        ),
       );
 
-      alert("✅ Rol actualizado");
+      alert("Rol actualizado");
+    } catch (err) {
+      console.error(err);
 
-    } catch (error) {
-
-      console.error(error);
-
-      alert(
-        "❌ No se pudo actualizar el rol"
-      );
-
+      alert("No se pudo actualizar el rol");
     }
-
   };
 
   /* ===================================================== */
-  /* =================== FILTRAR DATOS =================== */
+  /* ================= FILTROS =========================== */
   /* ===================================================== */
 
   const usuariosFiltrados = useMemo(() => {
-
-    return usuarios.filter((u) => {
+    return usuarios.filter((usuario) => {
+      const texto = busqueda.toLowerCase();
 
       const coincideBusqueda =
-
-        u.nombre
-          ?.toLowerCase()
-          .includes(
-            busqueda.toLowerCase()
-          ) ||
-
-        u.email
-          ?.toLowerCase()
-          .includes(
-            busqueda.toLowerCase()
-          );
+        usuario.nombre?.toLowerCase().includes(texto) ||
+        usuario.email?.toLowerCase().includes(texto);
 
       const coincideRol =
+        filtroRol === "todos" ? true : usuario.rol === filtroRol;
 
-        filtroRol === "todos"
-          ? true
-          : u.rol === filtroRol;
-
-      return (
-        coincideBusqueda &&
-        coincideRol
-      );
-
+      return coincideBusqueda && coincideRol;
     });
-
-  }, [
-    usuarios,
-    busqueda,
-    filtroRol
-  ]);
+  }, [usuarios, busqueda, filtroRol]);
 
   /* ===================================================== */
-  /* =================== ESTADISTICAS ==================== */
+  /* ================= ESTADISTICAS ====================== */
   /* ===================================================== */
 
-  const totalUsuarios =
-    usuarios.length;
+  const totalUsuarios = usuarios.length;
 
-  const totalAdmins =
-    usuarios.filter(
-      (u) =>
-        u.rol === "administrador"
-    ).length;
+  const totalAdmins = usuarios.filter((u) => u.rol === "administrador").length;
 
-  const totalClientes =
-    usuarios.filter(
-      (u) =>
-        u.rol === "cliente"
-    ).length;
+  const totalClientes = usuarios.filter((u) => u.rol === "cliente").length;
 
-  const totalEmpleados =
-    usuarios.filter(
-      (u) =>
-        u.rol === "empleado"
-    ).length;
+  const totalEmpleados = usuarios.filter((u) => u.rol === "empleado").length;
 
   /* ===================================================== */
-  /* ======================= LOADING ===================== */
+  /* ================= LOADING =========================== */
   /* ===================================================== */
 
   if (loading) {
-
     return (
-
       <div style={styles.center}>
-
         <div style={styles.loader}></div>
 
-        <p style={styles.loadingText}>
-          Cargando usuarios...
-        </p>
-
+        <p>Cargando usuarios...</p>
       </div>
-
     );
-
   }
 
   /* ===================================================== */
-  /* ======================== ERROR ====================== */
+  /* ================= ERROR ============================= */
   /* ===================================================== */
 
   if (error) {
-
     return (
-
       <div style={styles.center}>
+        <p style={styles.error}>{error}</p>
 
-        <p style={styles.error}>
-          {error}
-        </p>
-
+        <button onClick={obtenerUsuarios} style={styles.filterBtn}>
+          Reintentar
+        </button>
       </div>
-
     );
-
   }
 
   /* ===================================================== */
-  /* ========================== UI ======================= */
+  /* ================= UI ================================ */
   /* ===================================================== */
 
   return (
-
     <div style={styles.container}>
-
-      {/* ================= HEADER ================= */}
-
       <div style={styles.header}>
+        <p style={styles.badgeTop}>✨ Panel Administrativo</p>
 
-        <div>
+        <h1 style={styles.title}>👥 Gestión de Usuarios</h1>
 
-          <p style={styles.badgeTop}>
-            ✨ Panel Administrativo
-          </p>
-
-          <h1 style={styles.title}>
-            👥 Gestión de Usuarios
-          </h1>
-
-          <p style={styles.subtitle}>
-            Administra usuarios y roles del sistema
-          </p>
-
-        </div>
-
+        <p style={styles.subtitle}>
+          Administra usuarios y permisos del sistema
+        </p>
       </div>
-
-      {/* ================= STATS ================= */}
 
       <UsuarioStats
         totalUsuarios={totalUsuarios}
@@ -287,8 +187,6 @@ function Usuarios() {
         totalEmpleados={totalEmpleados}
       />
 
-      {/* ================= FILTROS ================= */}
-
       <UsuarioFilters
         busqueda={busqueda}
         setBusqueda={setBusqueda}
@@ -296,18 +194,11 @@ function Usuarios() {
         setFiltroRol={setFiltroRol}
       />
 
-      {/* ================= TABLA ================= */}
-
       <UsuarioTable
         usuarios={usuariosFiltrados}
         cambiarRol={cambiarRol}
         eliminarUsuario={eliminarUsuario}
       />
-
     </div>
-
   );
-
 }
-
-export default Usuarios;

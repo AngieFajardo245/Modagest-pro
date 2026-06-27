@@ -1,22 +1,29 @@
 import axios from "axios";
 
+
 const api = axios.create({
 
-  baseURL: "http://localhost:5000",
+  baseURL:
+    import.meta.env.VITE_API_URL ||
+    "http://localhost:5000",
 
-  headers: {
-    "Content-Type": "application/json"
+  headers:{
+    "Content-Type":"application/json"
   }
 
 });
 
-/* ================= TOKEN ================= */
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(
 
-  const token = localStorage.getItem("token");
+(config)=>{
 
-  if (token) {
+
+  const token =
+    localStorage.getItem("token");
+
+
+  if(token){
 
     config.headers.Authorization =
       `Bearer ${token}`;
@@ -25,6 +32,60 @@ api.interceptors.request.use((config) => {
 
   return config;
 
-});
+},
+
+
+(error)=>{
+
+  return Promise.reject(error);
+
+}
+
+);
+
+api.interceptors.response.use(
+
+
+(response)=>{
+
+  return response;
+
+},
+
+
+(error)=>{
+
+
+  if(error.response){
+
+
+    if(error.response.status === 401){
+
+
+      console.warn(
+        "Sesión expirada"
+      );
+
+
+      localStorage.removeItem("token");
+
+
+      localStorage.removeItem("usuario");
+
+
+      window.location.href="/login";
+
+    }
+
+
+  }
+
+
+  return Promise.reject(error);
+
+
+}
+
+);
 
 export default api;
