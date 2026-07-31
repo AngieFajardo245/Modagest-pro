@@ -297,6 +297,113 @@ const styles = {
 
     color: "#fff",
   },
+
+  addButton: {
+
+  background: "linear-gradient(135deg,#7c3aed,#2563eb)",
+
+  color: "#fff",
+
+  border: "none",
+
+  padding: "14px 24px",
+
+  borderRadius: "14px",
+
+  fontWeight: "700",
+
+  fontSize: "15px",
+
+  cursor: "pointer",
+
+  transition: "0.3s",
+
+  boxShadow: "0 10px 25px rgba(0,0,0,.25)"
+
+},
+
+errorBox: {
+
+  background: "rgba(239,68,68,.15)",
+
+  border: "1px solid rgba(239,68,68,.45)",
+
+  color: "#fecaca",
+
+  padding: "12px",
+
+  borderRadius: "12px",
+
+  marginBottom: "20px",
+
+  fontWeight: "600",
+
+},
+modalOverlay: {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(0,0,0,.65)",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  zIndex: 9999,
+},
+
+modal: {
+  width: "500px",
+  background: "#111827",
+  borderRadius: "20px",
+  padding: "30px",
+  border: "1px solid rgba(255,255,255,.08)",
+  boxShadow: "0 25px 60px rgba(0,0,0,.45)",
+},
+
+modalTitle: {
+  marginBottom: "25px",
+  color: "#fff",
+  fontSize: "24px",
+  fontWeight: "700",
+},
+
+input: {
+  width: "100%",
+  padding: "14px",
+  marginBottom: "18px",
+  borderRadius: "12px",
+  border: "1px solid rgba(255,255,255,.08)",
+  background: "#1f2937",
+  color: "#fff",
+  outline: "none",
+  fontSize: "15px",
+  boxSizing: "border-box",
+},
+
+modalButtons: {
+  display: "flex",
+  justifyContent: "flex-end",
+  gap: "12px",
+  marginTop: "15px",
+},
+
+cancelButton: {
+  padding: "12px 20px",
+  borderRadius: "12px",
+  border: "none",
+  cursor: "pointer",
+  background: "#374151",
+  color: "#fff",
+  fontWeight: "600",
+},
+
+saveButton: {
+  padding: "12px 20px",
+  borderRadius: "12px",
+  border: "none",
+  cursor: "pointer",
+  background: "linear-gradient(135deg,#7c3aed,#2563eb)",
+  color: "#fff",
+  fontWeight: "700",
+},
 };
 
 export default styles;

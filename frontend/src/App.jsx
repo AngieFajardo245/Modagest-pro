@@ -22,7 +22,7 @@ import EmpleadoLayout from "./components/Layout/EmpleadoLayout";
 
 /* ================= ADMIN ================= */
 
-import Dashboard from "./pages/admin/Dashboard";
+import Dashboard from "./pages/admin/Dashboard/Dashboard";
 import Productos from "./pages/admin/productos/Productos";
 import Usuarios from "./pages/admin/usuarios/Usuarios";
 import AdminVentas from "./pages/admin/ventas/Ventas";

@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../../../services/api";
 
+import { toast } from "react-toastify";
+
 import styles from "./usuariosStyles";
 
 import UsuarioStats from "./UsuarioStats";
 import UsuarioFilters from "./UsuarioFilters";
 import UsuarioTable from "./UsuarioTable";
+import UsuarioForm from "./UsuarioForm";
 
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
@@ -19,6 +22,8 @@ export default function Usuarios() {
   const [busqueda, setBusqueda] = useState("");
 
   const [filtroRol, setFiltroRol] = useState("todos");
+
+  const [mostrarFormulario, setMostrarFormulario] = useState(false);
 
   /* ===================================================== */
   /* ================= OBTENER USUARIOS ================== */
@@ -62,11 +67,11 @@ export default function Usuarios() {
 
       setUsuarios((prev) => prev.filter((usuario) => usuario.id !== id));
 
-      alert("Usuario eliminado correctamente");
+      toast.success("Usuario eliminado correctamente");
     } catch (err) {
       console.error(err);
 
-      alert("No se pudo eliminar el usuario");
+      toast.error("No se pudo eliminar el usuario");
     }
   };
 
@@ -95,13 +100,40 @@ export default function Usuarios() {
         ),
       );
 
-      alert("Rol actualizado");
+      toast.success("Rol actualizado");
     } catch (err) {
       console.error(err);
 
-      alert("No se pudo actualizar el rol");
+      toast.error("No se pudo actualizar el rol");
     }
   };
+
+  /* ===================================================== */
+/* ================= CREAR USUARIO ====================== */
+/* ===================================================== */
+
+const crearUsuario = async (datos) => {
+  try {
+
+    await api.post("/admin/usuarios", datos);
+
+    toast.success("Usuario creado correctamente");
+
+    setMostrarFormulario(false);
+
+    obtenerUsuarios();
+
+  } catch (err) {
+
+    console.error(err);
+
+    toast.error(
+      err.response?.data?.message ||
+      "No se pudo crear el usuario"
+    );
+
+  }
+};
 
   /* ===================================================== */
   /* ================= FILTROS =========================== */
@@ -180,6 +212,16 @@ export default function Usuarios() {
         </p>
       </div>
 
+      <button
+        style={styles.addButton}
+        onClick={() => {
+          console.log("Botón presionado");
+          setMostrarFormulario(true);
+        }}
+      >
+        + Nuevo Usuario
+      </button>
+
       <UsuarioStats
         totalUsuarios={totalUsuarios}
         totalAdmins={totalAdmins}
@@ -198,6 +240,12 @@ export default function Usuarios() {
         usuarios={usuariosFiltrados}
         cambiarRol={cambiarRol}
         eliminarUsuario={eliminarUsuario}
+      />
+
+      <UsuarioForm
+        visible={mostrarFormulario}
+        onClose={() => setMostrarFormulario(false)}
+        onGuardar={crearUsuario}
       />
     </div>
   );

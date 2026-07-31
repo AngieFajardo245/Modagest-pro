@@ -633,6 +633,64 @@ app.get(
   },
 );
 
+/* ================= CREAR USUARIO ================= */
+
+app.post(
+  "/admin/usuarios",
+
+  verificarToken,
+  verificarRol("administrador"),
+
+  async (req, res) => {
+    try {
+      const { nombre, email, password, rol } = req.body;
+
+      // Verificar que todos los campos existan
+      if (!nombre || !email || !password || !rol) {
+        return res.status(400).json({
+          message: "Todos los campos son obligatorios",
+        });
+      }
+
+      // Buscar si el correo ya existe
+      const existe = await Usuario.findOne({
+        where: {
+          email: email.trim().toLowerCase(),
+        },
+      });
+
+      if (existe) {
+        return res.status(400).json({
+          message: "El correo ya está registrado",
+        });
+      }
+
+      // nos ayudara a encriptar la contraseña
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      // Crear usuario
+      const nuevoUsuario = await Usuario.create({
+        nombre,
+        email: email.trim().toLowerCase(),
+        password: passwordHash,
+        rol,
+      });
+
+      res.status(201).json({
+        message: "Usuario creado correctamente",
+        usuario: nuevoUsuario,
+      });
+
+    } catch (error) {
+      console.error(error);
+
+      res.status(500).json({
+        error: error.message,
+      });
+    }
+  }
+);
+
 /* ================= CAMBIAR ROL ================= */
 
 app.put(
