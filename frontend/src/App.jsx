@@ -1,8 +1,4 @@
-import {
-  Routes,
-  Route,
-  Navigate
-} from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 /* ================= PAGINAS PUBLICAS ================= */
 
@@ -26,7 +22,7 @@ import Dashboard from "./pages/admin/Dashboard/Dashboard";
 import Productos from "./pages/admin/productos/Productos";
 import Usuarios from "./pages/admin/usuarios/Usuarios";
 import AdminVentas from "./pages/admin/ventas/Ventas";
-
+import Categorias from "./pages/admin/categorias/Categorias";
 
 /* ================= CLIENTE ================= */
 
@@ -40,22 +36,13 @@ import DashboardEmpleado from "./pages/empleado/DashboardEmpleado";
 import ProductosEmpleado from "./pages/empleado/ProductosEmpleado";
 
 function App() {
-
   return (
-
     <Routes>
-
       {/* ================= PUBLICAS ================= */}
 
-      <Route
-        path="/"
-        element={<HomePage />}
-      />
+      <Route path="/" element={<HomePage />} />
 
-      <Route
-        path="/login"
-        element={<Login />}
-      />
+      <Route path="/login" element={<Login />} />
 
       {/* ================= CARRITO ================= */}
 
@@ -69,7 +56,6 @@ function App() {
       />
 
       {/* ================= ADMIN ================= */}
-
       <Route
         path="/admin/*"
         element={
@@ -78,27 +64,16 @@ function App() {
           </ProtectedRoute>
         }
       >
+        <Route index element={<Dashboard />} />
 
-        <Route
-          index
-          element={<Dashboard />}
-        />
+        <Route path="productos" element={<Productos />} />
 
-        <Route
-          path="productos"
-          element={<Productos />}
-        />
+        <Route path="categorias" element={<Categorias />} />
 
-        <Route
-          path="usuarios"
-          element={<Usuarios />}
-        />
+        <Route path="usuarios" element={<Usuarios />} />
 
-        <Route
-          path="ventas"
-          element={<AdminVentas />}
-        />
-
+        <Route path="ventas" element={<AdminVentas />} />
+        
       </Route>
 
       {/* ================= CLIENTE ================= */}
@@ -111,29 +86,15 @@ function App() {
           </ProtectedRoute>
         }
       >
+        <Route index element={<DashboardCliente />} />
 
-        <Route
-          index
-          element={<DashboardCliente />}
-        />
+        <Route path="productos" element={<ProductosCliente />} />
 
-        <Route
-          path="productos"
-          element={<ProductosCliente />}
-        />
-
-        <Route
-          path="compras"
-          element={<ComprasCliente />}
-        />
+        <Route path="compras" element={<ComprasCliente />} />
 
         {/* ================= CARRITO CLIENTE ================= */}
 
-        <Route
-          path="carrito"
-          element={<Carrito />}
-        />
-
+        <Route path="carrito" element={<Carrito />} />
       </Route>
 
       {/* ================= EMPLEADO ================= */}
@@ -146,35 +107,16 @@ function App() {
           </ProtectedRoute>
         }
       >
+        <Route index element={<DashboardEmpleado />} />
 
-        <Route
-          index
-          element={<DashboardEmpleado />}
-        />
-
-        <Route
-          path="productos"
-          element={<ProductosEmpleado />}
-        />
-
+        <Route path="productos" element={<ProductosEmpleado />} />
       </Route>
 
       {/* ================= 404 ================= */}
 
-      <Route
-        path="*"
-        element={
-          <Navigate
-            to="/"
-            replace
-          />
-        }
-      />
-
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-
   );
-
 }
 
 export default App;

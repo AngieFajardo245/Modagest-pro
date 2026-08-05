@@ -4,16 +4,16 @@ import {
   FaChartLine,
   FaUsers,
   FaBoxOpen,
+  FaTags,
   FaShoppingBag,
   FaSignOutAlt,
   FaCrown,
-  FaBars
+  FaBars,
 } from "react-icons/fa";
 
 import { useState } from "react";
 
 export default function AdminNavbar() {
-
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -24,41 +24,29 @@ export default function AdminNavbar() {
   let usuario = null;
 
   try {
-
-    usuario = JSON.parse(
-      localStorage.getItem("usuario")
-    );
-
+    usuario = JSON.parse(localStorage.getItem("usuario"));
   } catch {
-
     usuario = null;
-
   }
 
-  const nombre =
-    usuario?.nombre || "Administrador";
+  const nombre = usuario?.nombre || "Administrador";
 
   /* ================= LOGOUT ================= */
 
   const cerrarSesion = () => {
-
     localStorage.clear();
 
     navigate("/login", {
-      replace: true
+      replace: true,
     });
-
   };
 
   /* ================= LINK STYLE ================= */
 
   const linkStyle = (path) => {
-
-    const activo =
-      location.pathname === path;
+    const activo = location.pathname === path;
 
     return {
-
       ...styles.link,
 
       background: activo
@@ -69,116 +57,67 @@ export default function AdminNavbar() {
         ? "1px solid rgba(255,255,255,0.14)"
         : "1px solid transparent",
 
-      color: activo
-        ? "#ffffff"
-        : "#cbd5e1",
+      color: activo ? "#ffffff" : "#cbd5e1",
 
-      boxShadow: activo
-        ? "0 10px 30px rgba(124,58,237,0.18)"
-        : "none"
-
+      boxShadow: activo ? "0 10px 30px rgba(124,58,237,0.18)" : "none",
     };
-
   };
 
   return (
-
     <>
-
       {/* ================= NAVBAR ================= */}
 
       <nav style={styles.nav}>
-
         {/* ================= IZQUIERDA ================= */}
 
         <div style={styles.leftSection}>
-
           {/* ================= MENU MOBILE ================= */}
 
-          <button
-            style={styles.menuBtn}
-            onClick={() =>
-              setMenuOpen(!menuOpen)
-            }
-          >
-
+          <button style={styles.menuBtn} onClick={() => setMenuOpen(!menuOpen)}>
             <FaBars />
-
           </button>
 
           {/* ================= LOGO ================= */}
 
-          <div
-            style={styles.logoContainer}
-            onClick={() =>
-              navigate("/admin")
-            }
-          >
-
+          <div style={styles.logoContainer} onClick={() => navigate("/admin")}>
             <div style={styles.logoIcon}>
-
               <FaCrown />
-
             </div>
 
             <div>
+              <h2 style={styles.logo}>ModaGest Pro</h2>
 
-              <h2 style={styles.logo}>
-                ModaGest Pro
-              </h2>
-
-              <p style={styles.logoSub}>
-                Panel Administrativo
-              </p>
-
+              <p style={styles.logoSub}>Panel Administrativo</p>
             </div>
-
           </div>
-
         </div>
 
         {/* ================= LINKS DESKTOP ================= */}
 
         <div style={styles.linksDesktop}>
-
-          <Link
-            to="/admin"
-            style={linkStyle("/admin")}
-          >
-
+          <Link to="/admin" style={linkStyle("/admin")}>
             <FaChartLine />
             Dashboard
-
           </Link>
 
-          <Link
-            to="/admin/usuarios"
-            style={linkStyle("/admin/usuarios")}
-          >
-
+          <Link to="/admin/usuarios" style={linkStyle("/admin/usuarios")}>
             <FaUsers />
             Usuarios
-
           </Link>
 
-          <Link
-            to="/admin/productos"
-            style={linkStyle("/admin/productos")}
-          >
-
+          <Link to="/admin/productos" style={linkStyle("/admin/productos")}>
             <FaBoxOpen />
             Productos
-
           </Link>
 
-          <Link
-            to="/admin/ventas"
-            style={linkStyle("/admin/ventas")}
-          >
+          <Link to="/admin/categorias" style={linkStyle("/admin/categorias")}>
+            <FaTags />
+            Categorías
+          </Link>
 
+          <Link to="/admin/ventas" style={linkStyle("/admin/ventas")}>
             <FaShoppingBag />
             Ventas
-
           </Link>
 
         </div>
@@ -186,118 +125,72 @@ export default function AdminNavbar() {
         {/* ================= DERECHA ================= */}
 
         <div style={styles.rightSection}>
-
           {/* ================= USER ================= */}
 
           <div style={styles.userBox}>
-
             <div style={styles.avatarGlow}>
-
-              <div style={styles.avatar}>
-
-                {nombre.charAt(0).toUpperCase()}
-
-              </div>
-
+              <div style={styles.avatar}>{nombre.charAt(0).toUpperCase()}</div>
             </div>
 
             <div>
+              <p style={styles.userLabel}>Administrador</p>
 
-              <p style={styles.userLabel}>
-                Administrador
-              </p>
-
-              <h4 style={styles.userName}>
-                {nombre}
-              </h4>
-
+              <h4 style={styles.userName}>{nombre}</h4>
             </div>
-
           </div>
 
           {/* ================= BOTON ================= */}
 
-          <button
-            onClick={cerrarSesion}
-            style={styles.logoutBtn}
-          >
-
+          <button onClick={cerrarSesion} style={styles.logoutBtn}>
             <FaSignOutAlt />
-
             Salir
-
           </button>
-
         </div>
-
       </nav>
 
       {/* ================= MOBILE MENU ================= */}
 
       {menuOpen && (
-
         <div style={styles.mobileMenu}>
-
           <Link
             to="/admin"
             style={styles.mobileLink}
-            onClick={() =>
-              setMenuOpen(false)
-            }
+            onClick={() => setMenuOpen(false)}
           >
-
             <FaChartLine />
             Dashboard
-
           </Link>
 
           <Link
             to="/admin/usuarios"
             style={styles.mobileLink}
-            onClick={() =>
-              setMenuOpen(false)
-            }
+            onClick={() => setMenuOpen(false)}
           >
-
             <FaUsers />
             Usuarios
-
           </Link>
 
           <Link
             to="/admin/productos"
             style={styles.mobileLink}
-            onClick={() =>
-              setMenuOpen(false)
-            }
+            onClick={() => setMenuOpen(false)}
           >
-
             <FaBoxOpen />
             Productos
-
           </Link>
 
           <Link
             to="/admin/ventas"
             style={styles.mobileLink}
-            onClick={() =>
-              setMenuOpen(false)
-            }
+            onClick={() => setMenuOpen(false)}
           >
-
             <FaShoppingBag />
             Ventas
-
           </Link>
-
         </div>
-
       )}
-
     </>
-
   );
-
 }
 
 /* ===================================================== */
@@ -305,68 +198,53 @@ export default function AdminNavbar() {
 /* ===================================================== */
 
 const styles = {
-
   nav: {
+  position: "sticky",
+  top: 0,
+  zIndex: 999,
 
-    position: "sticky",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
 
-    top: 0,
+  padding: "12px 30px",
 
-    zIndex: 999,
+  background: "rgba(15,23,42,0.82)",
 
-    display: "flex",
+  backdropFilter: "blur(18px)",
+  WebkitBackdropFilter: "blur(18px)",
 
-    justifyContent: "space-between",
+  borderBottom:
+    "1px solid rgba(255,255,255,0.08)",
 
-    alignItems: "center",
+  boxShadow:
+    "0 10px 35px rgba(0,0,0,0.25)",
 
-    padding: "18px 30px",
+  gap: "15px",
 
-    background:
-      "rgba(15,23,42,0.72)",
-
-    backdropFilter: "blur(18px)",
-
-    WebkitBackdropFilter:
-      "blur(18px)",
-
-    borderBottom:
-      "1px solid rgba(255,255,255,0.08)",
-
-    boxShadow:
-      "0 10px 35px rgba(0,0,0,0.25)",
-
-    flexWrap: "wrap",
-
-    gap: "20px"
-
-  },
+  flexWrap: "nowrap",
+},
 
   leftSection: {
-
     display: "flex",
 
     alignItems: "center",
 
-    gap: "18px"
-
+    gap: "18px",
   },
 
   /* ================= MENU BTN ================= */
 
   menuBtn: {
-
     width: "45px",
 
     height: "45px",
 
     borderRadius: "12px",
 
-    border:
-      "1px solid rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.08)",
 
-    background:
-      "rgba(255,255,255,0.06)",
+    background: "rgba(255,255,255,0.06)",
 
     color: "#fff",
 
@@ -378,52 +256,42 @@ const styles = {
 
     cursor: "pointer",
 
-    fontSize: "16px"
-
+    fontSize: "16px",
   },
 
   /* ================= LOGO ================= */
 
   logoContainer: {
-
     display: "flex",
 
     alignItems: "center",
 
     gap: "14px",
 
-    cursor: "pointer"
-
+    cursor: "pointer",
   },
 
   logoIcon: {
+  width: "48px",
+  height: "48px",
 
-    width: "56px",
+  borderRadius: "15px",
 
-    height: "56px",
+  background:
+    "linear-gradient(135deg, #7c3aed, #2563eb)",
 
-    borderRadius: "18px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
 
-    background:
-      "linear-gradient(135deg, #7c3aed, #2563eb)",
+  color: "#fff",
+  fontSize: "20px",
 
-    display: "flex",
-
-    alignItems: "center",
-
-    justifyContent: "center",
-
-    color: "#fff",
-
-    fontSize: "22px",
-
-    boxShadow:
-      "0 10px 30px rgba(124,58,237,0.35)"
-
-  },
+  boxShadow:
+    "0 10px 30px rgba(124,58,237,0.35)",
+},
 
   logo: {
-
     margin: 0,
 
     color: "#fff",
@@ -432,192 +300,173 @@ const styles = {
 
     fontWeight: "800",
 
-    letterSpacing: "0.5px"
-
+    letterSpacing: "0.5px",
   },
 
   logoSub: {
-
     margin: 0,
 
     color: "#94a3b8",
 
-    fontSize: "13px"
-
+    fontSize: "13px",
   },
 
   /* ================= LINKS ================= */
 
   linksDesktop: {
 
-    display: "flex",
+  display: "flex",
 
-    alignItems: "center",
+  alignItems: "center",
 
-    gap: "14px",
+  gap: "6px",
 
-    flexWrap: "wrap"
+  flexWrap: "nowrap",
 
-  },
+  flex: 1,
+
+  justifyContent: "center",
+
+},
 
   link: {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
 
-    display: "flex",
+  gap: "7px",
 
-    alignItems: "center",
+  padding: "10px 12px",
 
-    gap: "10px",
+  borderRadius: "14px",
 
-    padding: "12px 18px",
+  textDecoration: "none",
 
-    borderRadius: "16px",
+  fontWeight: "600",
 
-    textDecoration: "none",
+  transition: "all 0.3s ease",
 
-    fontWeight: "600",
+  fontSize: "13px",
 
-    transition: "all 0.3s ease",
-
-    fontSize: "15px"
-
-  },
-
+  whiteSpace: "nowrap",
+},
   /* ================= DERECHA ================= */
 
   rightSection: {
-
     display: "flex",
 
     alignItems: "center",
 
     gap: "18px",
 
-    flexWrap: "wrap"
-
+    flexWrap: "wrap",
   },
 
   userBox: {
+  display: "flex",
+  alignItems: "center",
 
-    display: "flex",
+  gap: "9px",
 
-    alignItems: "center",
+  padding: "7px 10px",
 
-    gap: "12px",
+  borderRadius: "15px",
 
-    padding:
-      "10px 14px",
+  background:
+    "rgba(255,255,255,0.05)",
 
-    borderRadius: "18px",
+  border:
+    "1px solid rgba(255,255,255,0.08)",
 
-    background:
-      "rgba(255,255,255,0.05)",
+  backdropFilter: "blur(10px)",
 
-    border:
-      "1px solid rgba(255,255,255,0.08)",
-
-    backdropFilter: "blur(10px)"
-
-  },
+  whiteSpace: "nowrap",
+},
 
   avatarGlow: {
+  padding: "2px",
 
-    padding: "2px",
+  borderRadius: "50%",
 
-    borderRadius: "50%",
-
-    background:
-      "linear-gradient(135deg, #7c3aed, #2563eb)"
-
-  },
+  background:
+    "linear-gradient(135deg, #7c3aed, #2563eb)",
+},
 
   avatar: {
+  width: "36px",
+  height: "36px",
 
-    width: "42px",
+  borderRadius: "50%",
 
-    height: "42px",
+  background: "#111827",
 
-    borderRadius: "50%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
 
-    background: "#111827",
+  color: "#fff",
 
-    display: "flex",
-
-    alignItems: "center",
-
-    justifyContent: "center",
-
-    color: "#fff",
-
-    fontWeight: "700",
-
-    fontSize: "16px"
-
-  },
+  fontWeight: "700",
+  fontSize: "14px",
+},
 
   userLabel: {
-
     margin: 0,
 
     color: "#94a3b8",
 
-    fontSize: "12px"
-
+    fontSize: "12px",
   },
 
   userName: {
-
     margin: 0,
 
     color: "#fff",
 
     fontSize: "14px",
 
-    fontWeight: "700"
-
+    fontWeight: "700",
   },
 
   /* ================= BOTON ================= */
 
   logoutBtn: {
+  border: "none",
 
-    border: "none",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
 
-    display: "flex",
+  gap: "7px",
 
-    alignItems: "center",
+  padding: "10px 14px",
 
-    gap: "8px",
+  borderRadius: "13px",
 
-    padding: "12px 18px",
+  cursor: "pointer",
 
-    borderRadius: "16px",
+  fontWeight: "700",
 
-    cursor: "pointer",
+  color: "#fff",
 
-    fontWeight: "700",
+  background:
+    "linear-gradient(135deg, #ef4444, #dc2626)",
 
-    color: "#fff",
+  boxShadow:
+    "0 10px 25px rgba(239,68,68,0.25)",
 
-    background:
-      "linear-gradient(135deg, #ef4444, #dc2626)",
+  transition: "all 0.3s ease",
 
-    boxShadow:
-      "0 10px 25px rgba(239,68,68,0.25)",
-
-    transition: "all 0.3s ease"
-
-  },
+  whiteSpace: "nowrap",
+},
 
   /* ================= MOBILE ================= */
 
   mobileMenu: {
-
-    display: "none"
-
+    display: "none",
   },
 
   mobileLink: {
-
     display: "flex",
 
     alignItems: "center",
@@ -632,9 +481,6 @@ const styles = {
 
     borderRadius: "14px",
 
-    background:
-      "rgba(255,255,255,0.05)"
-
-  }
-
+    background: "rgba(255,255,255,0.05)",
+  },
 };
