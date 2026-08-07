@@ -23,8 +23,10 @@ export default function ProductoForm({
       return false;
     }
 
-    if (!formulario.precio || Number(formulario.precio) <= 0) {
-      setError("El precio debe ser mayor que cero.");
+    if (!formulario.precio || Number(formulario.precio) < 1000) {
+      setError(
+        "El precio debe ser mínimo de $1.000 COP. Ingresa el valor completo. Ejemplo: 18000 para $18.000.",
+      );
       return false;
     }
 

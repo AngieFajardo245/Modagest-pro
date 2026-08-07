@@ -1,60 +1,74 @@
 import styles from "./dashboardStyles";
 import SummaryRow from "./SummaryRow";
 
-export default function DashboardSummary({
-  stats,
-  formatoMoneda
-}) {
+export default function DashboardSummary({ stats, formatoMoneda }) {
+  const metodosPago = stats?.metodosPago || {};
+
+  const obtenerNombreMetodo = (metodo) => {
+    const nombres = {
+      tarjeta: "Tarjeta",
+      efectivo: "Efectivo",
+      pse: "PSE",
+      nequi: "Nequi",
+      contra_entrega: "Contra Entrega",
+    };
+
+    const clave = String(metodo || "")
+      .trim()
+      .toLowerCase();
+
+    return nombres[clave] || metodo || "Sin especificar";
+  };
 
   return (
-
     <div style={styles.summaryCard}>
-
       <div style={styles.sectionHeader}>
-
-        <h3 style={styles.sectionTitle}>
-          Estado General
-        </h3>
-
+        <h3 style={styles.sectionTitle}>Estado General</h3>
       </div>
 
-
       <div style={styles.summaryList}>
-
-
         <SummaryRow
           label="Usuarios activos"
           value={stats?.totalUsuarios || 0}
         />
-
 
         <SummaryRow
           label="Productos disponibles"
           value={stats?.totalProductos || 0}
         />
 
-
-        <SummaryRow
-          label="Ventas realizadas"
-          value={stats?.totalVentas || 0}
-        />
-
+        <SummaryRow label="Ventas realizadas" value={stats?.totalVentas || 0} />
 
         <SummaryRow
           label="Ingresos"
-          value={
-            formatoMoneda(
-              stats?.ingresosTotales
-            )
-          }
+          value={formatoMoneda(stats?.ingresosTotales)}
         />
-
-
       </div>
 
+      {/* ================= METODOS DE PAGO ================= */}
 
+      <div style={styles.paymentSection}>
+        <h4 style={styles.paymentTitle}>💳 Métodos de pago</h4>
+
+        {Object.keys(metodosPago).length === 0 ? (
+          <p style={styles.activityTime}>No hay pagos registrados.</p>
+        ) : (
+          <div style={styles.paymentList}>
+            {Object.entries(metodosPago).map(([metodo, cantidad]) => (
+              <div key={metodo} style={styles.paymentRow}>
+                <span style={styles.paymentLabel}>
+                  {obtenerNombreMetodo(metodo)}
+                </span>
+
+                <span style={styles.paymentValue}>
+                  {cantidad}
+                  {cantidad === 1 ? " venta" : " ventas"}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
-
   );
-
 }

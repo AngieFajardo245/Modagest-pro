@@ -5,6 +5,7 @@ import DashboardHero from "./DashboardHero";
 import DashboardStats from "./DashboardStats";
 import DashboardActivity from "./DashboardActivity";
 import DashboardSummary from "./DashboardSummary";
+import DashboardGrafica from "./DashboardGrafica";
 
 import styles from "./dashboardStyles";
 
@@ -68,6 +69,11 @@ export default function Dashboard() {
       />
 
       <DashboardStats stats={stats} formatoMoneda={formatoMoneda} />
+
+      <DashboardGrafica
+        ventas={stats?.ventasGrafica || []}
+        formatoMoneda={formatoMoneda}
+      />
 
       <div style={styles.bottomGrid}>
         <DashboardActivity />

@@ -2,9 +2,7 @@ const { Sequelize } = require("sequelize");
 
 require("dotenv").config();
 
-/* ========================================================= */
 /* ================= VALIDAR VARIABLES ENV ================= */
-/* ========================================================= */
 
 const variablesRequeridas = [
 
@@ -29,9 +27,7 @@ variablesRequeridas.forEach((variable) => {
 
 });
 
-/* ========================================================= */
 /* =================== CONFIGURAR SEQUELIZE ================= */
-/* ========================================================= */
 
 const sequelize = new Sequelize(
 
@@ -64,10 +60,6 @@ const sequelize = new Sequelize(
       timestamps: true,
 
       underscored: false
-
-      // ❌ ELIMINAMOS freezeTableName
-      // porque estaba causando tablas duplicadas
-
     },
 
     pool: {
@@ -89,9 +81,8 @@ const sequelize = new Sequelize(
 
 );
 
-/* ========================================================= */
+
 /* =================== PROBAR CONEXIÓN DB ================== */
-/* ========================================================= */
 
 const conectarDB = async () => {
 
@@ -118,9 +109,5 @@ const conectarDB = async () => {
 };
 
 conectarDB();
-
-/* ========================================================= */
-/* ======================= EXPORTAR ======================== */
-/* ========================================================= */
 
 module.exports = sequelize;

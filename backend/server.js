@@ -252,8 +252,6 @@ app.post("/auth/login", async (req, res) => {
 
 /* ======================== CATEGORIAS ====================== */
 
-/* ================= OBTENER CATEGORIAS ================= */
-
 app.get("/categorias", async (req, res) => {
   try {
     const categorias = await Categoria.findAll({
@@ -486,6 +484,17 @@ app.post(
     try {
       const { nombre, descripcion, precio, stock, categoriaId } = req.body;
 
+      /* ================= VALIDAR PRECIO ================= */
+
+      const precioNumerico = Number(precio);
+
+      if (!Number.isFinite(precioNumerico) || precioNumerico < 1000) {
+        return res.status(400).json({
+          message:
+            "El precio debe ser mínimo de $1.000 COP. Ingresa el valor completo en pesos colombianos. Ejemplo: 18000 para $18.000.",
+        });
+      }
+
       let imagen = null;
 
       if (req.file) {
@@ -495,7 +504,7 @@ app.post(
       const producto = await Producto.create({
         nombre,
         descripcion,
-        precio,
+        precio: precioNumerico,
         stock,
         categoriaId,
         imagen,
@@ -533,9 +542,20 @@ app.put(
 
       const { nombre, descripcion, precio, stock, categoriaId } = req.body;
 
+      /* ================= VALIDAR PRECIO ================= */
+
+      const precioNumerico = Number(precio);
+
+      if (!Number.isFinite(precioNumerico) || precioNumerico < 1000) {
+        return res.status(400).json({
+          message:
+            "El precio debe ser mínimo de $1.000 COP. Ingresa el valor completo en pesos colombianos. Ejemplo: 18000 para $18.000.",
+        });
+      }
+
       producto.nombre = nombre;
       producto.descripcion = descripcion;
-      producto.precio = precio;
+      producto.precio = precioNumerico;
       producto.stock = stock;
       producto.categoriaId = categoriaId;
 
@@ -623,14 +643,28 @@ app.post(
         });
       }
 
+      /* ================= VALIDAR PRECIO ================= */
+
+      const precioProducto = Number(producto.precio);
+
+      if (!Number.isFinite(precioProducto) || precioProducto < 1000) {
+        return res.status(400).json({
+          message:
+            "No se puede realizar la compra porque el precio del producto no es válido.",
+        });
+      }
+
+      /* ================= VALIDAR STOCK ================= */
+
       if (producto.stock < cantidad) {
         return res.status(400).json({
           message: "Stock insuficiente",
         });
       }
 
-      const total = Number(producto.precio) * Number(cantidad);
+      /* ================= CALCULAR TOTAL ================= */
 
+      const total = precioProducto * Number(cantidad);
       const venta = await Venta.create({
         clienteId: req.usuario.id,
 
@@ -644,7 +678,7 @@ app.post(
 
         cantidad,
 
-        precio: producto.precio,
+        precio: precioProducto,
 
         subtotal: total,
       });
@@ -950,7 +984,6 @@ app.delete(
     }
   },
 );
-
 /* ==================== ADMIN ESTADISTICAS ================= */
 
 app.get(
@@ -961,6 +994,8 @@ app.get(
 
   async (req, res) => {
     try {
+      /* ================= ESTADISTICAS GENERALES ================= */
+
       const totalUsuarios = await Usuario.count();
 
       const totalProductos = await Producto.count();
@@ -969,23 +1004,261 @@ app.get(
 
       const ingresos = await Venta.sum("total");
 
+      /* ================= ESTADISTICAS DE HOY ================= */
+
+      const ahora = new Date();
+
+      const inicioHoy = new Date(
+        ahora.getFullYear(),
+        ahora.getMonth(),
+        ahora.getDate(),
+        0,
+        0,
+        0,
+        0,
+      );
+
+      const finHoy = new Date(
+        ahora.getFullYear(),
+        ahora.getMonth(),
+        ahora.getDate(),
+        23,
+        59,
+        59,
+        999,
+      );
+
+      const ventasHoy = await Venta.count({
+        where: {
+          createdAt: {
+            [Op.between]: [inicioHoy, finHoy],
+          },
+        },
+      });
+
+      const ingresosHoy = await Venta.sum("total", {
+        where: {
+          createdAt: {
+            [Op.between]: [inicioHoy, finHoy],
+          },
+        },
+      });
+
+      /* ================= ESTADISTICAS DEL MES ================= */
+
+      const inicioMes = new Date(
+        ahora.getFullYear(),
+        ahora.getMonth(),
+        1,
+        0,
+        0,
+        0,
+        0,
+      );
+
+      const finMes = new Date(
+        ahora.getFullYear(),
+        ahora.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999,
+      );
+
+      const ventasMes = await Venta.count({
+        where: {
+          createdAt: {
+            [Op.between]: [inicioMes, finMes],
+          },
+        },
+      });
+
+      const ingresosMes = await Venta.sum("total", {
+        where: {
+          createdAt: {
+            [Op.between]: [inicioMes, finMes],
+          },
+        },
+      });
+      /* ================= METODOS DE PAGO ================= */
+
+      const pagos = await Pago.findAll({
+        attributes: ["metodoPago"],
+      });
+
+      const metodosPago = pagos.reduce((acumulador, pago) => {
+        let metodo = pago.metodoPago;
+
+        if (!metodo) {
+          metodo = "Sin especificar";
+        }
+
+        metodo = String(metodo).trim().toLowerCase();
+
+        if (metodo === "tarjeta") {
+          metodo = "Tarjeta";
+        } else if (metodo === "efectivo") {
+          metodo = "efectivo";
+        } else if (metodo === "pse") {
+          metodo = "PSE";
+        } else if (metodo === "nequi") {
+          metodo = "Nequi";
+        } else if (metodo === "contra_entrega" || metodo === "contra entrega") {
+          metodo = "Contra Entrega";
+        } else if (metodo === "sin especificar") {
+          metodo = "Sin especificar";
+        }
+
+        acumulador[metodo] = (acumulador[metodo] || 0) + 1;
+
+        return acumulador;
+      }, {});
+
+      /* ================= DATOS PARA GRAFICA ================= */
+
+      const ventasGrafica = await Venta.findAll({
+        attributes: ["id", "total", "createdAt"],
+
+        order: [["createdAt", "ASC"]],
+      });
+
+      /* ================= RESPUESTA ================= */
+
       res.json({
         totalUsuarios,
+
         totalProductos,
+
         totalVentas,
 
         ingresosTotales: ingresos || 0,
+
+        ventasHoy,
+
+        ingresosHoy: ingresosHoy || 0,
+
+        ventasMes,
+
+        ingresosMes: ingresosMes || 0,
+
+        metodosPago,
+
+        ventasGrafica,
       });
     } catch (error) {
-      console.error(error);
+      console.error("Error obteniendo estadísticas:", error);
 
       res.status(500).json({
         message: "Error obteniendo estadísticas",
+        error: error.message,
       });
     }
   },
 );
+/* ==================== ADMIN ACTIVIDAD RECIENTE ================= */
+app.get(
+  "/admin/actividad",
 
+  verificarToken,
+  verificarRol("administrador"),
+
+  async (req, res) => {
+    try {
+      const [ventas, usuarios, productos, pagos] = await Promise.all([
+        Venta.findAll({
+          order: [["createdAt", "DESC"]],
+          limit: 5,
+        }),
+
+        Usuario.findAll({
+          order: [["createdAt", "DESC"]],
+          limit: 5,
+        }),
+
+        Producto.findAll({
+          order: [["updatedAt", "DESC"]],
+          limit: 5,
+        }),
+
+        Pago.findAll({
+          order: [["createdAt", "DESC"]],
+          limit: 5,
+        }),
+      ]);
+
+      const actividades = [];
+
+      /* ================= VENTAS ================= */
+
+      ventas.forEach((venta) => {
+        actividades.push({
+          tipo: "venta",
+          icon: "🛒",
+          text: "Nueva venta registrada",
+          fecha: venta.createdAt,
+        });
+      });
+
+      /* ================= USUARIOS ================= */
+
+      usuarios.forEach((usuario) => {
+        actividades.push({
+          tipo: "usuario",
+          icon: "👤",
+          text: "Nuevo usuario registrado",
+          fecha: usuario.createdAt,
+        });
+      });
+
+      /* ================= PRODUCTOS ================= */
+
+      productos.forEach((producto) => {
+        actividades.push({
+          tipo: "producto",
+          icon: "📦",
+          text: "Producto actualizado",
+          fecha: producto.updatedAt,
+        });
+      });
+
+      /* ================= PAGOS ================= */
+
+      pagos.forEach((pago) => {
+        actividades.push({
+          tipo: "pago",
+          icon: "💳",
+          text:
+            pago.estado?.toLowerCase() === "aprobado"
+              ? "Pago aprobado"
+              : `Pago ${pago.estado || "registrado"}`,
+          fecha: pago.createdAt,
+        });
+      });
+
+      /* ================= ORDENAR POR FECHA ================= */
+
+      actividades.sort(
+        (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime(),
+      );
+
+      /* ================= ÚLTIMAS 4 ACTIVIDADES ================= */
+
+      const actividadesRecientes = actividades.slice(0, 4).map((actividad) => ({
+        ...actividad,
+        fecha: new Date(actividad.fecha).toISOString(),
+      }));
+
+      res.json(actividadesRecientes);
+    } catch (error) {
+      console.error("Error obteniendo actividad:", error);
+
+      res.status(500).json({
+        message: "Error obteniendo actividad reciente",
+      });
+    }
+  },
+);
 /* ====================== CREAR ADMIN ====================== */
 
 const crearAdmin = async () => {

@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import api from "./../services/api";
 
 function Carrito() {
-
   const navigate = useNavigate();
 
   const [carrito, setCarrito] = useState([]);
@@ -16,265 +15,185 @@ function Carrito() {
   const token = localStorage.getItem("token");
   const rol = localStorage.getItem("rol");
 
-  /* ===================================================== */
   /* ================= CARGAR CARRITO ==================== */
-  /* ===================================================== */
 
   useEffect(() => {
+    const cargarCarrito = async () => {
+      try {
+        const data = JSON.parse(localStorage.getItem("carrito")) || [];
 
-    try {
+        if (!Array.isArray(data) || data.length === 0) {
+          setCarrito([]);
+          return;
+        }
 
-      const data =
-        JSON.parse(localStorage.getItem("carrito")) || [];
+        // Obtener los productos actuales desde la base de datos
+        const res = await api.get("/productos");
 
-      setCarrito(
-        Array.isArray(data) ? data : []
-      );
+        const productosActuales = Array.isArray(res.data) ? res.data : [];
 
-    } catch {
+        // Actualizar precio y stock con los datos oficiales
+        const carritoActualizado = data.map((productoCarrito) => {
+          const productoActual = productosActuales.find(
+            (producto) => producto.id === productoCarrito.id,
+          );
 
-      setCarrito([]);
+          if (!productoActual) {
+            return productoCarrito;
+          }
 
-    } finally {
+          return {
+            ...productoCarrito,
 
-      setCargando(false);
+            // El precio oficial siempre viene del backend
+            precio: Number(productoActual.precio),
 
-    }
+            // Actualizar también el stock
+            stock: Number(productoActual.stock),
+          };
+        });
 
+        localStorage.setItem("carrito", JSON.stringify(carritoActualizado));
+
+        setCarrito(carritoActualizado);
+      } catch (error) {
+        console.error("Error sincronizando carrito:", error);
+
+        setCarrito([]);
+      } finally {
+        setCargando(false);
+      }
+    };
+
+    cargarCarrito();
   }, []);
 
-  /* ===================================================== */
-  /* ================= VALIDAR STOCK ===================== */
-  /* ===================================================== */
+  /* ================= VALIDAR EL STOCK ===================== */
 
   useEffect(() => {
-
     if (carrito.length === 0) return;
 
     const corregido = carrito.map((p) => {
-
-      if (
-
-        p.stock !== undefined &&
-        Number(p.cantidad) > Number(p.stock)
-
-      ) {
-
+      if (p.stock !== undefined && Number(p.cantidad) > Number(p.stock)) {
         return {
           ...p,
-          cantidad: Number(p.stock)
+          cantidad: Number(p.stock),
         };
-
       }
 
       return {
-
         ...p,
 
-        cantidad:
-          Number(p.cantidad || 1) < 1
-            ? 1
-            : Number(p.cantidad || 1)
-
+        cantidad: Number(p.cantidad || 1) < 1 ? 1 : Number(p.cantidad || 1),
       };
-
     });
 
-    if (
-      JSON.stringify(corregido) !==
-      JSON.stringify(carrito)
-    ) {
-
+    if (JSON.stringify(corregido) !== JSON.stringify(carrito)) {
       guardarCarrito(corregido);
-
     }
-
   }, [carrito]);
 
-  /* ===================================================== */
   /* ================= FORMATO MONEDA ==================== */
-  /* ===================================================== */
 
   const formatoMoneda = (valor) =>
+    Number(valor || 0).toLocaleString("es-CO", {
+      style: "currency",
+      currency: "COP",
+    });
 
-    Number(valor || 0).toLocaleString(
-      "es-CO",
-      {
-        style: "currency",
-        currency: "COP"
-      }
-    );
-
-  /* ===================================================== */
   /* ======================= TOTAL ======================= */
-  /* ===================================================== */
 
   const total = carrito.reduce(
+    (acc, p) => acc + Number(p.precio || 0) * Number(p.cantidad || 0),
 
-    (acc, p) =>
-
-      acc +
-      Number(p.precio || 0) *
-        Number(p.cantidad || 0),
-
-    0
-
+    0,
   );
 
-  /* ===================================================== */
   /* ================= GUARDAR CARRITO =================== */
-  /* ===================================================== */
 
   const guardarCarrito = (nuevo) => {
-
-    localStorage.setItem(
-      "carrito",
-      JSON.stringify(nuevo)
-    );
+    localStorage.setItem("carrito", JSON.stringify(nuevo));
 
     setCarrito([...nuevo]);
 
-    window.dispatchEvent(
-      new Event("carritoActualizado")
-    );
-
+    window.dispatchEvent(new Event("carritoActualizado"));
   };
 
-  /* ===================================================== */
   /* ================= ELIMINAR PRODUCTO ================= */
-  /* ===================================================== */
 
   const eliminar = (id) => {
-
-    const nuevo = carrito.filter(
-      (p) => p.id !== id
-    );
+    const nuevo = carrito.filter((p) => p.id !== id);
 
     guardarCarrito(nuevo);
-
   };
 
-  /* ===================================================== */
   /* ================= CAMBIAR CANTIDAD ================== */
-  /* ===================================================== */
 
-  const cambiarCantidad = (
-    id,
-    nuevaCantidad
-  ) => {
-
-    const cantidad =
-      Number(nuevaCantidad);
+  const cambiarCantidad = (id, nuevaCantidad) => {
+    const cantidad = Number(nuevaCantidad);
 
     if (cantidad < 1) return;
 
-    const producto = carrito.find(
-      (p) => p.id === id
-    );
+    const producto = carrito.find((p) => p.id === id);
 
     if (!producto) return;
 
-    if (
-
-      producto.stock !== undefined &&
-      cantidad > Number(producto.stock)
-
-    ) {
-
-      alert(
-        `Solo hay ${producto.stock} unidades disponibles`
-      );
+    if (producto.stock !== undefined && cantidad > Number(producto.stock)) {
+      alert(`Solo hay ${producto.stock} unidades disponibles`);
 
       return;
-
     }
 
-    const nuevo = carrito.map((p) =>
-
-      p.id === id
-        ? { ...p, cantidad }
-        : p
-
-    );
+    const nuevo = carrito.map((p) => (p.id === id ? { ...p, cantidad } : p));
 
     guardarCarrito(nuevo);
-
   };
 
-  /* ===================================================== */
   /* ==================== ABRIR PAGO ===================== */
-  /* ===================================================== */
 
   const abrirPago = () => {
-
     if (!token) {
-
-      alert(
-        "Debes iniciar sesión para comprar"
-      );
+      alert("Debes iniciar sesión para comprar");
 
       navigate("/login");
 
       return;
-
     }
 
     if (carrito.length === 0) {
-
       alert("El carrito está vacío");
 
       return;
-
     }
 
     setMostrarPago(true);
-
   };
 
-  /* ===================================================== */
   /* ================= CONFIRMAR COMPRA ================== */
-  /* ===================================================== */
 
   const confirmarPago = async () => {
-
     if (!metodoPago) {
-
-      alert(
-        "Selecciona un método de pago"
-      );
+      alert("Selecciona un método de pago");
 
       return;
-
     }
 
     if (procesando) return;
 
     try {
-
       setProcesando(true);
 
       for (const producto of carrito) {
+        await api.post("/cliente/comprar", {
+          productoId: producto.id,
 
-        await api.post(
-          "/cliente/comprar",
-          {
+          cantidad: Number(producto.cantidad),
 
-            productoId: producto.id,
-
-            cantidad: Number(
-              producto.cantidad
-            ),
-
-            metodoPago
-
-          }
-        );
-
+          metodoPago,
+        });
       }
 
-      alert(
-        `Pago aprobado con ${metodoPago} ✅`
-      );
+      alert(`Pago aprobado con ${metodoPago} ✅`);
 
       localStorage.removeItem("carrito");
 
@@ -284,467 +203,245 @@ function Carrito() {
 
       setMetodoPago("");
 
-      window.dispatchEvent(
-        new Event("carritoActualizado")
-      );
+      window.dispatchEvent(new Event("carritoActualizado"));
 
       navigate("/cliente/compras");
-
     } catch (error) {
-
       console.error(error);
 
-      alert(
-
-        error.response?.data?.message ||
-
-          "Error al procesar la compra"
-
-      );
-
+      alert(error.response?.data?.message || "Error al procesar la compra");
     } finally {
-
       setProcesando(false);
-
     }
-
   };
 
-  /* ===================================================== */
-  /* ===================== IR TIENDA ===================== */
-  /* ===================================================== */
+  /* ===================== IR A LA TIENDA ===================== */
 
   const irATienda = () => {
-
     if (!token) {
-
       navigate("/");
 
       return;
-
     }
 
     switch (rol?.toLowerCase()) {
-
       case "cliente":
-
         navigate("/cliente/productos");
 
         break;
 
       case "administrador":
-
         navigate("/admin/productos");
 
         break;
 
       case "empleado":
-
         navigate("/empleado/productos");
 
         break;
 
       default:
-
         navigate("/");
-
     }
-
   };
 
-  /* ===================================================== */
   /* ======================= LOADING ===================== */
-  /* ===================================================== */
 
   if (cargando) {
-
     return (
-
       <div style={styles.loadingContainer}>
-
-        <p style={styles.loadingText}>
-          Cargando carrito...
-        </p>
-
+        <p style={styles.loadingText}>Cargando carrito...</p>
       </div>
-
     );
-
   }
 
-  /* ===================================================== */
   /* ======================== RETURN ===================== */
-  /* ===================================================== */
 
   return (
-
     <div style={styles.page}>
-
       <div style={styles.container}>
-
-        <h2 style={styles.title}>
-          🛒 Carrito de Compras
-        </h2>
+        <h2 style={styles.title}>🛒 Carrito de Compras</h2>
 
         {carrito.length === 0 ? (
-
           <div style={styles.empty}>
-
-            <h3>
-              Tu carrito está vacío
-            </h3>
+            <h3>Tu carrito está vacío</h3>
 
             <p style={styles.emptyText}>
               Agrega productos para comenzar tu compra.
             </p>
 
-            <button
-              style={styles.shopBtn}
-              onClick={irATienda}
-            >
+            <button style={styles.shopBtn} onClick={irATienda}>
               Ir a la tienda
             </button>
-
           </div>
-
         ) : (
-
           <>
-
             {carrito.map((p) => (
-
-              <div
-                key={p.id}
-                style={styles.card}
-              >
-
+              <div key={p.id} style={styles.card}>
                 <img
-
                   src={
-
                     p.imagen
-
                       ? p.imagen.startsWith("http")
-
                         ? p.imagen
-
                         : `http://localhost:5000/uploads/${p.imagen}`
-
                       : "https://via.placeholder.com/120?text=Sin+Imagen"
-
                   }
-
                   alt={p.nombre}
-
                   style={styles.img}
-
                   onError={(e) => {
-
                     e.target.src =
                       "https://via.placeholder.com/120?text=Sin+Imagen";
-
                   }}
-
                 />
 
                 <div style={styles.info}>
-
-                  <h3 style={styles.productName}>
-                    {p.nombre}
-                  </h3>
+                  <h3 style={styles.productName}>{p.nombre}</h3>
 
                   {p.stock !== undefined && (
-
-                    <p style={styles.stock}>
-                      Stock disponible: {p.stock}
-                    </p>
-
+                    <p style={styles.stock}>Stock disponible: {p.stock}</p>
                   )}
 
                   <div style={styles.controls}>
-
                     <button
-
                       style={styles.btnQty}
-
-                      onClick={() =>
-
-                        cambiarCantidad(
-                          p.id,
-                          p.cantidad - 1
-                        )
-
-                      }
-
+                      onClick={() => cambiarCantidad(p.id, p.cantidad - 1)}
                     >
                       −
                     </button>
 
-                    <span style={styles.qty}>
-                      {p.cantidad}
-                    </span>
+                    <span style={styles.qty}>{p.cantidad}</span>
 
                     <button
-
                       style={styles.btnQty}
-
-                      disabled={
-
-                        p.stock !== undefined &&
-                        p.cantidad >= p.stock
-
-                      }
-
-                      onClick={() =>
-
-                        cambiarCantidad(
-                          p.id,
-                          p.cantidad + 1
-                        )
-
-                      }
-
+                      disabled={p.stock !== undefined && p.cantidad >= p.stock}
+                      onClick={() => cambiarCantidad(p.id, p.cantidad + 1)}
                     >
                       +
                     </button>
-
                   </div>
 
-                  <p style={styles.price}>
-
-                    Precio:{" "}
-
-                    {formatoMoneda(p.precio)}
-
-                  </p>
+                  <p style={styles.price}>Precio: {formatoMoneda(p.precio)}</p>
 
                   <p style={styles.subtotal}>
-
                     Subtotal:{" "}
-
-                    {formatoMoneda(
-
-                      Number(p.precio) *
-                        Number(p.cantidad)
-
-                    )}
-
+                    {formatoMoneda(Number(p.precio) * Number(p.cantidad))}
                   </p>
-
                 </div>
 
-                <button
-
-                  style={styles.deleteBtn}
-
-                  onClick={() =>
-                    eliminar(p.id)
-                  }
-
-                >
+                <button style={styles.deleteBtn} onClick={() => eliminar(p.id)}>
                   ✕
                 </button>
-
               </div>
-
             ))}
 
             <div style={styles.summary}>
-
-              <h3 style={styles.total}>
-
-                Total: {formatoMoneda(total)}
-
-              </h3>
+              <h3 style={styles.total}>Total: {formatoMoneda(total)}</h3>
 
               <button
-
                 style={{
                   ...styles.buyBtn,
-                  opacity: procesando
-                    ? 0.7
-                    : 1
+                  opacity: procesando ? 0.7 : 1,
                 }}
-
                 onClick={abrirPago}
-
                 disabled={procesando}
-
               >
-
                 Finalizar Compra
-
               </button>
-
             </div>
-
           </>
-
         )}
-
       </div>
 
       {/* ================= MODAL PAGO ================= */}
 
       {mostrarPago && (
-
         <div style={styles.overlay}>
-
           <div style={styles.modal}>
+            <h2 style={styles.modalTitle}>💳 Método de Pago</h2>
 
-            <h2 style={styles.modalTitle}>
-              💳 Método de Pago
-            </h2>
-
-            <p style={styles.modalTotal}>
-
-              Total: {formatoMoneda(total)}
-
-            </p>
+            <p style={styles.modalTotal}>Total: {formatoMoneda(total)}</p>
 
             <div style={styles.metodos}>
-
-              {[
-                "Tarjeta",
-                "PSE",
-                "Nequi",
-                "Contra Entrega"
-              ].map((m) => (
-
-                <label
-                  key={m}
-                  style={styles.option}
-                >
-
+              {["Tarjeta", "PSE", "Nequi", "Contra Entrega"].map((m) => (
+                <label key={m} style={styles.option}>
                   <input
-
                     type="radio"
-
                     value={m}
-
-                    checked={
-                      metodoPago === m
-                    }
-
-                    onChange={(e) =>
-
-                      setMetodoPago(
-                        e.target.value
-                      )
-
-                    }
-
+                    checked={metodoPago === m}
+                    onChange={(e) => setMetodoPago(e.target.value)}
                   />
 
                   {m}
-
                 </label>
-
               ))}
-
             </div>
 
             <div style={styles.actions}>
-
               <button
-
                 style={styles.cancelBtn}
-
-                onClick={() =>
-                  setMostrarPago(false)
-                }
-
+                onClick={() => setMostrarPago(false)}
               >
                 Cancelar
               </button>
 
               <button
-
                 style={{
                   ...styles.confirmBtn,
-                  opacity: procesando
-                    ? 0.7
-                    : 1
+                  opacity: procesando ? 0.7 : 1,
                 }}
-
                 onClick={confirmarPago}
-
               >
-
-                {procesando
-                  ? "Procesando..."
-                  : "Confirmar Pago"}
-
+                {procesando ? "Procesando..." : "Confirmar Pago"}
               </button>
-
             </div>
-
           </div>
-
         </div>
-
       )}
-
     </div>
-
   );
-
 }
 
 export default Carrito;
 
-/* ===================================================== */
 /* ======================== ESTILOS ==================== */
-/* ===================================================== */
 
 const styles = {
-
   page: {
-
     minHeight: "100vh",
 
-    background:
-      "linear-gradient(135deg,#0f172a,#111827,#1e293b)",
+    background: "linear-gradient(135deg,#0f172a,#111827,#1e293b)",
 
     padding: "40px 20px",
 
-    color: "#fff"
-
+    color: "#fff",
   },
 
   container: {
-
     maxWidth: "1100px",
 
-    margin: "0 auto"
-
+    margin: "0 auto",
   },
 
   title: {
-
     fontSize: "38px",
 
     fontWeight: "800",
 
     marginBottom: "30px",
 
-    textAlign: "center"
-
+    textAlign: "center",
   },
 
   card: {
-
     display: "flex",
 
     alignItems: "center",
 
     gap: "20px",
 
-    background:
-      "rgba(255,255,255,0.05)",
+    background: "rgba(255,255,255,0.05)",
 
-    border:
-      "1px solid rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.08)",
 
     borderRadius: "24px",
 
@@ -754,12 +451,10 @@ const styles = {
 
     backdropFilter: "blur(12px)",
 
-    position: "relative"
-
+    position: "relative",
   },
 
   img: {
-
     width: "120px",
 
     height: "120px",
@@ -768,51 +463,40 @@ const styles = {
 
     borderRadius: "18px",
 
-    border:
-      "2px solid rgba(255,255,255,0.1)",
+    border: "2px solid rgba(255,255,255,0.1)",
 
-    flexShrink: 0
-
+    flexShrink: 0,
   },
 
   info: {
-
-    flex: 1
-
+    flex: 1,
   },
 
   productName: {
-
     fontSize: "24px",
 
     fontWeight: "700",
 
-    marginBottom: "10px"
-
+    marginBottom: "10px",
   },
 
   stock: {
-
     color: "#cbd5e1",
 
-    marginBottom: "10px"
-
+    marginBottom: "10px",
   },
 
   controls: {
-
     display: "flex",
 
     alignItems: "center",
 
     gap: "14px",
 
-    marginBottom: "12px"
-
+    marginBottom: "12px",
   },
 
   btnQty: {
-
     width: "38px",
 
     height: "38px",
@@ -829,38 +513,30 @@ const styles = {
 
     background: "#7c3aed",
 
-    color: "#fff"
-
+    color: "#fff",
   },
 
   qty: {
-
     fontSize: "18px",
 
-    fontWeight: "700"
-
+    fontWeight: "700",
   },
 
   price: {
-
     color: "#10b981",
 
     fontWeight: "700",
 
-    marginBottom: "6px"
-
+    marginBottom: "6px",
   },
 
   subtotal: {
-
     color: "#fff",
 
-    fontWeight: "700"
-
+    fontWeight: "700",
   },
 
   deleteBtn: {
-
     position: "absolute",
 
     top: "18px",
@@ -883,12 +559,10 @@ const styles = {
 
     fontSize: "18px",
 
-    fontWeight: "700"
-
+    fontWeight: "700",
   },
 
   summary: {
-
     marginTop: "30px",
 
     display: "flex",
@@ -897,27 +571,21 @@ const styles = {
 
     alignItems: "center",
 
-    background:
-      "rgba(255,255,255,0.05)",
+    background: "rgba(255,255,255,0.05)",
 
     padding: "24px",
 
-    borderRadius: "24px"
-
+    borderRadius: "24px",
   },
 
   total: {
-
     fontSize: "30px",
 
-    fontWeight: "800"
-
+    fontWeight: "800",
   },
 
   buyBtn: {
-
-    background:
-      "linear-gradient(135deg,#10b981,#059669)",
+    background: "linear-gradient(135deg,#10b981,#059669)",
 
     color: "#fff",
 
@@ -931,37 +599,29 @@ const styles = {
 
     fontSize: "16px",
 
-    fontWeight: "700"
-
+    fontWeight: "700",
   },
 
   empty: {
-
     textAlign: "center",
 
     padding: "80px 20px",
 
-    background:
-      "rgba(255,255,255,0.05)",
+    background: "rgba(255,255,255,0.05)",
 
-    borderRadius: "28px"
-
+    borderRadius: "28px",
   },
 
   emptyText: {
-
     color: "#cbd5e1",
 
     marginTop: "10px",
 
-    marginBottom: "30px"
-
+    marginBottom: "30px",
   },
 
   shopBtn: {
-
-    background:
-      "linear-gradient(135deg,#7c3aed,#9333ea)",
+    background: "linear-gradient(135deg,#7c3aed,#9333ea)",
 
     border: "none",
 
@@ -973,18 +633,15 @@ const styles = {
 
     fontWeight: "700",
 
-    cursor: "pointer"
-
+    cursor: "pointer",
   },
 
   overlay: {
-
     position: "fixed",
 
     inset: 0,
 
-    background:
-      "rgba(0,0,0,0.7)",
+    background: "rgba(0,0,0,0.7)",
 
     display: "flex",
 
@@ -992,12 +649,10 @@ const styles = {
 
     justifyContent: "center",
 
-    zIndex: 999
-
+    zIndex: 999,
   },
 
   modal: {
-
     width: "420px",
 
     background: "#0f172a",
@@ -1006,69 +661,56 @@ const styles = {
 
     borderRadius: "24px",
 
-    border:
-      "1px solid rgba(255,255,255,0.08)"
-
+    border: "1px solid rgba(255,255,255,0.08)",
   },
 
   modalTitle: {
-
     fontSize: "28px",
 
     fontWeight: "800",
 
-    marginBottom: "20px"
-
+    marginBottom: "20px",
   },
 
   modalTotal: {
-
     fontSize: "22px",
 
     fontWeight: "700",
 
     marginBottom: "25px",
 
-    color: "#10b981"
-
+    color: "#10b981",
   },
 
   metodos: {
-
     display: "flex",
 
     flexDirection: "column",
 
     gap: "14px",
 
-    marginBottom: "30px"
-
+    marginBottom: "30px",
   },
 
   option: {
-
     display: "flex",
 
     alignItems: "center",
 
     gap: "10px",
 
-    fontSize: "16px"
-
+    fontSize: "16px",
   },
 
   actions: {
-
     display: "flex",
 
     justifyContent: "space-between",
 
-    gap: "14px"
-
+    gap: "14px",
   },
 
   cancelBtn: {
-
     flex: 1,
 
     padding: "14px",
@@ -1083,12 +725,10 @@ const styles = {
 
     cursor: "pointer",
 
-    fontWeight: "700"
-
+    fontWeight: "700",
   },
 
   confirmBtn: {
-
     flex: 1,
 
     padding: "14px",
@@ -1097,19 +737,16 @@ const styles = {
 
     border: "none",
 
-    background:
-      "linear-gradient(135deg,#10b981,#059669)",
+    background: "linear-gradient(135deg,#10b981,#059669)",
 
     color: "#fff",
 
     cursor: "pointer",
 
-    fontWeight: "700"
-
+    fontWeight: "700",
   },
 
   loadingContainer: {
-
     minHeight: "100vh",
 
     display: "flex",
@@ -1118,18 +755,14 @@ const styles = {
 
     alignItems: "center",
 
-    background: "#020617"
-
+    background: "#020617",
   },
 
   loadingText: {
-
     color: "#fff",
 
     fontSize: "22px",
 
-    fontWeight: "700"
-
-  }
-
+    fontWeight: "700",
+  },
 };

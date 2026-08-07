@@ -16,9 +16,7 @@ export default function ProductoModal({
 
   if (!mostrarModal) return null;
 
-  /* ===================================================== */
   /* ================= VALIDAR FORMULARIO ================= */
-  /* ===================================================== */
 
   const validarFormulario = () => {
     setError("");
@@ -28,18 +26,17 @@ export default function ProductoModal({
       return false;
     }
 
-    if (!formulario.precio || Number(formulario.precio) <= 0) {
-      setError("El precio debe ser mayor que cero.");
+    if (!formulario.precio || Number(formulario.precio) < 1000) {
+      setError(
+        "El precio debe ser mínimo de $1.000 COP. Ingresa el valor completo. Ejemplo: 18000 para $18.000.",
+      );
       return false;
     }
-
     if (
       !Number.isInteger(Number(formulario.stock)) ||
       Number(formulario.stock) < 0
     ) {
-      setError(
-        "El stock debe ser un número entero mayor o igual a cero."
-      );
+      setError("El stock debe ser un número entero mayor o igual a cero.");
       return false;
     }
 
@@ -56,9 +53,7 @@ export default function ProductoModal({
     return true;
   };
 
-  /* ===================================================== */
-  /* ================= CERRAR MODAL ====================== */
-  /* ===================================================== */
+  /* ================= CERRAR EL MODAL ====================== */
 
   const cerrarModal = () => {
     setError("");
@@ -66,9 +61,7 @@ export default function ProductoModal({
     limpiarFormulario();
   };
 
-  /* ===================================================== */
   /* ================= GUARDAR CAMBIOS =================== */
-  /* ===================================================== */
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -80,9 +73,7 @@ export default function ProductoModal({
     guardarEdicion(e);
   };
 
-  /* ===================================================== */
   /* ======================== RETURN ===================== */
-  /* ===================================================== */
 
   return (
     <div style={styles.modalOverlay}>
@@ -90,9 +81,7 @@ export default function ProductoModal({
         {/* ================= HEADER ================= */}
 
         <div style={styles.modalHeader}>
-          <h2 style={styles.modalTitle}>
-            Editar Producto
-          </h2>
+          <h2 style={styles.modalTitle}>Editar Producto</h2>
 
           <button
             type="button"
@@ -106,18 +95,11 @@ export default function ProductoModal({
 
         {/* ================= ERROR ================= */}
 
-        {error && (
-          <div style={styles.errorBox}>
-            {error}
-          </div>
-        )}
+        {error && <div style={styles.errorBox}>{error}</div>}
 
         {/* ================= FORM ================= */}
 
-        <form
-          onSubmit={handleSubmit}
-          style={styles.modalForm}
-        >
+        <form onSubmit={handleSubmit} style={styles.modalForm}>
           {/* ================= NOMBRE / PRECIO ================= */}
 
           <div style={styles.row}>
@@ -172,10 +154,7 @@ export default function ProductoModal({
               onChange={handleChange}
               style={styles.input}
             >
-              <option
-                value=""
-                style={styles.option}
-              >
+              <option value="" style={styles.option}>
                 Seleccionar categoría
               </option>
 
@@ -226,10 +205,7 @@ export default function ProductoModal({
               Cancelar
             </button>
 
-            <button
-              type="submit"
-              style={styles.saveBtn}
-            >
+            <button type="submit" style={styles.saveBtn}>
               Guardar Cambios
             </button>
           </div>
@@ -239,10 +215,7 @@ export default function ProductoModal({
   );
 }
 
-/* ===================================================== */
 /* ======================= ESTILOS ===================== */
-/* ===================================================== */
-
 const styles = {
   modalOverlay: {
     position: "fixed",
@@ -265,14 +238,11 @@ const styles = {
     maxWidth: "95%",
     maxHeight: "90vh",
     overflowY: "auto",
-    background:
-      "linear-gradient(135deg,#111827,#1f2937)",
+    background: "linear-gradient(135deg,#111827,#1f2937)",
     borderRadius: "30px",
     padding: "30px",
-    border:
-      "1px solid rgba(255,255,255,0.08)",
-    boxShadow:
-      "0 20px 50px rgba(0,0,0,0.45)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    boxShadow: "0 20px 50px rgba(0,0,0,0.45)",
     boxSizing: "border-box",
   },
 
@@ -292,8 +262,7 @@ const styles = {
 
   closeBtn: {
     border: "none",
-    background:
-      "linear-gradient(135deg,#ef4444,#dc2626)",
+    background: "linear-gradient(135deg,#ef4444,#dc2626)",
     width: "42px",
     height: "42px",
     borderRadius: "50%",
@@ -324,8 +293,7 @@ const styles = {
 
   row: {
     display: "grid",
-    gridTemplateColumns:
-      "repeat(2, minmax(0, 1fr))",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: "16px",
   },
 
@@ -333,10 +301,8 @@ const styles = {
     width: "100%",
     padding: "16px",
     borderRadius: "16px",
-    border:
-      "1px solid rgba(255,255,255,0.08)",
-    background:
-      "rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.08)",
     color: "#fff",
     outline: "none",
     boxSizing: "border-box",
@@ -354,10 +320,8 @@ const styles = {
     resize: "vertical",
     padding: "16px",
     borderRadius: "16px",
-    border:
-      "1px solid rgba(255,255,255,0.08)",
-    background:
-      "rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.08)",
     color: "#fff",
     outline: "none",
     boxSizing: "border-box",
@@ -377,8 +341,7 @@ const styles = {
     objectFit: "cover",
     borderRadius: "22px",
     border: "3px solid #9333ea",
-    boxShadow:
-      "0 10px 30px rgba(147,51,234,0.4)",
+    boxShadow: "0 10px 30px rgba(147,51,234,0.4)",
   },
 
   modalButtons: {
@@ -404,13 +367,11 @@ const styles = {
     border: "none",
     padding: "16px",
     borderRadius: "16px",
-    background:
-      "linear-gradient(135deg,#7c3aed,#9333ea)",
+    background: "linear-gradient(135deg,#7c3aed,#9333ea)",
     color: "#fff",
     fontWeight: "700",
     cursor: "pointer",
     fontSize: "15px",
-    boxShadow:
-      "0 10px 25px rgba(124,58,237,0.35)",
+    boxShadow: "0 10px 25px rgba(124,58,237,0.35)",
   },
 };
