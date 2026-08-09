@@ -23,12 +23,8 @@ export default function AdminVentas() {
 
   const [busqueda, setBusqueda] = useState("");
 
-  /* ================= PAGINACIÓN ================= */
-
   const [paginaActual, setPaginaActual] = useState(1);
   const [ventasPorPagina, setVentasPorPagina] = useState(10);
-
-  /* ================= FORMATO MONEDA ================= */
 
   const formatoMoneda = (valor) => {
     return Number(valor || 0).toLocaleString("es-CO", {
@@ -37,7 +33,29 @@ export default function AdminVentas() {
     });
   };
 
-  /* ================= OBTENER VENTAS ================= */
+  const obtenerNombreCliente = (venta) => {
+    if (venta.clienteId === null || venta.clienteId === undefined) {
+      return "Cliente General";
+    }
+
+    if (venta.Cliente?.nombre) {
+      return venta.Cliente.nombre;
+    }
+
+    return "Cliente eliminado";
+  };
+
+  const obtenerEmailCliente = (venta) => {
+    if (venta.clienteId === null || venta.clienteId === undefined) {
+      return "cliente@modagest.com";
+    }
+
+    if (venta.Cliente?.email) {
+      return venta.Cliente.email;
+    }
+
+    return "Sin correo";
+  };
 
   const obtenerVentas = async () => {
     try {
@@ -48,7 +66,6 @@ export default function AdminVentas() {
       setVentas(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
       console.error(error);
-
       alert("No se pudieron cargar las ventas");
     } finally {
       setLoading(false);
@@ -58,8 +75,6 @@ export default function AdminVentas() {
   useEffect(() => {
     obtenerVentas();
   }, []);
-
-  /* ================= FILTRO FECHAS ================= */
 
   const filtrarVentas = async () => {
     try {
@@ -81,14 +96,11 @@ export default function AdminVentas() {
       setPaginaActual(1);
     } catch (error) {
       console.error(error);
-
       alert("Error filtrando ventas");
     } finally {
       setLoading(false);
     }
   };
-
-  /* ================= BUSQUEDA ================= */
 
   const ventasFiltradas = useMemo(() => {
     const textoBusqueda = busqueda.trim().toLowerCase();
@@ -98,9 +110,9 @@ export default function AdminVentas() {
     }
 
     return ventas.filter((venta) => {
-      const cliente = venta.Cliente?.nombre?.toLowerCase() || "";
+      const cliente = obtenerNombreCliente(venta).toLowerCase();
 
-      const email = venta.Cliente?.email?.toLowerCase() || "";
+      const email = obtenerEmailCliente(venta).toLowerCase();
 
       const productos =
         venta.Detalles?.map((detalle) => detalle.Producto?.nombre || "")
@@ -118,34 +130,25 @@ export default function AdminVentas() {
     });
   }, [ventas, busqueda]);
 
-  /* ================= PAGINACIÓN ================= */
-
   const totalPaginas = Math.max(
     1,
     Math.ceil(ventasFiltradas.length / ventasPorPagina),
   );
 
   const indiceInicio = (paginaActual - 1) * ventasPorPagina;
-
   const indiceFin = indiceInicio + ventasPorPagina;
 
   const ventasPaginadas = ventasFiltradas.slice(indiceInicio, indiceFin);
 
-  /* ================= REINICIAR PÁGINA ================= */
-
   useEffect(() => {
     setPaginaActual(1);
   }, [busqueda, ventasPorPagina]);
-
-  /* ================= CORREGIR PÁGINA ================= */
 
   useEffect(() => {
     if (paginaActual > totalPaginas) {
       setPaginaActual(totalPaginas);
     }
   }, [paginaActual, totalPaginas]);
-
-  /* ================= ESTADÍSTICAS ================= */
 
   const ingresosTotales = ventasFiltradas.reduce(
     (acc, venta) => acc + Number(venta.total || 0),
@@ -166,8 +169,6 @@ export default function AdminVentas() {
 
   const ventaPromedio = totalVentas > 0 ? ingresosTotales / totalVentas : 0;
 
-  /* ================= RANKING PRODUCTOS ================= */
-
   const rankingProductos = Object.entries(
     ventasFiltradas.reduce((acc, venta) => {
       venta.Detalles?.forEach((detalle) => {
@@ -180,8 +181,6 @@ export default function AdminVentas() {
     }, {}),
   ).sort((a, b) => b[1] - a[1]);
 
-  /* ================= EXPORTAR A EXCEL ================= */
-
   const exportarExcel = () => {
     if (ventasFiltradas.length === 0) {
       alert("No hay ventas para exportar.");
@@ -190,33 +189,24 @@ export default function AdminVentas() {
 
     const datos = ventasFiltradas.map((venta) => ({
       Venta: venta.id,
-
-      Cliente: venta.Cliente?.nombre || "Cliente eliminado",
-
-      Email: venta.Cliente?.email || "Sin correo",
-
+      Cliente: obtenerNombreCliente(venta),
+      Email: obtenerEmailCliente(venta),
       Productos:
         venta.Detalles?.map((detalle) => detalle.Producto?.nombre || "").join(
           ", ",
         ) || "",
-
       Cantidad:
         venta.Detalles?.reduce(
           (acc, detalle) => acc + Number(detalle.cantidad || 0),
           0,
         ) || 0,
-
       "Método de Pago": venta.Pago?.metodoPago || "Sin pago",
-
       Estado: venta.Pago?.estado || "Sin estado",
-
       Total: Number(venta.total || 0),
-
       Fecha: new Date(venta.createdAt).toLocaleString("es-CO"),
     }));
 
     const hoja = XLSX.utils.json_to_sheet(datos);
-
     const libro = XLSX.utils.book_new();
 
     XLSX.utils.book_append_sheet(libro, hoja, "Ventas");
@@ -230,8 +220,6 @@ export default function AdminVentas() {
     XLSX.writeFile(libro, nombreArchivo);
   };
 
-  /* ================= EXPORTAR PDF ================= */
-
   const exportarPDF = () => {
     if (ventasFiltradas.length === 0) {
       alert("No hay ventas para exportar.");
@@ -242,12 +230,10 @@ export default function AdminVentas() {
 
     doc.setFontSize(22);
     doc.setTextColor(79, 70, 229);
-
     doc.text("ModaGest Pro", 14, 20);
 
     doc.setFontSize(16);
     doc.setTextColor(40);
-
     doc.text("Reporte de Ventas", 14, 32);
 
     doc.setFontSize(10);
@@ -261,22 +247,18 @@ export default function AdminVentas() {
 
     autoTable(doc, {
       startY: 48,
-
       head: [["Venta", "Cliente", "Método", "Estado", "Total"]],
-
       body: ventasFiltradas.map((venta) => [
         venta.id,
-        venta.Cliente?.nombre || "Cliente eliminado",
+        obtenerNombreCliente(venta),
         venta.Pago?.metodoPago || "Sin pago",
         venta.Pago?.estado || "Sin estado",
         formatoMoneda(venta.total),
       ]),
-
       styles: {
         fontSize: 9,
         cellPadding: 4,
       },
-
       headStyles: {
         fillColor: [79, 70, 229],
         textColor: 255,
@@ -286,11 +268,10 @@ export default function AdminVentas() {
     const finalY = doc.lastAutoTable.finalY + 15;
 
     doc.setFontSize(12);
+    doc.setTextColor(40);
 
     doc.text(`Total ventas: ${totalVentas}`, 14, finalY);
-
     doc.text(`Productos vendidos: ${productosVendidos}`, 14, finalY + 8);
-
     doc.text(`Ingresos: ${formatoMoneda(ingresosTotales)}`, 14, finalY + 16);
 
     doc.setFontSize(9);
@@ -301,16 +282,11 @@ export default function AdminVentas() {
     doc.save("Reporte_Ventas_ModaGest.pdf");
   };
 
-  /* ================= UI ================= */
-
   return (
     <div style={styles.container}>
-      {/* ================= HEADER ================= */}
-
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>📊 Gestión de Ventas</h1>
-
           <p style={styles.subtitle}>Historial completo de ventas realizadas</p>
         </div>
 
@@ -329,8 +305,6 @@ export default function AdminVentas() {
         </div>
       </div>
 
-      {/* ================= ESTADÍSTICAS ================= */}
-
       <VentaStats
         ingresosTotales={ingresosTotales}
         totalVentas={totalVentas}
@@ -340,19 +314,13 @@ export default function AdminVentas() {
         styles={styles}
       />
 
-      {/* ================= RANKING ================= */}
-
       <VentaRanking rankingProductos={rankingProductos} styles={styles} />
-
-      {/* ================= GRÁFICA ================= */}
 
       <VentaGrafica
         ventas={ventasFiltradas}
         formatoMoneda={formatoMoneda}
         styles={styles}
       />
-
-      {/* ================= FILTROS ================= */}
 
       <VentaFilters
         busqueda={busqueda}
@@ -365,8 +333,6 @@ export default function AdminVentas() {
         obtenerVentas={obtenerVentas}
         styles={styles}
       />
-
-      {/* ================= CANTIDAD POR PÁGINA ================= */}
 
       <div style={styles.paginationControls}>
         <label style={styles.paginationLabel}>
@@ -389,8 +355,6 @@ export default function AdminVentas() {
         </label>
       </div>
 
-      {/* ================= TABLA ================= */}
-
       <div style={styles.tableContainer}>
         {loading ? (
           <div style={styles.center}>
@@ -405,11 +369,11 @@ export default function AdminVentas() {
             formatoMoneda={formatoMoneda}
             styles={styles}
             abrirModal={setVentaSeleccionada}
+            obtenerNombreCliente={obtenerNombreCliente}
+            obtenerEmailCliente={obtenerEmailCliente}
           />
         )}
       </div>
-
-      {/* ================= PAGINACIÓN ================= */}
 
       {ventasFiltradas.length > 0 && (
         <div style={styles.pagination}>
@@ -438,8 +402,6 @@ export default function AdminVentas() {
           </button>
         </div>
       )}
-
-      {/* ================= MODAL ================= */}
 
       <VentaModal
         ventaSeleccionada={ventaSeleccionada}

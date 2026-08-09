@@ -5,15 +5,11 @@ const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
-
 const path = require("path");
 const fs = require("fs");
-
 const multer = require("multer");
 
 const sequelize = require("./config/database");
-
-/* ================= MODELOS ================= */
 
 const Usuario = require("./models/Usuario");
 const Producto = require("./models/Producto");
@@ -29,8 +25,6 @@ const verificarRol = require("./middlewares/rolMiddleware");
 
 const app = express();
 
-/* ======================= MIDDLEWARES ====================== */
-
 app.use(
   cors({
     origin: "http://localhost:5173",
@@ -39,26 +33,15 @@ app.use(
 );
 
 app.use(express.json());
-
-app.use(
-  express.urlencoded({
-    extended: true,
-  }),
-);
-
-/* ========================= UPLOADS ======================== */
+app.use(express.urlencoded({ extended: true }));
 
 const uploadPath = path.join(__dirname, "uploads");
 
 if (!fs.existsSync(uploadPath)) {
-  fs.mkdirSync(uploadPath, {
-    recursive: true,
-  });
+  fs.mkdirSync(uploadPath, { recursive: true });
 }
 
 app.use("/uploads", express.static(uploadPath));
-
-/* ================= MULTER ================= */
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -66,21 +49,19 @@ const storage = multer.diskStorage({
   },
 
   filename: (req, file, cb) => {
-    const extension = path.extname(file.originalname);
+    const extension = path.extname(file.originalname).toLowerCase();
 
     const nombreLimpio = path
       .basename(file.originalname, extension)
       .toLowerCase()
       .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9\-]/g, "");
+      .replace(/[^a-z0-9-]/g, "");
 
-    cb(null, `${nombreLimpio}${extension}`);
+    cb(null, `${nombreLimpio || "imagen"}-${Date.now()}${extension}`);
   },
 });
 
 const upload = multer({ storage });
-
-/* ======================== RELACIONES ====================== */
 
 Categoria.hasMany(Producto, {
   foreignKey: "categoriaId",
@@ -97,6 +78,16 @@ Usuario.hasMany(Venta, {
 Venta.belongsTo(Usuario, {
   foreignKey: "clienteId",
   as: "Cliente",
+});
+
+Usuario.hasMany(Venta, {
+  foreignKey: "empleadoId",
+  as: "VentasEmpleado",
+});
+
+Venta.belongsTo(Usuario, {
+  foreignKey: "empleadoId",
+  as: "Empleado",
 });
 
 Venta.hasMany(DetalleVenta, {
@@ -149,21 +140,25 @@ Pago.belongsTo(Venta, {
   foreignKey: "ventaId",
 });
 
-/* ========================== ROOT ========================== */
-
 app.get("/", (req, res) => {
   res.send("✅ ModaGest Pro API funcionando");
 });
-
-/* =========================== AUTH ========================= */
 
 app.post("/auth/register", async (req, res) => {
   try {
     const { nombre, email, password } = req.body;
 
+    if (!nombre || !email || !password) {
+      return res.status(400).json({
+        message: "Todos los campos son obligatorios",
+      });
+    }
+
+    const emailNormalizado = email.trim().toLowerCase();
+
     const existe = await Usuario.findOne({
       where: {
-        email: email.trim().toLowerCase(),
+        email: emailNormalizado,
       },
     });
 
@@ -176,27 +171,32 @@ app.post("/auth/register", async (req, res) => {
     const hashed = await bcrypt.hash(password, 10);
 
     const usuario = await Usuario.create({
-      nombre,
-      email: email.trim().toLowerCase(),
+      nombre: nombre.trim(),
+      email: emailNormalizado,
       password: hashed,
       rol: "cliente",
     });
 
     res.status(201).json(usuario);
   } catch (error) {
-    console.error(error);
+    console.error("Error registrando usuario:", error);
 
     res.status(500).json({
+      message: "Error registrando usuario",
       error: error.message,
     });
   }
 });
 
-/* ================= LOGIN ================= */
-
 app.post("/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email y contraseña son obligatorios",
+      });
+    }
 
     const usuario = await Usuario.findOne({
       where: {
@@ -223,9 +223,7 @@ app.post("/auth/login", async (req, res) => {
         id: usuario.id,
         rol: usuario.rol,
       },
-
       process.env.JWT_SECRET,
-
       {
         expiresIn: "1h",
       },
@@ -233,7 +231,6 @@ app.post("/auth/login", async (req, res) => {
 
     res.json({
       token,
-
       usuario: {
         id: usuario.id,
         nombre: usuario.nombre,
@@ -242,15 +239,14 @@ app.post("/auth/login", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(error);
+    console.error("Error iniciando sesión:", error);
 
     res.status(500).json({
+      message: "Error iniciando sesión",
       error: error.message,
     });
   }
 });
-
-/* ======================== CATEGORIAS ====================== */
 
 app.get("/categorias", async (req, res) => {
   try {
@@ -269,19 +265,13 @@ app.get("/categorias", async (req, res) => {
   }
 });
 
-/* ================= CREAR CATEGORIA ================= */
-
 app.post(
   "/categorias",
-
   verificarToken,
   verificarRol("administrador"),
-
   async (req, res) => {
     try {
       const { nombre } = req.body;
-
-      /* ================= VALIDAR NOMBRE ================= */
 
       if (!nombre || !nombre.trim()) {
         return res.status(400).json({
@@ -290,8 +280,6 @@ app.post(
       }
 
       const nombreCategoria = nombre.trim();
-
-      /* ================= VERIFICAR DUPLICADO ================= */
 
       const existe = await Categoria.findOne({
         where: {
@@ -304,8 +292,6 @@ app.post(
           message: "La categoría ya existe",
         });
       }
-
-      /* ================= CREAR ================= */
 
       const categoria = await Categoria.create({
         nombre: nombreCategoria,
@@ -326,29 +312,19 @@ app.post(
   },
 );
 
-/* ================= EDITAR CATEGORIA ================= */
-
 app.put(
   "/categorias/:id",
-
   verificarToken,
   verificarRol("administrador"),
-
   async (req, res) => {
     try {
       const { nombre } = req.body;
-
-      /* ================= VALIDAR NOMBRE ================= */
 
       if (!nombre || !nombre.trim()) {
         return res.status(400).json({
           message: "El nombre de la categoría es obligatorio",
         });
       }
-
-      const nombreCategoria = nombre.trim();
-
-      /* ================= BUSCAR CATEGORIA ================= */
 
       const categoria = await Categoria.findByPk(req.params.id);
 
@@ -358,21 +334,22 @@ app.put(
         });
       }
 
-      /* ================= VERIFICAR DUPLICADO ================= */
+      const nombreCategoria = nombre.trim();
 
       const existe = await Categoria.findOne({
         where: {
           nombre: nombreCategoria,
+          id: {
+            [Op.ne]: categoria.id,
+          },
         },
       });
 
-      if (existe && existe.id !== categoria.id) {
+      if (existe) {
         return res.status(400).json({
           message: "Ya existe otra categoría con ese nombre",
         });
       }
-
-      /* ================= ACTUALIZAR ================= */
 
       categoria.nombre = nombreCategoria;
 
@@ -393,18 +370,12 @@ app.put(
   },
 );
 
-/* ================= ELIMINAR CATEGORIA ================= */
-
 app.delete(
   "/categorias/:id",
-
   verificarToken,
   verificarRol("administrador"),
-
   async (req, res) => {
     try {
-      /* ================= BUSCAR CATEGORIA ================= */
-
       const categoria = await Categoria.findByPk(req.params.id);
 
       if (!categoria) {
@@ -412,8 +383,6 @@ app.delete(
           message: "Categoría no encontrada",
         });
       }
-
-      /* ================= VERIFICAR PRODUCTOS ================= */
 
       const productosAsociados = await Producto.count({
         where: {
@@ -428,8 +397,6 @@ app.delete(
           productosAsociados,
         });
       }
-
-      /* ================= ELIMINAR ================= */
 
       await categoria.destroy();
 
@@ -446,7 +413,6 @@ app.delete(
     }
   },
 );
-/* ======================== PRODUCTOS ======================= */
 
 app.get("/productos", async (req, res) => {
   try {
@@ -456,80 +422,87 @@ app.get("/productos", async (req, res) => {
           model: Categoria,
         },
       ],
-
       order: [["createdAt", "DESC"]],
     });
 
     res.json(productos);
   } catch (error) {
-    console.error(error);
+    console.error("Error obteniendo productos:", error);
 
     res.status(500).json({
+      message: "Error obteniendo productos",
       error: error.message,
     });
   }
 });
 
-/* ================= CREAR PRODUCTO ================= */
-
 app.post(
   "/productos",
-
   verificarToken,
   verificarRol("administrador"),
-
   upload.single("imagen"),
-
   async (req, res) => {
     try {
       const { nombre, descripcion, precio, stock, categoriaId } = req.body;
 
-      /* ================= VALIDAR PRECIO ================= */
+      if (!nombre || !nombre.trim()) {
+        return res.status(400).json({
+          message: "El nombre del producto es obligatorio",
+        });
+      }
 
       const precioNumerico = Number(precio);
+      const stockNumerico = Number(stock);
 
       if (!Number.isFinite(precioNumerico) || precioNumerico < 1000) {
         return res.status(400).json({
           message:
-            "El precio debe ser mínimo de $1.000 COP. Ingresa el valor completo en pesos colombianos. Ejemplo: 18000 para $18.000.",
+            "El precio debe ser mínimo de $1.000 COP. Ejemplo: 18000 para $18.000.",
         });
       }
 
-      let imagen = null;
-
-      if (req.file) {
-        imagen = req.file.filename;
+      if (!Number.isInteger(stockNumerico) || stockNumerico < 0) {
+        return res.status(400).json({
+          message: "El stock debe ser un número entero mayor o igual a 0",
+        });
       }
 
+      const categoria = await Categoria.findByPk(categoriaId);
+
+      if (!categoria) {
+        return res.status(400).json({
+          message: "La categoría seleccionada no existe",
+        });
+      }
+
+      const imagen = req.file ? req.file.filename : null;
+
       const producto = await Producto.create({
-        nombre,
+        nombre: nombre.trim(),
         descripcion,
         precio: precioNumerico,
-        stock,
+        stock: stockNumerico,
         categoriaId,
         imagen,
       });
 
       res.status(201).json(producto);
     } catch (error) {
-      console.error(error);
+      console.error("Error creando producto:", error);
 
       res.status(500).json({
+        message: "Error creando producto",
         error: error.message,
       });
     }
   },
 );
 
-/* ================= EDITAR PRODUCTO ================= */
 app.put(
   "/productos/:id",
-
   verificarToken,
   verificarRol("administrador"),
-
   upload.single("imagen"),
-
   async (req, res) => {
     try {
       const producto = await Producto.findByPk(req.params.id);
@@ -542,28 +515,43 @@ app.put(
 
       const { nombre, descripcion, precio, stock, categoriaId } = req.body;
 
-      /* ================= VALIDAR PRECIO ================= */
+      if (!nombre || !nombre.trim()) {
+        return res.status(400).json({
+          message: "El nombre del producto es obligatorio",
+        });
+      }
 
       const precioNumerico = Number(precio);
+      const stockNumerico = Number(stock);
 
       if (!Number.isFinite(precioNumerico) || precioNumerico < 1000) {
         return res.status(400).json({
           message:
-            "El precio debe ser mínimo de $1.000 COP. Ingresa el valor completo en pesos colombianos. Ejemplo: 18000 para $18.000.",
+            "El precio debe ser mínimo de $1.000 COP. Ejemplo: 18000 para $18.000.",
         });
       }
 
-      producto.nombre = nombre;
+      if (!Number.isInteger(stockNumerico) || stockNumerico < 0) {
+        return res.status(400).json({
+          message: "El stock debe ser un número entero mayor o igual a 0",
+        });
+      }
+
+      const categoria = await Categoria.findByPk(categoriaId);
+
+      if (!categoria) {
+        return res.status(400).json({
+          message: "La categoría seleccionada no existe",
+        });
+      }
+
+      producto.nombre = nombre.trim();
       producto.descripcion = descripcion;
       producto.precio = precioNumerico;
-      producto.stock = stock;
+      producto.stock = stockNumerico;
       producto.categoriaId = categoriaId;
 
-      /* ================= NUEVA IMAGEN ================= */
-
       if (req.file) {
-        /* AYUDAR A ELIMINAR IMAGEN ANTERIOR */
-
         if (producto.imagen) {
           const rutaImagenAnterior = path.join(uploadPath, producto.imagen);
 
@@ -572,8 +560,6 @@ app.put(
           }
         }
 
-        /* GUARDAR NUEVA IMAGEN */
-
         producto.imagen = req.file.filename;
       }
 
@@ -581,23 +567,20 @@ app.put(
 
       res.json(producto);
     } catch (error) {
-      console.error(error);
+      console.error("Error actualizando producto:", error);
 
       res.status(500).json({
+        message: "Error actualizando producto",
         error: error.message,
       });
     }
   },
 );
 
-/* ================= ELIMINAR PRODUCTO ================= */
-
 app.delete(
   "/productos/:id",
-
   verificarToken,
   verificarRol("administrador"),
-
   async (req, res) => {
     try {
       const producto = await Producto.findByPk(req.params.id);
@@ -608,132 +591,164 @@ app.delete(
         });
       }
 
+      if (producto.imagen) {
+        const rutaImagen = path.join(uploadPath, producto.imagen);
+
+        if (fs.existsSync(rutaImagen)) {
+          fs.unlinkSync(rutaImagen);
+        }
+      }
+
       await producto.destroy();
 
       res.json({
         message: "Producto eliminado",
       });
     } catch (error) {
-      console.error(error);
+      console.error("Error eliminando producto:", error);
 
       res.status(500).json({
+        message: "Error eliminando producto",
         error: error.message,
       });
     }
   },
 );
 
-/* ==================== CLIENTE COMPRAR ==================== */
-
 app.post(
   "/cliente/comprar",
-
   verificarToken,
   verificarRol("cliente"),
-
   async (req, res) => {
+    const transaction = await sequelize.transaction();
+
     try {
       const { productoId, cantidad, metodoPago } = req.body;
 
-      const producto = await Producto.findByPk(productoId);
+      const cantidadCompra = Number(cantidad);
+
+      if (
+        !productoId ||
+        !Number.isInteger(cantidadCompra) ||
+        cantidadCompra < 1
+      ) {
+        await transaction.rollback();
+
+        return res.status(400).json({
+          message: "Producto o cantidad inválida",
+        });
+      }
+
+      const producto = await Producto.findByPk(productoId, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
 
       if (!producto) {
+        await transaction.rollback();
+
         return res.status(404).json({
           message: "Producto no encontrado",
         });
       }
 
-      /* ================= VALIDAR PRECIO ================= */
-
       const precioProducto = Number(producto.precio);
+      const stockActual = Number(producto.stock);
 
       if (!Number.isFinite(precioProducto) || precioProducto < 1000) {
+        await transaction.rollback();
+
         return res.status(400).json({
-          message:
-            "No se puede realizar la compra porque el precio del producto no es válido.",
+          message: "El precio del producto no es válido",
         });
       }
 
-      /* ================= VALIDAR STOCK ================= */
+      if (stockActual < cantidadCompra) {
+        await transaction.rollback();
 
-      if (producto.stock < cantidad) {
         return res.status(400).json({
           message: "Stock insuficiente",
         });
       }
 
-      /* ================= CALCULAR TOTAL ================= */
+      const total = precioProducto * cantidadCompra;
 
-      const total = precioProducto * Number(cantidad);
-      const venta = await Venta.create({
-        clienteId: req.usuario.id,
+      const venta = await Venta.create(
+        {
+          clienteId: req.usuario.id,
+          empleadoId: null,
+          total,
+        },
+        {
+          transaction,
+        },
+      );
 
-        total,
+      await DetalleVenta.create(
+        {
+          ventaId: venta.id,
+          productoId: producto.id,
+          cantidad: cantidadCompra,
+          precio: precioProducto,
+          subtotal: total,
+        },
+        {
+          transaction,
+        },
+      );
+
+      producto.stock = stockActual - cantidadCompra;
+
+      await producto.save({
+        transaction,
       });
 
-      await DetalleVenta.create({
-        ventaId: venta.id,
+      await Pago.create(
+        {
+          ventaId: venta.id,
+          metodoPago: metodoPago || "efectivo",
+          estado: "aprobado",
+          referencia: "REF-" + Date.now(),
+          monto: total,
+        },
+        {
+          transaction,
+        },
+      );
 
-        productoId: producto.id,
+      await transaction.commit();
 
-        cantidad,
-
-        precio: precioProducto,
-
-        subtotal: total,
-      });
-
-      producto.stock = producto.stock - cantidad;
-
-      await producto.save();
-
-      await Pago.create({
-        ventaId: venta.id,
-
-        metodoPago: metodoPago || "efectivo",
-
-        estado: "aprobado",
-
-        referencia: "REF-" + Date.now(),
-
-        monto: total,
-      });
-
-      res.json({
+      res.status(201).json({
         message: "Compra realizada correctamente",
-
         venta,
       });
     } catch (error) {
-      console.error(error);
+      await transaction.rollback();
+
+      console.error("Error realizando compra:", error);
 
       res.status(500).json({
+        message: "Error realizando la compra",
         error: error.message,
       });
     }
   },
 );
 
-/* ================= HISTORIAL DEL CLIENTE ===================== */
-
 app.get(
   "/cliente/compras",
-
   verificarToken,
   verificarRol("cliente"),
-
   async (req, res) => {
     try {
       const compras = await Venta.findAll({
         where: {
           clienteId: req.usuario.id,
         },
-
         include: [
           {
             model: DetalleVenta,
             as: "Detalles",
-
             include: [
               {
                 model: Producto,
@@ -741,39 +756,194 @@ app.get(
               },
             ],
           },
-
           {
             model: Pago,
           },
         ],
-
         order: [["createdAt", "DESC"]],
       });
 
       res.json(compras);
     } catch (error) {
-      console.error(error);
+      console.error("Error obteniendo compras:", error);
 
       res.status(500).json({
+        message: "Error obteniendo compras",
         error: error.message,
       });
     }
   },
 );
 
-/* ======================== ADMIN VENTAS ==================== */
+app.get(
+  "/empleado/ventas",
+  verificarToken,
+  verificarRol("empleado"),
+  async (req, res) => {
+    try {
+      const ventas = await Venta.findAll({
+        where: {
+          empleadoId: req.usuario.id,
+        },
+        include: [
+          {
+            model: DetalleVenta,
+            as: "Detalles",
+            include: [
+              {
+                model: Producto,
+                as: "Producto",
+              },
+            ],
+          },
+          {
+            model: Pago,
+          },
+        ],
+        order: [["createdAt", "DESC"]],
+      });
+
+      res.json(ventas);
+    } catch (error) {
+      console.error("Error obteniendo ventas del empleado:", error);
+
+      res.status(500).json({
+        message: "Error al obtener las ventas del empleado",
+        error: error.message,
+      });
+    }
+  },
+);
+
+app.post(
+  "/empleado/vender",
+  verificarToken,
+  verificarRol("empleado"),
+  async (req, res) => {
+    const transaction = await sequelize.transaction();
+
+    try {
+      const { productoId, cantidad } = req.body;
+
+      const cantidadVenta = Number(cantidad);
+
+      if (
+        !productoId ||
+        !Number.isInteger(cantidadVenta) ||
+        cantidadVenta < 1
+      ) {
+        await transaction.rollback();
+
+        return res.status(400).json({
+          message: "Producto o cantidad inválida",
+        });
+      }
+
+      const producto = await Producto.findByPk(productoId, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (!producto) {
+        await transaction.rollback();
+
+        return res.status(404).json({
+          message: "Producto no encontrado",
+        });
+      }
+
+      const stockActual = Number(producto.stock);
+      const precioProducto = Number(producto.precio);
+
+      if (stockActual < cantidadVenta) {
+        await transaction.rollback();
+
+        return res.status(400).json({
+          message: "Stock insuficiente",
+        });
+      }
+
+      if (!Number.isFinite(precioProducto) || precioProducto < 1000) {
+        await transaction.rollback();
+
+        return res.status(400).json({
+          message: "El precio del producto no es válido",
+        });
+      }
+
+      const total = precioProducto * cantidadVenta;
+
+      const venta = await Venta.create(
+        {
+          clienteId: null,
+          empleadoId: req.usuario.id,
+          total,
+        },
+        {
+          transaction,
+        },
+      );
+
+      await DetalleVenta.create(
+        {
+          ventaId: venta.id,
+          productoId: producto.id,
+          cantidad: cantidadVenta,
+          precio: precioProducto,
+          subtotal: total,
+        },
+        {
+          transaction,
+        },
+      );
+
+      producto.stock = stockActual - cantidadVenta;
+
+      await producto.save({
+        transaction,
+      });
+
+      await Pago.create(
+        {
+          ventaId: venta.id,
+          metodoPago: "efectivo",
+          estado: "aprobado",
+          referencia: "EMP-" + Date.now(),
+          monto: total,
+        },
+        {
+          transaction,
+        },
+      );
+
+      await transaction.commit();
+
+      res.status(201).json({
+        message: "Venta registrada correctamente",
+        venta,
+      });
+    } catch (error) {
+      await transaction.rollback();
+
+      console.error("Error registrando venta del empleado:", error);
+
+      res.status(500).json({
+        message: "Error al registrar la venta",
+        error: error.message,
+      });
+    }
+  },
+);
 
 app.get(
   "/admin/ventas",
-
   verificarToken,
   verificarRol("administrador"),
-
   async (req, res) => {
     try {
       const { desde, hasta } = req.query;
 
-      let where = {};
+      const where = {};
 
       if (desde && hasta) {
         where.createdAt = {
@@ -786,18 +956,20 @@ app.get(
 
       const ventas = await Venta.findAll({
         where,
-
         include: [
           {
             model: Usuario,
             as: "Cliente",
             attributes: ["id", "nombre", "email"],
           },
-
+          {
+            model: Usuario,
+            as: "Empleado",
+            attributes: ["id", "nombre", "email"],
+          },
           {
             model: DetalleVenta,
             as: "Detalles",
-
             include: [
               {
                 model: Producto,
@@ -805,73 +977,75 @@ app.get(
               },
             ],
           },
-
           {
             model: Pago,
           },
         ],
-
         order: [["createdAt", "DESC"]],
       });
 
       res.json(ventas);
     } catch (error) {
-      console.error(error);
+      console.error("Error obteniendo ventas:", error);
 
       res.status(500).json({
+        message: "Error obteniendo ventas",
         error: error.message,
       });
     }
   },
 );
-/* ======================= ADMIN USERS ===================== */
 
 app.get(
   "/admin/usuarios",
-
   verificarToken,
   verificarRol("administrador"),
-
   async (req, res) => {
     try {
       const usuarios = await Usuario.findAll({
         attributes: ["id", "nombre", "email", "rol", "createdAt"],
+        order: [["createdAt", "DESC"]],
       });
 
       res.json(usuarios);
     } catch (error) {
-      console.error(error);
+      console.error("Error obteniendo usuarios:", error);
 
       res.status(500).json({
+        message: "Error obteniendo usuarios",
         error: error.message,
       });
     }
   },
 );
 
-/* ================= CREAR USUARIO ================= */
-
 app.post(
   "/admin/usuarios",
-
   verificarToken,
   verificarRol("administrador"),
-
   async (req, res) => {
     try {
       const { nombre, email, password, rol } = req.body;
 
-      // Verificar que todos los campos existan
+      const rolesPermitidos = ["administrador", "empleado", "cliente"];
+
       if (!nombre || !email || !password || !rol) {
         return res.status(400).json({
           message: "Todos los campos son obligatorios",
         });
       }
 
-      // Buscar si el correo ya existe
+      if (!rolesPermitidos.includes(rol)) {
+        return res.status(400).json({
+          message: "El rol seleccionado no es válido",
+        });
+      }
+
+      const emailNormalizado = email.trim().toLowerCase();
+
       const existe = await Usuario.findOne({
         where: {
-          email: email.trim().toLowerCase(),
+          email: emailNormalizado,
         },
       });
 
@@ -881,13 +1055,11 @@ app.post(
         });
       }
 
-      // nos ayudara a encriptar la contraseña
       const passwordHash = await bcrypt.hash(password, 10);
 
-      // Crear usuario
       const nuevoUsuario = await Usuario.create({
-        nombre,
-        email: email.trim().toLowerCase(),
+        nombre: nombre.trim(),
+        email: emailNormalizado,
         password: passwordHash,
         rol,
       });
@@ -897,26 +1069,35 @@ app.post(
         usuario: nuevoUsuario,
       });
     } catch (error) {
-      console.error(error);
+      console.error("Error creando usuario:", error);
 
       res.status(500).json({
+        message: "Error creando usuario",
         error: error.message,
       });
     }
   },
 );
 
-/* ================= CAMBIAR ROL ================= */
-
 app.put(
   "/admin/usuarios/:id/rol",
-
   verificarToken,
   verificarRol("administrador"),
-
   async (req, res) => {
     try {
       const { rol } = req.body;
+
+      const rolesPermitidos = [
+        "administrador",
+        "empleado",
+        "cliente",
+      ];
+
+      if (!rolesPermitidos.includes(rol)) {
+        return res.status(400).json({
+          message: "El rol seleccionado no es válido",
+        });
+      }
 
       const usuario = await Usuario.findByPk(req.params.id);
 
@@ -935,23 +1116,20 @@ app.put(
         usuario,
       });
     } catch (error) {
-      console.error(error);
+      console.error("Error actualizando rol:", error);
 
       res.status(500).json({
+        message: "Error actualizando rol",
         error: error.message,
       });
     }
   },
 );
 
-/* ================= ELIMINAR USUARIO ================= */
-
 app.delete(
   "/admin/usuarios/:id",
-
   verificarToken,
   verificarRol("administrador"),
-
   async (req, res) => {
     try {
       const usuario = await Usuario.findByPk(req.params.id);
@@ -961,8 +1139,6 @@ app.delete(
           message: "Usuario no encontrado",
         });
       }
-
-      // evitar borrar admin principal
 
       if (usuario.email === "admin@modagest.com") {
         return res.status(400).json({
@@ -976,35 +1152,26 @@ app.delete(
         message: "Usuario eliminado correctamente",
       });
     } catch (error) {
-      console.error(error);
+      console.error("Error eliminando usuario:", error);
 
       res.status(500).json({
+        message: "Error eliminando usuario",
         error: error.message,
       });
     }
   },
 );
-/* ==================== ADMIN ESTADISTICAS ================= */
 
 app.get(
   "/admin/estadisticas",
-
   verificarToken,
   verificarRol("administrador"),
-
   async (req, res) => {
     try {
-      /* ================= ESTADISTICAS GENERALES ================= */
-
       const totalUsuarios = await Usuario.count();
-
       const totalProductos = await Producto.count();
-
       const totalVentas = await Venta.count();
-
       const ingresos = await Venta.sum("total");
-
-      /* ================= ESTADISTICAS DE HOY ================= */
 
       const ahora = new Date();
 
@@ -1044,8 +1211,6 @@ app.get(
         },
       });
 
-      /* ================= ESTADISTICAS DEL MES ================= */
-
       const inicioMes = new Date(
         ahora.getFullYear(),
         ahora.getMonth(),
@@ -1081,69 +1246,56 @@ app.get(
           },
         },
       });
-      /* ================= METODOS DE PAGO ================= */
 
       const pagos = await Pago.findAll({
         attributes: ["metodoPago"],
       });
 
       const metodosPago = pagos.reduce((acumulador, pago) => {
-        let metodo = pago.metodoPago;
-
-        if (!metodo) {
-          metodo = "Sin especificar";
-        }
-
-        metodo = String(metodo).trim().toLowerCase();
+        let metodo = String(
+          pago.metodoPago || "Sin especificar",
+        )
+          .trim()
+          .toLowerCase();
 
         if (metodo === "tarjeta") {
           metodo = "Tarjeta";
         } else if (metodo === "efectivo") {
-          metodo = "efectivo";
+          metodo = "Efectivo";
         } else if (metodo === "pse") {
           metodo = "PSE";
         } else if (metodo === "nequi") {
           metodo = "Nequi";
-        } else if (metodo === "contra_entrega" || metodo === "contra entrega") {
+        } else if (
+          metodo === "contra_entrega" ||
+          metodo === "contra entrega"
+        ) {
           metodo = "Contra Entrega";
-        } else if (metodo === "sin especificar") {
+        } else {
           metodo = "Sin especificar";
         }
 
-        acumulador[metodo] = (acumulador[metodo] || 0) + 1;
+        acumulador[metodo] =
+          (acumulador[metodo] || 0) + 1;
 
         return acumulador;
       }, {});
 
-      /* ================= DATOS PARA GRAFICA ================= */
-
       const ventasGrafica = await Venta.findAll({
         attributes: ["id", "total", "createdAt"],
-
         order: [["createdAt", "ASC"]],
       });
 
-      /* ================= RESPUESTA ================= */
-
       res.json({
         totalUsuarios,
-
         totalProductos,
-
         totalVentas,
-
         ingresosTotales: ingresos || 0,
-
         ventasHoy,
-
         ingresosHoy: ingresosHoy || 0,
-
         ventasMes,
-
         ingresosMes: ingresosMes || 0,
-
         metodosPago,
-
         ventasGrafica,
       });
     } catch (error) {
@@ -1156,16 +1308,19 @@ app.get(
     }
   },
 );
-/* ==================== ADMIN ACTIVIDAD RECIENTE ================= */
+
 app.get(
   "/admin/actividad",
-
   verificarToken,
   verificarRol("administrador"),
-
   async (req, res) => {
     try {
-      const [ventas, usuarios, productos, pagos] = await Promise.all([
+      const [
+        ventas,
+        usuarios,
+        productos,
+        pagos,
+      ] = await Promise.all([
         Venta.findAll({
           order: [["createdAt", "DESC"]],
           limit: 5,
@@ -1189,8 +1344,6 @@ app.get(
 
       const actividades = [];
 
-      /* ================= VENTAS ================= */
-
       ventas.forEach((venta) => {
         actividades.push({
           tipo: "venta",
@@ -1199,8 +1352,6 @@ app.get(
           fecha: venta.createdAt,
         });
       });
-
-      /* ================= USUARIOS ================= */
 
       usuarios.forEach((usuario) => {
         actividades.push({
@@ -1211,8 +1362,6 @@ app.get(
         });
       });
 
-      /* ================= PRODUCTOS ================= */
-
       productos.forEach((producto) => {
         actividades.push({
           tipo: "producto",
@@ -1221,8 +1370,6 @@ app.get(
           fecha: producto.updatedAt,
         });
       });
-
-      /* ================= PAGOS ================= */
 
       pagos.forEach((pago) => {
         actividades.push({
@@ -1236,18 +1383,18 @@ app.get(
         });
       });
 
-      /* ================= ORDENAR POR FECHA ================= */
-
       actividades.sort(
-        (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime(),
+        (a, b) =>
+          new Date(b.fecha).getTime() -
+          new Date(a.fecha).getTime(),
       );
 
-      /* ================= ÚLTIMAS 4 ACTIVIDADES ================= */
-
-      const actividadesRecientes = actividades.slice(0, 4).map((actividad) => ({
-        ...actividad,
-        fecha: new Date(actividad.fecha).toISOString(),
-      }));
+      const actividadesRecientes = actividades
+        .slice(0, 4)
+        .map((actividad) => ({
+          ...actividad,
+          fecha: new Date(actividad.fecha).toISOString(),
+        }));
 
       res.json(actividadesRecientes);
     } catch (error) {
@@ -1255,11 +1402,11 @@ app.get(
 
       res.status(500).json({
         message: "Error obteniendo actividad reciente",
+        error: error.message,
       });
     }
   },
 );
-/* ====================== CREAR ADMIN ====================== */
 
 const crearAdmin = async () => {
   try {
@@ -1273,34 +1420,27 @@ const crearAdmin = async () => {
 
     if (admin) {
       admin.password = pass;
-
       admin.rol = "administrador";
 
       await admin.save();
     } else {
       await Usuario.create({
         nombre: "Administrador",
-
         email: "admin@modagest.com",
-
         password: pass,
-
         rol: "administrador",
       });
     }
   } catch (error) {
-    console.error(error);
+    console.error("Error creando administrador:", error);
   }
 };
 
-/* ========================== SERVER ======================== */
-
 sequelize
   .sync({
-    alter: false,
+    alter: true,
     force: false,
   })
-
   .then(async () => {
     console.log("✅ Base de datos conectada");
 
@@ -1309,10 +1449,14 @@ sequelize
     const PORT = process.env.PORT || 5000;
 
     app.listen(PORT, () => {
-      console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
+      console.log(
+        `🚀 Servidor corriendo en puerto ${PORT}`,
+      );
     });
   })
-
   .catch((error) => {
-    console.error("❌ Error conectando DB:", error);
+    console.error(
+      "❌ Error conectando DB:",
+      error,
+    );
   });

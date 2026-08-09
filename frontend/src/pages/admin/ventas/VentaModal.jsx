@@ -56,11 +56,7 @@ export default function VentaModal({
     : "Sin fecha registrada";
 
   return (
-    <div
-      style={styles.modalOverlay}
-      onClick={cerrarModal}
-      role="presentation"
-    >
+    <div style={styles.modalOverlay} onClick={cerrarModal} role="presentation">
       <div
         style={styles.modal}
         onClick={(e) => e.stopPropagation()}
@@ -68,13 +64,10 @@ export default function VentaModal({
         aria-modal="true"
         aria-labelledby="venta-modal-title"
       >
-        {/* ================= HEADER ================= */}
-
         <div style={styles.modalHeader}>
           <div>
             <h2 id="venta-modal-title" style={styles.modalTitle}>
-              🧾 Venta #
-              {String(ventaSeleccionada.id).padStart(5, "0")}
+              🧾 Venta #{String(ventaSeleccionada.id).padStart(5, "0")}
             </h2>
 
             <p style={styles.modalSubtitle}>
@@ -93,14 +86,12 @@ export default function VentaModal({
           </button>
         </div>
 
-        {/* ================= CLIENTE ================= */}
-
         <div style={styles.modalCard}>
           <h3>👤 Cliente</h3>
 
           <p>
             <strong>Nombre:</strong>{" "}
-            {ventaSeleccionada.Cliente?.nombre || "Cliente eliminado"}
+            {ventaSeleccionada.Cliente?.nombre || "Cliente General"}
           </p>
 
           <p>
@@ -117,8 +108,6 @@ export default function VentaModal({
           </p>
         </div>
 
-        {/* ================= PRODUCTOS ================= */}
-
         <div style={styles.modalCard}>
           <h3>📦 Productos</h3>
 
@@ -134,7 +123,10 @@ export default function VentaModal({
 
               return (
                 <div
-                  key={detalle.id || `${detalle.Producto?.id || "producto"}-${index}`}
+                  key={
+                    detalle.id ||
+                    `${detalle.Producto?.id || "producto"}-${index}`
+                  }
                   style={styles.modalProduct}
                 >
                   <div style={styles.productHeader}>
@@ -142,27 +134,19 @@ export default function VentaModal({
                       {detalle.Producto?.nombre || "Producto eliminado"}
                     </strong>
 
-                    <span style={styles.productQuantity}>
-                      x{cantidad}
-                    </span>
+                    <span style={styles.productQuantity}>x{cantidad}</span>
                   </div>
 
                   <div style={styles.productInfo}>
-                    <span>
-                      Precio: {formatoMoneda(precio)}
-                    </span>
+                    <span>Precio: {formatoMoneda(precio)}</span>
 
-                    <span>
-                      Subtotal: {formatoMoneda(subtotal)}
-                    </span>
+                    <span>Subtotal: {formatoMoneda(subtotal)}</span>
                   </div>
                 </div>
               );
             })
           )}
         </div>
-
-        {/* ================= PAGO ================= */}
 
         <div style={styles.modalCard}>
           <h3>💳 Información del Pago</h3>
@@ -186,13 +170,10 @@ export default function VentaModal({
 
           {ventaSeleccionada.Pago?.referencia && (
             <p>
-              <strong>Referencia:</strong>{" "}
-              {ventaSeleccionada.Pago.referencia}
+              <strong>Referencia:</strong> {ventaSeleccionada.Pago.referencia}
             </p>
           )}
         </div>
-
-        {/* ================= TOTAL ================= */}
 
         <div style={styles.modalTotal}>
           <span>Total de la Venta</span>

@@ -34,6 +34,7 @@ import ComprasCliente from "./pages/cliente/ComprasCliente";
 
 import DashboardEmpleado from "./pages/empleado/DashboardEmpleado";
 import ProductosEmpleado from "./pages/empleado/ProductosEmpleado";
+import HistorialVentasEmpleado from "./pages/empleado/HistorialVentasEmpleado";
 
 function App() {
   return (
@@ -56,6 +57,7 @@ function App() {
       />
 
       {/* ================= ADMIN ================= */}
+
       <Route
         path="/admin/*"
         element={
@@ -73,7 +75,6 @@ function App() {
         <Route path="usuarios" element={<Usuarios />} />
 
         <Route path="ventas" element={<AdminVentas />} />
-        
       </Route>
 
       {/* ================= CLIENTE ================= */}
@@ -110,6 +111,10 @@ function App() {
         <Route index element={<DashboardEmpleado />} />
 
         <Route path="productos" element={<ProductosEmpleado />} />
+
+        {/* ================= HISTORIAL DE VENTAS ================= */}
+
+        <Route path="ventas" element={<HistorialVentasEmpleado />} />
       </Route>
 
       {/* ================= 404 ================= */}

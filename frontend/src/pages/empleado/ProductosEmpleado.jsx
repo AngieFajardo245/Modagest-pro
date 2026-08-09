@@ -1,755 +1,874 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "../../services/api";
 
 import {
   FaCashRegister,
   FaBoxes,
   FaPlus,
-  FaMinus
+  FaMinus,
+  FaBoxOpen,
+  FaCheckCircle,
+  FaExclamationTriangle,
+  FaSearch,
+  FaSyncAlt,
 } from "react-icons/fa";
 
 function ProductosEmpleado() {
-
   const [productos, setProductos] = useState([]);
   const [cantidades, setCantidades] = useState({});
   const [loading, setLoading] = useState(true);
-
-  /* ================= OBTENER ================= */
+  const [vendiendo, setVendiendo] = useState(null);
+  const [busqueda, setBusqueda] = useState("");
+  const [soloDisponibles, setSoloDisponibles] = useState(false);
 
   const obtenerProductos = async () => {
-
     try {
-
       setLoading(true);
 
       const res = await api.get("/productos");
-
-      const data = Array.isArray(res.data)
-        ? res.data
-        : [];
+      const data = Array.isArray(res.data) ? res.data : [];
 
       setProductos(data);
 
       const inicial = {};
 
-      data.forEach((p) => {
-
-        inicial[p.id] = 1;
-
+      data.forEach((producto) => {
+        inicial[producto.id] = 1;
       });
 
       setCantidades(inicial);
-
     } catch (error) {
+      console.error("Error al obtener productos:", error);
 
-      console.error(
-        "Error al obtener productos:",
-        error
+      alert(
+        error.response?.data?.message || "No se pudieron cargar los productos.",
       );
-
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
   useEffect(() => {
-
     obtenerProductos();
-
   }, []);
 
-  /* ================= CANTIDAD ================= */
-
   const aumentar = (id, stock) => {
+    setCantidades((prev) => {
+      const actual = prev[id] || 1;
 
-    if (cantidades[id] < stock) {
+      if (actual >= stock) {
+        return prev;
+      }
 
-      setCantidades({
-
-        ...cantidades,
-
-        [id]: cantidades[id] + 1
-
-      });
-
-    }
-
+      return {
+        ...prev,
+        [id]: actual + 1,
+      };
+    });
   };
 
   const disminuir = (id) => {
+    setCantidades((prev) => {
+      const actual = prev[id] || 1;
 
-    if (cantidades[id] > 1) {
+      if (actual <= 1) {
+        return prev;
+      }
 
-      setCantidades({
-
-        ...cantidades,
-
-        [id]: cantidades[id] - 1
-
-      });
-
-    }
-
+      return {
+        ...prev,
+        [id]: actual - 1,
+      };
+    });
   };
-
-  /* ================= FORMATO ================= */
 
   const formatear = (valor) => {
-
-    return new Intl.NumberFormat(
-      "es-CO"
-    ).format(valor);
-
+    return new Intl.NumberFormat("es-CO").format(Number(valor) || 0);
   };
 
-  /* ================= VENDER ================= */
-
   const venderProducto = async (producto) => {
+    const cantidad = cantidades[producto.id] || 1;
+    const stock = Number(producto.stock) || 0;
 
-    const cantidad =
-      cantidades[producto.id];
-
-    if (!cantidad || cantidad <= 0) {
-
-      alert("Cantidad inválida");
-
+    if (stock <= 0) {
+      alert("Este producto no tiene stock disponible.");
       return;
+    }
 
+    if (cantidad < 1 || cantidad > stock) {
+      alert("La cantidad seleccionada no es válida.");
+      return;
+    }
+
+    const total = Number(producto.precio || 0) * cantidad;
+
+    const confirmar = window.confirm(
+      `¿Deseas registrar esta venta?\n\n` +
+        `Producto: ${producto.nombre}\n` +
+        `Cantidad: ${cantidad}\n` +
+        `Total: $${formatear(total)}`,
+    );
+
+    if (!confirmar) {
+      return;
     }
 
     try {
+      setVendiendo(producto.id);
 
-      await api.post(
-        "/empleado/vender",
-        {
+      await api.post("/empleado/vender", {
+        productoId: producto.id,
+        cantidad,
+      });
 
-          productoId: producto.id,
+      alert("Venta registrada correctamente.");
 
-          cantidad
-
-        }
-      );
-
-      alert(
-        "Venta realizada correctamente ✅"
-      );
-
-      obtenerProductos();
-
+      await obtenerProductos();
     } catch (error) {
+      console.error("Error registrando venta:", error);
 
-      alert(
-
-        error.response?.data?.message ||
-
-        "No se pudo registrar la venta"
-
-      );
-
+      alert(error.response?.data?.message || "No se pudo registrar la venta.");
+    } finally {
+      setVendiendo(null);
     }
-
   };
 
-  /* ================= LOADING ================= */
+  const obtenerEstadoStock = (stock) => {
+    if (stock <= 0) {
+      return {
+        texto: "Sin stock",
+        tipo: "empty",
+      };
+    }
+
+    if (stock <= 5) {
+      return {
+        texto: "Stock bajo",
+        tipo: "low",
+      };
+    }
+
+    return {
+      texto: "Disponible",
+      tipo: "available",
+    };
+  };
+
+  const productosFiltrados = useMemo(() => {
+    const texto = busqueda.trim().toLowerCase();
+
+    return productos.filter((producto) => {
+      const nombre = String(producto?.nombre || "").toLowerCase();
+      const descripcion = String(producto?.descripcion || "").toLowerCase();
+
+      const coincideBusqueda =
+        nombre.includes(texto) || descripcion.includes(texto);
+
+      const coincideStock = soloDisponibles
+        ? Number(producto?.stock || 0) > 0
+        : true;
+
+      return coincideBusqueda && coincideStock;
+    });
+  }, [productos, busqueda, soloDisponibles]);
 
   if (loading) {
-
     return (
-
       <div style={styles.loadingContainer}>
-
         <div style={styles.loader}></div>
-
-        <p style={styles.loadingText}>
-          Cargando productos...
-        </p>
-
+        <p style={styles.loadingText}>Cargando productos...</p>
       </div>
-
     );
-
   }
 
-  /* ================= UI ================= */
-
   return (
-
     <div style={styles.container}>
-
-      {/* ================= HEADER ================= */}
-
       <div style={styles.header}>
-
         <div>
+          <div style={styles.eyebrow}>
+            <FaCashRegister />
+            ÁREA COMERCIAL
+          </div>
 
-          <h1 style={styles.title}>
-            🧾 Registrar Venta
-          </h1>
+          <h1 style={styles.title}>Registrar venta</h1>
 
           <p style={styles.subtitle}>
-            Gestiona ventas de productos
-            fácilmente
+            Selecciona un producto, indica la cantidad y registra la venta del
+            cliente.
           </p>
-
         </div>
 
-        <div style={styles.badge}>
+        <div style={styles.headerBadge}>
+          <FaBoxOpen style={styles.headerBadgeIcon} />
 
-          <FaCashRegister />
+          <div>
+            <strong style={styles.headerBadgeStrong}>Productos</strong>
 
-          Área Comercial
-
+            <span style={styles.headerBadgeSpan}>
+              {productos.length} registrados
+            </span>
+          </div>
         </div>
-
       </div>
 
-      {/* ================= GRID ================= */}
+      <div style={styles.filters}>
+        <div style={styles.searchBox}>
+          <FaSearch style={styles.searchIcon} />
 
-      {productos.length === 0 ? (
-
-        <div style={styles.empty}>
-
-          <FaBoxes size={60} />
-
-          <h3>
-            No hay productos disponibles
-          </h3>
-
+          <input
+            type="text"
+            placeholder="Buscar producto..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            style={styles.searchInput}
+          />
         </div>
 
+        <label style={styles.checkboxLabel}>
+          <input
+            type="checkbox"
+            checked={soloDisponibles}
+            onChange={(e) => setSoloDisponibles(e.target.checked)}
+          />
+
+          <span>Solo disponibles</span>
+        </label>
+
+        <button
+          type="button"
+          style={styles.refreshButton}
+          onClick={obtenerProductos}
+        >
+          <FaSyncAlt />
+          Actualizar
+        </button>
+      </div>
+
+      <div style={styles.resultsInfo}>
+        Mostrando{" "}
+        <strong style={styles.resultsStrong}>
+          {productosFiltrados.length}
+        </strong>{" "}
+        {productosFiltrados.length === 1 ? "producto" : "productos"}
+      </div>
+
+      {productosFiltrados.length === 0 ? (
+        <div style={styles.empty}>
+          <div style={styles.emptyIcon}>
+            <FaBoxes />
+          </div>
+
+          <h3 style={styles.emptyTitle}>No hay productos</h3>
+
+          <p style={styles.emptyText}>
+            No encontramos productos que coincidan con la búsqueda actual.
+          </p>
+        </div>
       ) : (
-
         <div style={styles.grid}>
+          {productosFiltrados.map((producto) => {
+            const cantidad = cantidades[producto.id] || 1;
+            const precio = Number(producto.precio) || 0;
+            const stock = Number(producto.stock) || 0;
+            const total = precio * cantidad;
 
-          {productos.map((p) => {
+            const estadoStock = obtenerEstadoStock(stock);
+            const estaVendiendo = vendiendo === producto.id;
 
-            const cantidad =
-              cantidades[p.id] || 1;
-
-            const total =
-              p.precio * cantidad;
+            const imagen = producto?.imagen
+              ? producto.imagen.startsWith("http")
+                ? producto.imagen
+                : `http://localhost:5000/uploads/${producto.imagen}`
+              : null;
 
             return (
-
-              <div
-                key={p.id}
-                style={styles.card}
-              >
-
-                {/* IMAGEN */}
-
+              <div key={producto.id} style={styles.card}>
                 <div style={styles.imageBox}>
+                  {imagen ? (
+                    <img
+                      src={imagen}
+                      alt={producto.nombre}
+                      style={styles.image}
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    <FaBoxOpen style={styles.imageFallback} />
+                  )}
 
-                  <img
-                    src={
-                      p.imagen ||
-                      "https://via.placeholder.com/300x250"
-                    }
-                    alt={p.nombre}
-                    style={styles.image}
-                  />
+                  <div
+                    style={{
+                      ...styles.stockBadge,
+                      ...(estadoStock.tipo === "available"
+                        ? styles.stockAvailable
+                        : estadoStock.tipo === "low"
+                          ? styles.stockLow
+                          : styles.stockEmpty),
+                    }}
+                  >
+                    {estadoStock.tipo === "available" ? (
+                      <FaCheckCircle />
+                    ) : (
+                      <FaExclamationTriangle />
+                    )}
 
+                    {estadoStock.texto}
+                  </div>
                 </div>
 
-                {/* BODY */}
-
                 <div style={styles.body}>
-
-                  <h3 style={styles.productName}>
-                    {p.nombre}
-                  </h3>
+                  <h3 style={styles.productName}>{producto.nombre}</h3>
 
                   <p style={styles.description}>
-                    {p.descripcion}
+                    {producto.descripcion || "Producto disponible para venta."}
                   </p>
 
-                  <div style={styles.infoBox}>
+                  <div style={styles.infoGrid}>
+                    <div style={styles.infoItem}>
+                      <span style={styles.infoLabel}>Precio unitario</span>
 
-                    <p style={styles.info}>
-                      💰 $
-                      {formatear(p.precio)}
-                    </p>
+                      <strong style={styles.price}>${formatear(precio)}</strong>
+                    </div>
 
-                    <p style={styles.stock}>
-                      📦 Stock: {p.stock}
-                    </p>
+                    <div style={styles.infoItem}>
+                      <span style={styles.infoLabel}>Existencias</span>
 
+                      <strong style={styles.stockNumber}>{stock}</strong>
+                    </div>
                   </div>
 
-                  {/* CONTADOR */}
+                  <div style={styles.quantitySection}>
+                    <div>
+                      <span style={styles.quantityLabel}>Cantidad</span>
 
-                  <div style={styles.counter}>
+                      <small style={styles.quantityHelp}>Máximo: {stock}</small>
+                    </div>
 
-                    <button
-                      style={styles.counterBtn}
-                      onClick={() =>
-                        disminuir(p.id)
-                      }
-                    >
-                      <FaMinus />
-                    </button>
+                    <div style={styles.counter}>
+                      <button
+                        type="button"
+                        disabled={cantidad <= 1}
+                        style={{
+                          ...styles.counterBtn,
+                          ...(cantidad <= 1 ? styles.counterBtnDisabled : {}),
+                        }}
+                        onClick={() => disminuir(producto.id)}
+                      >
+                        <FaMinus />
+                      </button>
 
-                    <span style={styles.counterValue}>
-                      {cantidad}
-                    </span>
+                      <span style={styles.counterValue}>{cantidad}</span>
 
-                    <button
-                      style={styles.counterBtn}
-                      onClick={() =>
-                        aumentar(
-                          p.id,
-                          p.stock
-                        )
-                      }
-                    >
-                      <FaPlus />
-                    </button>
-
+                      <button
+                        type="button"
+                        disabled={stock <= 0 || cantidad >= stock}
+                        style={{
+                          ...styles.counterBtn,
+                          ...(stock <= 0 || cantidad >= stock
+                            ? styles.counterBtnDisabled
+                            : {}),
+                        }}
+                        onClick={() => aumentar(producto.id, stock)}
+                      >
+                        <FaPlus />
+                      </button>
+                    </div>
                   </div>
-
-                  {/* TOTAL */}
 
                   <div style={styles.totalBox}>
+                    <div>
+                      <span style={styles.totalLabel}>Total de la venta</span>
 
-                    <span>
-                      Total:
-                    </span>
+                      <small style={styles.totalHelp}>
+                        {cantidad} {cantidad === 1 ? "unidad" : "unidades"}
+                      </small>
+                    </div>
 
-                    <h2 style={styles.total}>
-                      $
-                      {formatear(total)}
-                    </h2>
-
+                    <strong style={styles.total}>${formatear(total)}</strong>
                   </div>
 
-                  {/* BOTÓN */}
-
                   <button
+                    type="button"
+                    disabled={stock <= 0 || estaVendiendo}
                     style={
-                      p.stock <= 0
+                      stock <= 0 || estaVendiendo
                         ? styles.disabledBtn
                         : styles.sellBtn
                     }
-                    disabled={p.stock <= 0}
-                    onClick={() =>
-                      venderProducto(p)
-                    }
+                    onClick={() => venderProducto(producto)}
                   >
+                    <FaCashRegister />
 
-                    {p.stock <= 0
-                      ? "Sin stock"
-                      : "💳 Registrar Venta"}
-
+                    <span>
+                      {estaVendiendo
+                        ? "Registrando..."
+                        : stock <= 0
+                          ? "Producto agotado"
+                          : "Registrar venta"}
+                    </span>
                   </button>
-
                 </div>
-
               </div>
-
             );
-
           })}
-
         </div>
-
       )}
-
     </div>
-
   );
-
 }
 
 export default ProductosEmpleado;
 
-/* ================= ESTILOS ================= */
-
 const styles = {
-
   container: {
-
     minHeight: "100vh",
-
-    padding: "10px"
-
+    padding: "20px",
+    color: "#ffffff",
   },
 
-  /* ================= HEADER ================= */
-
   header: {
-
     display: "flex",
-
     justifyContent: "space-between",
-
     alignItems: "center",
-
     flexWrap: "wrap",
+    gap: "25px",
+    marginBottom: "30px",
+  },
 
-    gap: "20px",
-
-    marginBottom: "35px"
-
+  eyebrow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    color: "#a78bfa",
+    fontSize: "11px",
+    fontWeight: "800",
+    letterSpacing: "1.5px",
+    marginBottom: "10px",
   },
 
   title: {
-
     margin: 0,
-
-    fontSize: "38px",
-
-    color: "#fff",
-
-    fontWeight: "700"
-
+    fontSize: "clamp(30px, 4vw, 42px)",
+    fontWeight: "800",
+    color: "#ffffff",
+    letterSpacing: "-1px",
   },
 
   subtitle: {
-
-    marginTop: "10px",
-
-    color: "#cbd5e1"
-
+    margin: "10px 0 0",
+    color: "#94a3b8",
+    fontSize: "15px",
+    lineHeight: "1.6",
+    maxWidth: "650px",
   },
 
-  badge: {
-
+  headerBadge: {
     display: "flex",
-
     alignItems: "center",
-
-    gap: "10px",
-
-    background:
-      "rgba(255,255,255,0.06)",
-
-    border:
-      "1px solid rgba(255,255,255,0.08)",
-
-    padding: "14px 18px",
-
-    borderRadius: "16px",
-
-    color: "#fff",
-
-    backdropFilter: "blur(14px)",
-
-    fontWeight: "600"
-
+    gap: "12px",
+    padding: "15px 20px",
+    borderRadius: "18px",
+    background: "rgba(255,255,255,0.045)",
+    border: "1px solid rgba(255,255,255,0.08)",
   },
 
-  /* ================= GRID ================= */
+  headerBadgeIcon: {
+    color: "#a78bfa",
+    fontSize: "24px",
+  },
+
+  headerBadgeStrong: {
+    display: "block",
+    color: "#ffffff",
+    fontSize: "14px",
+  },
+
+  headerBadgeSpan: {
+    display: "block",
+    marginTop: "3px",
+    color: "#64748b",
+    fontSize: "12px",
+  },
+
+  filters: {
+    display: "flex",
+    alignItems: "center",
+    gap: "15px",
+    flexWrap: "wrap",
+    marginBottom: "15px",
+    padding: "18px",
+    borderRadius: "20px",
+    background: "rgba(255,255,255,0.035)",
+    border: "1px solid rgba(255,255,255,0.07)",
+  },
+
+  searchBox: {
+    position: "relative",
+    flex: 1,
+    minWidth: "240px",
+  },
+
+  searchIcon: {
+    position: "absolute",
+    left: "14px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    color: "#64748b",
+    fontSize: "13px",
+  },
+
+  searchInput: {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "12px 14px 12px 42px",
+    borderRadius: "13px",
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.045)",
+    color: "#ffffff",
+    outline: "none",
+    fontSize: "13px",
+  },
+
+  checkboxLabel: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    color: "#cbd5e1",
+    fontSize: "13px",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
+
+  refreshButton: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "12px 16px",
+    borderRadius: "13px",
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(124,58,237,0.12)",
+    color: "#c4b5fd",
+    cursor: "pointer",
+    fontWeight: "700",
+    fontSize: "12px",
+  },
+
+  resultsInfo: {
+    marginBottom: "20px",
+    color: "#64748b",
+    fontSize: "13px",
+  },
+
+  resultsStrong: {
+    color: "#c4b5fd",
+  },
 
   grid: {
-
     display: "grid",
-
-    gridTemplateColumns:
-      "repeat(auto-fit, minmax(300px, 1fr))",
-
-    gap: "28px"
-
+    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+    gap: "24px",
   },
 
   card: {
-
-    background:
-      "rgba(255,255,255,0.05)",
-
-    border:
-      "1px solid rgba(255,255,255,0.08)",
-
-    borderRadius: "28px",
-
+    display: "flex",
+    flexDirection: "column",
+    background: "rgba(255,255,255,0.045)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "26px",
     overflow: "hidden",
-
     backdropFilter: "blur(16px)",
-
-    boxShadow:
-      "0 10px 35px rgba(0,0,0,0.28)",
-
-    transition: "0.3s ease"
-
+    boxShadow: "0 15px 40px rgba(0,0,0,0.22)",
   },
 
   imageBox: {
-
-    height: "250px",
-
-    background:
-      "rgba(255,255,255,0.03)",
-
+    position: "relative",
+    height: "245px",
+    background: "rgba(255,255,255,0.025)",
     display: "flex",
-
     alignItems: "center",
-
     justifyContent: "center",
-
-    padding: "18px"
-
+    padding: "18px",
   },
 
   image: {
-
     width: "100%",
-
     height: "100%",
+    objectFit: "contain",
+  },
 
-    objectFit: "contain"
+  imageFallback: {
+    color: "#a78bfa",
+    fontSize: "48px",
+    opacity: 0.7,
+  },
 
+  stockBadge: {
+    position: "absolute",
+    top: "15px",
+    right: "15px",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "7px 11px",
+    borderRadius: "999px",
+    fontSize: "11px",
+    fontWeight: "800",
+  },
+
+  stockAvailable: {
+    background: "rgba(16,185,129,0.14)",
+    border: "1px solid rgba(16,185,129,0.25)",
+    color: "#6ee7b7",
+  },
+
+  stockLow: {
+    background: "rgba(245,158,11,0.14)",
+    border: "1px solid rgba(245,158,11,0.25)",
+    color: "#fbbf24",
+  },
+
+  stockEmpty: {
+    background: "rgba(239,68,68,0.14)",
+    border: "1px solid rgba(239,68,68,0.25)",
+    color: "#f87171",
   },
 
   body: {
-
-    padding: "24px"
-
+    padding: "23px",
+    display: "flex",
+    flexDirection: "column",
+    flex: 1,
   },
 
   productName: {
-
-    color: "#fff",
-
-    marginBottom: "10px",
-
-    fontSize: "24px"
-
+    margin: 0,
+    color: "#ffffff",
+    fontSize: "21px",
+    fontWeight: "800",
   },
 
   description: {
-
-    color: "#cbd5e1",
-
-    fontSize: "14px",
-
-    minHeight: "40px"
-
+    margin: "8px 0 18px",
+    color: "#94a3b8",
+    fontSize: "13px",
+    lineHeight: "1.5",
+    minHeight: "40px",
   },
 
-  infoBox: {
-
-    marginTop: "20px",
-
-    marginBottom: "20px"
-
+  infoGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "12px",
+    marginBottom: "20px",
   },
 
-  info: {
+  infoItem: {
+    padding: "13px",
+    borderRadius: "15px",
+    background: "rgba(255,255,255,0.035)",
+    border: "1px solid rgba(255,255,255,0.055)",
+  },
 
+  infoLabel: {
+    display: "block",
+    color: "#64748b",
+    fontSize: "11px",
+    marginBottom: "5px",
+  },
+
+  price: {
     color: "#38bdf8",
+    fontSize: "18px",
+  },
 
+  stockNumber: {
+    color: "#cbd5e1",
+    fontSize: "18px",
+  },
+
+  quantitySection: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "15px",
+    padding: "15px 0",
+    borderTop: "1px solid rgba(255,255,255,0.06)",
+    borderBottom: "1px solid rgba(255,255,255,0.06)",
+  },
+
+  quantityLabel: {
+    display: "block",
+    color: "#ffffff",
+    fontSize: "13px",
     fontWeight: "700",
-
-    marginBottom: "8px"
-
   },
 
-  stock: {
-
-    color: "#cbd5e1"
-
+  quantityHelp: {
+    display: "block",
+    marginTop: "4px",
+    color: "#64748b",
+    fontSize: "10px",
   },
-
-  /* ================= CONTADOR ================= */
 
   counter: {
-
     display: "flex",
-
     alignItems: "center",
-
-    justifyContent: "center",
-
-    gap: "20px",
-
-    marginBottom: "24px"
-
+    gap: "12px",
   },
 
   counterBtn: {
-
-    width: "42px",
-
-    height: "42px",
-
-    borderRadius: "14px",
-
-    border: "none",
-
-    background:
-      "linear-gradient(135deg, #7c3aed, #2563eb)",
-
-    color: "#fff",
-
-    cursor: "pointer",
-
+    width: "38px",
+    height: "38px",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "12px",
+    background: "linear-gradient(135deg, #7c3aed, #2563eb)",
+    color: "#ffffff",
     display: "flex",
-
     alignItems: "center",
-
     justifyContent: "center",
+    cursor: "pointer",
+  },
 
-    fontSize: "14px"
-
+  counterBtnDisabled: {
+    opacity: 0.35,
+    cursor: "not-allowed",
   },
 
   counterValue: {
-
-    color: "#fff",
-
-    fontSize: "22px",
-
-    fontWeight: "700"
-
+    minWidth: "28px",
+    textAlign: "center",
+    color: "#ffffff",
+    fontSize: "20px",
+    fontWeight: "800",
   },
 
-  /* ================= TOTAL ================= */
-
   totalBox: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "15px",
+    marginTop: "18px",
+    marginBottom: "18px",
+    padding: "17px",
+    borderRadius: "17px",
+    background: "rgba(16,185,129,0.07)",
+    border: "1px solid rgba(16,185,129,0.12)",
+  },
 
-    background:
-      "rgba(255,255,255,0.04)",
+  totalLabel: {
+    display: "block",
+    color: "#cbd5e1",
+    fontSize: "12px",
+    fontWeight: "700",
+  },
 
-    border:
-      "1px solid rgba(255,255,255,0.06)",
-
-    padding: "18px",
-
-    borderRadius: "18px",
-
-    textAlign: "center",
-
-    marginBottom: "22px",
-
-    color: "#cbd5e1"
-
+  totalHelp: {
+    display: "block",
+    marginTop: "3px",
+    color: "#64748b",
+    fontSize: "10px",
   },
 
   total: {
-
-    marginTop: "10px",
-
-    color: "#22c55e",
-
-    fontSize: "30px"
-
+    color: "#34d399",
+    fontSize: "25px",
+    fontWeight: "800",
+    whiteSpace: "nowrap",
   },
 
-  /* ================= BOTÓN ================= */
-
   sellBtn: {
-
     width: "100%",
-
-    padding: "14px",
-
-    borderRadius: "16px",
-
+    minHeight: "48px",
     border: "none",
-
-    background:
-      "linear-gradient(135deg, #7c3aed, #2563eb)",
-
-    color: "#fff",
-
-    fontSize: "16px",
-
-    fontWeight: "600",
-
+    borderRadius: "15px",
+    background: "linear-gradient(135deg, #7c3aed, #2563eb)",
+    color: "#ffffff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "9px",
+    fontSize: "14px",
+    fontWeight: "800",
     cursor: "pointer",
-
-    transition: "0.3s"
-
   },
 
   disabledBtn: {
-
     width: "100%",
-
-    padding: "14px",
-
-    borderRadius: "16px",
-
+    minHeight: "48px",
     border: "none",
-
-    background: "#475569",
-
-    color: "#cbd5e1",
-
-    cursor: "not-allowed"
-
+    borderRadius: "15px",
+    background: "#334155",
+    color: "#94a3b8",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "9px",
+    fontSize: "14px",
+    fontWeight: "700",
+    cursor: "not-allowed",
   },
-
-  /* ================= EMPTY ================= */
 
   empty: {
-
     display: "flex",
-
     flexDirection: "column",
-
     alignItems: "center",
-
     justifyContent: "center",
-
-    gap: "20px",
-
-    padding: "80px",
-
-    background:
-      "rgba(255,255,255,0.05)",
-
-    borderRadius: "28px",
-
-    color: "#fff"
-
+    padding: "80px 30px",
+    borderRadius: "26px",
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.07)",
+    textAlign: "center",
   },
 
-  /* ================= LOADING ================= */
+  emptyIcon: {
+    width: "80px",
+    height: "80px",
+    borderRadius: "24px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "rgba(124,58,237,0.12)",
+    color: "#a78bfa",
+    fontSize: "32px",
+  },
+
+  emptyTitle: {
+    margin: "20px 0 8px",
+    color: "#ffffff",
+    fontSize: "20px",
+  },
+
+  emptyText: {
+    margin: 0,
+    color: "#64748b",
+    fontSize: "13px",
+    maxWidth: "450px",
+    lineHeight: "1.6",
+  },
 
   loadingContainer: {
-
-    minHeight: "80vh",
-
+    minHeight: "75vh",
     display: "flex",
-
     flexDirection: "column",
-
-    justifyContent: "center",
-
     alignItems: "center",
-
-    gap: "20px"
-
+    justifyContent: "center",
+    gap: "18px",
   },
 
   loader: {
-
-    width: "60px",
-
-    height: "60px",
-
-    border:
-      "5px solid rgba(255,255,255,0.15)",
-
-    borderTop:
-      "5px solid #7c3aed",
-
+    width: "52px",
+    height: "52px",
     borderRadius: "50%",
-
-    animation:
-      "spin 1s linear infinite"
-
+    border: "4px solid rgba(255,255,255,0.1)",
+    borderTop: "4px solid #8b5cf6",
+    animation: "spin 1s linear infinite",
   },
 
   loadingText: {
-
-    color: "#cbd5e1",
-
-    fontSize: "18px"
-
-  }
-
+    margin: 0,
+    color: "#94a3b8",
+    fontSize: "15px",
+  },
 };

@@ -24,20 +24,18 @@ export default function VentaTable({
 
   return (
     <table style={styles.table}>
-      {" "}
       <thead>
-        {" "}
-        <tr>
-          {" "}
-          <th style={styles.th}>🧾 Venta</th>{" "}
-          <th style={styles.th}>👤 Cliente</th>{" "}
-          <th style={styles.th}>📦 Productos</th>{" "}
-          <th style={styles.th}>💳 Estado</th>{" "}
-          <th style={styles.th}>💰 Total</th>{" "}
-          <th style={styles.th}>📅 Fecha</th>{" "}
-          <th style={styles.th}>⚙️ Acción</th>{" "}
-        </tr>{" "}
+        <tr style={styles.thead}>
+          <th style={styles.th}>🧾 Venta</th>
+          <th style={styles.th}>👤 Cliente</th>
+          <th style={styles.th}>📦 Productos</th>
+          <th style={styles.th}>💳 Estado</th>
+          <th style={styles.th}>💰 Total</th>
+          <th style={styles.th}>📅 Fecha</th>
+          <th style={styles.th}>⚙️ Acción</th>
+        </tr>
       </thead>
+
       <tbody>
         {ventasFiltradas.map((venta) => (
           <tr
@@ -45,22 +43,16 @@ export default function VentaTable({
             style={styles.tr}
             onClick={() => abrirModal(venta)}
           >
-            <td style={styles.td}>
-              <div style={styles.saleId}>
-                #{String(venta.id).padStart(5, "0")}
-              </div>
-            </td>
+            <td style={styles.td}>#{String(venta.id).padStart(5, "0")}</td>
 
             <td style={styles.td}>
               <div style={styles.userInfo}>
                 <div style={styles.avatar}>
-                  {venta.Cliente?.nombre?.charAt(0)?.toUpperCase() || "?"}
+                  {venta.Cliente?.nombre?.charAt(0)?.toUpperCase() || "C"}
                 </div>
 
                 <div>
-                  <strong>
-                    {venta.Cliente?.nombre || "Cliente eliminado"}
-                  </strong>
+                  <strong>{venta.Cliente?.nombre || "Cliente General"}</strong>
 
                   <p style={styles.email}>
                     {venta.Cliente?.email || "Sin correo"}
