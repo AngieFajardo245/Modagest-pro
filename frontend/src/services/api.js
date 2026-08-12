@@ -1,53 +1,37 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL:
-    import.meta.env.VITE_API_URL ||
-    "http://localhost:5000",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
 });
-
-// =====================================================
-// Ayuda a agregar automáticamente el token JWT
-// =====================================================
 
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
 
-    if (token) {
+    if (token && token !== "undefined" && token !== "null") {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error),
 );
 
-// =====================================================
-// Ayuda al Manejo de las sesiones expiradas
-// =====================================================
-
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-
+  (response) => response,
   (error) => {
-    if (error.response) {
-      if (error.response.status === 401) {
-        console.warn("Sesión expirada");
+    if (error.response?.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("usuario");
+      localStorage.removeItem("rol");
 
-        localStorage.removeItem("token");
-        localStorage.removeItem("usuario");
-
+      if (window.location.pathname !== "/login") {
         window.location.href = "/login";
       }
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

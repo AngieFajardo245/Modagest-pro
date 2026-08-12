@@ -1,160 +1,72 @@
-import {
-  Navigate,
-  useLocation
-} from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
-function ProtectedRoute({
-  children,
-  role
-}) {
-
+function ProtectedRoute({ children, role }) {
   const location = useLocation();
 
-  /* ================= TOKEN ================= */
+  const token = localStorage.getItem("token");
+  const usuarioStorage = localStorage.getItem("usuario");
 
-  const token =
-    localStorage.getItem("token");
-
-  /* ================= USUARIO ================= */
-
-  const usuarioStorage =
-    localStorage.getItem("usuario");
+  const limpiarSesion = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
+    localStorage.removeItem("rol");
+  };
 
   let usuario = null;
 
   try {
-
-    usuario = usuarioStorage
-      ? JSON.parse(usuarioStorage)
-      : null;
-
-  } catch (error) {
-
-    console.error(
-      "❌ Error parseando usuario:",
-      error
-    );
-
-    localStorage.clear();
-
-    return (
-      <Navigate
-        to="/login"
-        replace
-      />
-    );
-
+    usuario = usuarioStorage ? JSON.parse(usuarioStorage) : null;
+  } catch {
+    limpiarSesion();
+    return <Navigate to="/login" replace />;
   }
 
-  /* ================= VALIDAR TOKEN ================= */
+  const tokenValido =
+    typeof token === "string" &&
+    token.trim() !== "" &&
+    token !== "undefined" &&
+    token !== "null";
 
-  if (
-    !token ||
-    token === "undefined" ||
-    token === "null" ||
-    token.trim() === ""
-  ) {
+  const usuarioValido =
+    usuario && typeof usuario === "object" && usuario.id && usuario.rol;
 
-    localStorage.setItem(
-      "redirectAfterLogin",
-      location.pathname
-    );
-
-    return (
-      <Navigate
-        to="/login"
-        replace
-      />
-    );
-
-  }
-
-  /* ================= SIN USUARIO ================= */
-
-  if (!usuario) {
-
-    localStorage.clear();
-
-    return (
-      <Navigate
-        to="/login"
-        replace
-      />
-    );
-
-  }
-
-  /* ================= ROLES ================= */
-
-  const userRole =
-    usuario?.rol
-      ?.toLowerCase()
-      ?.trim();
-
-  const requiredRole =
-    role
-      ?.toLowerCase()
-      ?.trim();
-
-  /* ================= VALIDAR ROL ================= */
-
-  if (
-    requiredRole &&
-    userRole !== requiredRole
-  ) {
-
-    console.warn(
-      "⛔ Acceso denegado"
-    );
-
-    /* ================= REDIRECCIONES ================= */
-
-    if (userRole === "cliente") {
-
-      return (
-        <Navigate
-          to="/cliente"
-          replace
-        />
+  if (!tokenValido || !usuarioValido) {
+    if (!tokenValido && location.pathname !== "/login") {
+      localStorage.setItem(
+        "redirectAfterLogin",
+        `${location.pathname}${location.search}${location.hash}`,
       );
+    }
 
+    limpiarSesion();
+
+    return <Navigate to="/login" replace />;
+  }
+
+  const userRole = String(usuario.rol).toLowerCase().trim();
+  const requiredRole = String(role || "")
+    .toLowerCase()
+    .trim();
+
+  if (requiredRole && userRole !== requiredRole) {
+    if (userRole === "cliente") {
+      return <Navigate to="/cliente" replace />;
     }
 
     if (userRole === "administrador") {
-
-      return (
-        <Navigate
-          to="/admin"
-          replace
-        />
-      );
-
+      return <Navigate to="/admin" replace />;
     }
 
     if (userRole === "empleado") {
-
-      return (
-        <Navigate
-          to="/empleado"
-          replace
-        />
-      );
-
+      return <Navigate to="/empleado" replace />;
     }
 
-    return (
-      <Navigate
-        to="/login"
-        replace
-      />
-    );
+    limpiarSesion();
 
+    return <Navigate to="/login" replace />;
   }
 
-  /* ================= OK ================= */
-
   return children;
-
 }
 
 export default ProtectedRoute;

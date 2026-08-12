@@ -422,7 +422,7 @@ app.get("/productos", async (req, res) => {
           model: Categoria,
         },
       ],
-      order: [["createdAt", "DESC"]],
+      order: [["id", "ASC"]],
     });
 
     res.json(productos);
@@ -623,93 +623,126 @@ app.post(
     const transaction = await sequelize.transaction();
 
     try {
-      const { productoId, cantidad, metodoPago } = req.body;
+      const { productos, metodoPago } = req.body;
 
-      const cantidadCompra = Number(cantidad);
-
-      if (
-        !productoId ||
-        !Number.isInteger(cantidadCompra) ||
-        cantidadCompra < 1
-      ) {
+      if (!Array.isArray(productos) || productos.length === 0) {
         await transaction.rollback();
 
         return res.status(400).json({
-          message: "Producto o cantidad inválida",
+          message: "El carrito está vacío",
         });
       }
 
-      const producto = await Producto.findByPk(productoId, {
-        transaction,
-        lock: transaction.LOCK.UPDATE,
-      });
+      const metodosPermitidos = ["Tarjeta", "PSE", "Nequi", "Contra Entrega"];
 
-      if (!producto) {
-        await transaction.rollback();
-
-        return res.status(404).json({
-          message: "Producto no encontrado",
-        });
-      }
-
-      const precioProducto = Number(producto.precio);
-      const stockActual = Number(producto.stock);
-
-      if (!Number.isFinite(precioProducto) || precioProducto < 1000) {
+      if (!metodosPermitidos.includes(metodoPago)) {
         await transaction.rollback();
 
         return res.status(400).json({
-          message: "El precio del producto no es válido",
+          message: "El método de pago no es válido",
         });
       }
 
-      if (stockActual < cantidadCompra) {
-        await transaction.rollback();
+      const detalles = [];
+      let totalVenta = 0;
 
-        return res.status(400).json({
-          message: "Stock insuficiente",
+      for (const item of productos) {
+        const productoId = Number(item.productoId);
+        const cantidad = Number(item.cantidad);
+
+        if (
+          !Number.isInteger(productoId) ||
+          !Number.isInteger(cantidad) ||
+          cantidad < 1
+        ) {
+          await transaction.rollback();
+
+          return res.status(400).json({
+            message: "Producto o cantidad inválida",
+          });
+        }
+
+        const producto = await Producto.findByPk(productoId, {
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+
+        if (!producto) {
+          await transaction.rollback();
+
+          return res.status(404).json({
+            message: `El producto con ID ${productoId} no existe`,
+          });
+        }
+
+        const precio = Number(producto.precio);
+        const stock = Number(producto.stock);
+
+        if (!Number.isFinite(precio) || precio < 1000) {
+          await transaction.rollback();
+
+          return res.status(400).json({
+            message: `El precio del producto "${producto.nombre}" no es válido`,
+          });
+        }
+
+        if (stock < cantidad) {
+          await transaction.rollback();
+
+          return res.status(400).json({
+            message: `Stock insuficiente para "${producto.nombre}". Disponible: ${stock}`,
+          });
+        }
+
+        const subtotal = precio * cantidad;
+
+        detalles.push({
+          productoId: producto.id,
+          cantidad,
+          precio,
+          subtotal,
+        });
+
+        totalVenta += subtotal;
+
+        producto.stock = stock - cantidad;
+
+        await producto.save({
+          transaction,
         });
       }
-
-      const total = precioProducto * cantidadCompra;
 
       const venta = await Venta.create(
         {
           clienteId: req.usuario.id,
           empleadoId: null,
-          total,
+          total: totalVenta,
         },
         {
           transaction,
         },
       );
 
-      await DetalleVenta.create(
-        {
+      await DetalleVenta.bulkCreate(
+        detalles.map((detalle) => ({
           ventaId: venta.id,
-          productoId: producto.id,
-          cantidad: cantidadCompra,
-          precio: precioProducto,
-          subtotal: total,
-        },
+          productoId: detalle.productoId,
+          cantidad: detalle.cantidad,
+          precio: detalle.precio,
+          subtotal: detalle.subtotal,
+        })),
         {
           transaction,
         },
       );
-
-      producto.stock = stockActual - cantidadCompra;
-
-      await producto.save({
-        transaction,
-      });
 
       await Pago.create(
         {
           ventaId: venta.id,
-          metodoPago: metodoPago || "efectivo",
+          metodoPago,
           estado: "aprobado",
-          referencia: "REF-" + Date.now(),
-          monto: total,
+          referencia: `REF-${Date.now()}`,
+          monto: totalVenta,
         },
         {
           transaction,
@@ -720,7 +753,10 @@ app.post(
 
       res.status(201).json({
         message: "Compra realizada correctamente",
-        venta,
+        venta: {
+          id: venta.id,
+          total: venta.total,
+        },
       });
     } catch (error) {
       await transaction.rollback();
@@ -1087,11 +1123,7 @@ app.put(
     try {
       const { rol } = req.body;
 
-      const rolesPermitidos = [
-        "administrador",
-        "empleado",
-        "cliente",
-      ];
+      const rolesPermitidos = ["administrador", "empleado", "cliente"];
 
       if (!rolesPermitidos.includes(rol)) {
         return res.status(400).json({
@@ -1252,9 +1284,7 @@ app.get(
       });
 
       const metodosPago = pagos.reduce((acumulador, pago) => {
-        let metodo = String(
-          pago.metodoPago || "Sin especificar",
-        )
+        let metodo = String(pago.metodoPago || "Sin especificar")
           .trim()
           .toLowerCase();
 
@@ -1266,17 +1296,13 @@ app.get(
           metodo = "PSE";
         } else if (metodo === "nequi") {
           metodo = "Nequi";
-        } else if (
-          metodo === "contra_entrega" ||
-          metodo === "contra entrega"
-        ) {
+        } else if (metodo === "contra_entrega" || metodo === "contra entrega") {
           metodo = "Contra Entrega";
         } else {
           metodo = "Sin especificar";
         }
 
-        acumulador[metodo] =
-          (acumulador[metodo] || 0) + 1;
+        acumulador[metodo] = (acumulador[metodo] || 0) + 1;
 
         return acumulador;
       }, {});
@@ -1315,12 +1341,7 @@ app.get(
   verificarRol("administrador"),
   async (req, res) => {
     try {
-      const [
-        ventas,
-        usuarios,
-        productos,
-        pagos,
-      ] = await Promise.all([
+      const [ventas, usuarios, productos, pagos] = await Promise.all([
         Venta.findAll({
           order: [["createdAt", "DESC"]],
           limit: 5,
@@ -1384,17 +1405,13 @@ app.get(
       });
 
       actividades.sort(
-        (a, b) =>
-          new Date(b.fecha).getTime() -
-          new Date(a.fecha).getTime(),
+        (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime(),
       );
 
-      const actividadesRecientes = actividades
-        .slice(0, 4)
-        .map((actividad) => ({
-          ...actividad,
-          fecha: new Date(actividad.fecha).toISOString(),
-        }));
+      const actividadesRecientes = actividades.slice(0, 4).map((actividad) => ({
+        ...actividad,
+        fecha: new Date(actividad.fecha).toISOString(),
+      }));
 
       res.json(actividadesRecientes);
     } catch (error) {
@@ -1449,14 +1466,9 @@ sequelize
     const PORT = process.env.PORT || 5000;
 
     app.listen(PORT, () => {
-      console.log(
-        `🚀 Servidor corriendo en puerto ${PORT}`,
-      );
+      console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
     });
   })
   .catch((error) => {
-    console.error(
-      "❌ Error conectando DB:",
-      error,
-    );
+    console.error("❌ Error conectando DB:", error);
   });

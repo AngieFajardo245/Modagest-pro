@@ -34,16 +34,14 @@ const Venta = sequelize.define(
       get() {
         const value = this.getDataValue("total");
 
-        return value !== null && value !== undefined
-          ? parseFloat(value)
-          : 0;
+        return value !== null && value !== undefined ? parseFloat(value) : 0;
       },
     },
   },
   {
     tableName: "ventas",
     timestamps: true,
-  }
+  },
 );
 
 module.exports = Venta;

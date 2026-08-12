@@ -7,38 +7,35 @@ const Usuario = sequelize.define(
     id: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
-      primaryKey: true
+      primaryKey: true,
     },
 
     nombre: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: false,
     },
 
     email: {
       type: DataTypes.STRING,
+      allowNull: false,
       unique: true,
-      allowNull: false
     },
 
     password: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: false,
     },
 
     rol: {
-      type: DataTypes.ENUM(
-        "administrador",
-        "cliente",
-        "empleado"
-      ),
-      defaultValue: "cliente"
-    }
+      type: DataTypes.ENUM("administrador", "cliente", "empleado"),
+      allowNull: false,
+      defaultValue: "cliente",
+    },
   },
   {
     tableName: "usuarios",
-    timestamps: true
-  }
+    timestamps: true,
+  },
 );
 
 module.exports = Usuario;

@@ -7,56 +7,42 @@ const Categoria = sequelize.define(
     id: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
-      primaryKey: true
+      primaryKey: true,
     },
 
     nombre: {
       type: DataTypes.STRING(100),
-
       allowNull: false,
-
       unique: true,
 
       validate: {
-
         notEmpty: {
-          msg:
-            "El nombre de la categoría es obligatorio"
+          msg: "El nombre de la categoría es obligatorio",
         },
 
         len: {
           args: [2, 100],
-          msg:
-            "La categoría debe tener entre 2 y 100 caracteres"
-        }
-
+          msg: "La categoría debe tener entre 2 y 100 caracteres",
+        },
       },
 
       set(value) {
-
         this.setDataValue(
           "nombre",
-          value?.trim()
+          typeof value === "string" ? value.trim() : value,
         );
-
-      }
+      },
     },
 
     imagen: {
-
-      type: DataTypes.STRING,
-
-      allowNull: true
-
-    }
-
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
   },
-
   {
     tableName: "categorias",
-
-    timestamps: false
-  }
+    timestamps: false,
+  },
 );
 
 module.exports = Categoria;

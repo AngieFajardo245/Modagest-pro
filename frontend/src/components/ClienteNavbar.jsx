@@ -1,529 +1,351 @@
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-
 import {
   FaShoppingCart,
   FaUserCircle,
   FaHome,
   FaBoxOpen,
   FaClipboardList,
-  FaSignOutAlt
+  FaSignOutAlt,
 } from "react-icons/fa";
 
-/* ================= LOGO ================= */
 import logo from "../assets/Logo.png";
 
 export default function ClienteNavbar() {
-
   const navigate = useNavigate();
   const location = useLocation();
 
   const [cantidad, setCantidad] = useState(0);
+  const [usuario, setUsuario] = useState(null);
 
-  /* ================= USUARIO ================= */
+  const obtenerUsuario = () => {
+    try {
+      const usuarioStorage = localStorage.getItem("usuario");
 
-  let usuario = null;
+      if (!usuarioStorage) {
+        setUsuario(null);
+        return;
+      }
 
-  try {
+      const usuarioParseado = JSON.parse(usuarioStorage);
 
-    usuario = JSON.parse(
-      localStorage.getItem("usuario")
-    );
+      if (!usuarioParseado || typeof usuarioParseado !== "object") {
+        setUsuario(null);
+        return;
+      }
 
-  } catch {
-
-    usuario = null;
-
-  }
-
-  const nombre =
-    usuario?.nombre || "Cliente";
-
-  /* ================= CARRITO ================= */
+      setUsuario(usuarioParseado);
+    } catch {
+      setUsuario(null);
+    }
+  };
 
   const actualizarCarrito = () => {
-
     try {
+      const carritoStorage = localStorage.getItem("carrito");
 
-      const carrito =
-        JSON.parse(
-          localStorage.getItem("carrito")
-        ) || [];
+      if (!carritoStorage) {
+        setCantidad(0);
+        return;
+      }
 
-      const total = carrito.reduce(
-        (acc, p) =>
-          acc + p.cantidad,
-        0
-      );
+      const carrito = JSON.parse(carritoStorage);
+
+      if (!Array.isArray(carrito)) {
+        setCantidad(0);
+        return;
+      }
+
+      const total = carrito.reduce((acc, producto) => {
+        const cantidadProducto = Number(producto?.cantidad || 0);
+
+        return acc + (Number.isFinite(cantidadProducto) ? cantidadProducto : 0);
+      }, 0);
 
       setCantidad(total);
-
     } catch {
-
       setCantidad(0);
-
     }
-
   };
 
   useEffect(() => {
-
+    obtenerUsuario();
     actualizarCarrito();
 
-    const interval =
-      setInterval(
-        actualizarCarrito,
-        500
-      );
+    const actualizarDatos = () => {
+      obtenerUsuario();
+      actualizarCarrito();
+    };
 
-    return () =>
-      clearInterval(interval);
+    window.addEventListener("carritoActualizado", actualizarDatos);
+    window.addEventListener("storage", actualizarDatos);
 
+    return () => {
+      window.removeEventListener("carritoActualizado", actualizarDatos);
+      window.removeEventListener("storage", actualizarDatos);
+    };
   }, []);
 
-  /* ================= LOGOUT ================= */
+  useEffect(() => {
+    actualizarCarrito();
+  }, [location.pathname]);
 
   const cerrarSesion = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
+    localStorage.removeItem("rol");
+    localStorage.removeItem("redirectAfterLogin");
 
-    localStorage.clear();
-
-    navigate("/", {
-      replace: true
-    });
-
+    navigate("/", { replace: true });
   };
 
-  /* ================= LINK STYLE ================= */
+  const nombre = usuario?.nombre || "Cliente";
 
-  const linkStyle = (path) => ({
+  const rutaActiva = (path) => {
+    if (path === "/cliente") {
+      return location.pathname === "/cliente";
+    }
 
-    ...styles.link,
+    return location.pathname.startsWith(path);
+  };
 
-    color:
-      location.pathname === path
-        ? "#ffffff"
-        : "#cbd5e1",
+  const linkStyle = (path) => {
+    const activo = rutaActiva(path);
 
-    background:
-      location.pathname === path
+    return {
+      ...styles.link,
+      color: activo ? "#ffffff" : "#cbd5e1",
+      background: activo
         ? "linear-gradient(135deg, rgba(124,58,237,0.95), rgba(59,130,246,0.95))"
         : "transparent",
+      boxShadow: activo ? "0 8px 20px rgba(124,58,237,0.35)" : "none",
+    };
+  };
 
-    boxShadow:
-      location.pathname === path
-        ? "0 8px 20px rgba(124,58,237,0.35)"
-        : "none"
-
-  });
+  const carritoActivo = location.pathname.startsWith("/cliente/carrito");
 
   return (
-
     <nav style={styles.nav}>
-
-      {/* ================= LOGO ================= */}
-
-      <div
-        style={styles.logoContainer}
-        onClick={() => navigate("/cliente")}
-      >
-
-        <img
-          src={logo}
-          alt="ModaGest Pro"
-          style={styles.logoImage}
-        />
+      <Link to="/cliente" style={styles.logoContainer}>
+        <img src={logo} alt="ModaGest Pro" style={styles.logoImage} />
 
         <div>
-
-          <h2 style={styles.logo}>
-            ModaGest Pro
-          </h2>
-
-          <p style={styles.logoSub}>
-            Cliente
-          </p>
-
+          <h2 style={styles.logo}>ModaGest Pro</h2>
+          <p style={styles.logoSub}>Panel Cliente</p>
         </div>
-
-      </div>
-
-      {/* ================= LINKS ================= */}
+      </Link>
 
       <div style={styles.links}>
-
-        <Link
-          to="/cliente"
-          style={linkStyle("/cliente")}
-        >
+        <Link to="/cliente" style={linkStyle("/cliente")}>
           <FaHome />
-          Inicio
+          <span>Inicio</span>
         </Link>
 
-        <Link
-          to="/cliente/productos"
-          style={linkStyle("/cliente/productos")}
-        >
+        <Link to="/cliente/productos" style={linkStyle("/cliente/productos")}>
           <FaBoxOpen />
-          Productos
+          <span>Productos</span>
+        </Link>
+
+        <Link to="/cliente/compras" style={linkStyle("/cliente/compras")}>
+          <FaClipboardList />
+          <span>Compras</span>
         </Link>
 
         <Link
-          to="/cliente/compras"
-          style={linkStyle("/cliente/compras")}
+          to="/cliente/carrito"
+          style={{
+            ...styles.cart,
+            ...(carritoActivo ? styles.cartActive : {}),
+          }}
+          aria-label={`Carrito de compras${cantidad > 0 ? `, ${cantidad} productos` : ""}`}
         >
-          <FaClipboardList />
-          Compras
-        </Link>
-
-        {/* ================= CARRITO ================= */}
-
-        <div
-          style={styles.cart}
-          onClick={() =>
-            navigate("/carrito")
-          }
-        >
-
           <FaShoppingCart size={18} />
 
           {cantidad > 0 && (
-
-            <span style={styles.badge}>
-              {cantidad}
-            </span>
-
+            <span style={styles.badge}>{cantidad > 99 ? "99+" : cantidad}</span>
           )}
-
-        </div>
-
-        {/* ================= USER ================= */}
+        </Link>
 
         <div style={styles.user}>
-
           <div style={styles.avatar}>
             <FaUserCircle />
           </div>
 
           <div>
-
-            <p style={styles.userLabel}>
-              Bienvenido
-            </p>
-
-            <strong style={styles.userName}>
-              {nombre}
-            </strong>
-
+            <p style={styles.userLabel}>Bienvenido</p>
+            <strong style={styles.userName}>{nombre}</strong>
           </div>
-
         </div>
 
-        {/* ================= LOGOUT ================= */}
-
         <button
+          type="button"
           onClick={cerrarSesion}
           style={styles.logoutBtn}
+          aria-label="Cerrar sesión"
         >
-
           <FaSignOutAlt />
-
-          Salir
-
+          <span>Salir</span>
         </button>
-
       </div>
-
     </nav>
-
   );
-
 }
 
-/* ================= ESTILOS ================= */
-
 const styles = {
-
   nav: {
-
     position: "sticky",
-
     top: 0,
-
     zIndex: 1000,
-
     display: "flex",
-
     justifyContent: "space-between",
-
     alignItems: "center",
-
-    padding: "18px 35px",
-
-    background:
-      "rgba(15,23,42,0.78)",
-
+    gap: "24px",
+    padding: "14px 32px",
+    background: "rgba(15,23,42,0.82)",
     backdropFilter: "blur(18px)",
-
-    borderBottom:
-      "1px solid rgba(255,255,255,0.08)",
-
-    boxShadow:
-      "0 10px 30px rgba(0,0,0,0.35)"
-
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
   },
 
-  /* ================= LOGO ================= */
-
   logoContainer: {
-
     display: "flex",
-
     alignItems: "center",
-
-    gap: "16px",
-
-    cursor: "pointer"
-
+    gap: "14px",
+    cursor: "pointer",
+    textDecoration: "none",
+    flexShrink: 0,
   },
 
   logoImage: {
-
-    width: "70px",
-
-    height: "70px",
-
+    width: "62px",
+    height: "62px",
     objectFit: "cover",
-
-    borderRadius: "18px",
-
+    borderRadius: "16px",
     background: "transparent",
-
-    transform: "scale(1.2)",
-
-    filter:
-      "drop-shadow(0 0 12px rgba(168,85,247,0.55))"
-
+    transform: "scale(1.08)",
+    filter: "drop-shadow(0 0 12px rgba(168,85,247,0.5))",
   },
 
   logo: {
-
     margin: 0,
-
-    color: "#fff",
-
-    fontSize: "24px",
-
-    fontWeight: "700"
-
+    color: "#ffffff",
+    fontSize: "22px",
+    fontWeight: "700",
   },
 
   logoSub: {
-
-    margin: 0,
-
+    margin: "3px 0 0",
     color: "#94a3b8",
-
-    fontSize: "13px",
-
-    letterSpacing: "1px"
-
+    fontSize: "12px",
+    letterSpacing: "0.8px",
   },
 
-  /* ================= LINKS ================= */
-
   links: {
-
     display: "flex",
-
     alignItems: "center",
-
-    gap: "16px",
-
-    flexWrap: "wrap"
-
+    justifyContent: "flex-end",
+    gap: "8px",
+    flexWrap: "wrap",
   },
 
   link: {
-
     display: "flex",
-
     alignItems: "center",
-
     gap: "8px",
-
-    padding: "12px 18px",
-
-    borderRadius: "14px",
-
+    padding: "11px 15px",
+    borderRadius: "13px",
     textDecoration: "none",
-
     fontWeight: "600",
-
-    transition: "0.3s ease",
-
-    fontSize: "15px"
-
+    fontSize: "14px",
+    transition: "all 0.25s ease",
   },
 
-  /* ================= CART ================= */
-
   cart: {
-
     position: "relative",
-
-    width: "50px",
-
-    height: "50px",
-
-    borderRadius: "14px",
-
+    width: "46px",
+    height: "46px",
+    borderRadius: "13px",
     display: "flex",
-
     alignItems: "center",
-
     justifyContent: "center",
-
     cursor: "pointer",
+    background: "rgba(255,255,255,0.06)",
+    color: "#ffffff",
+    border: "1px solid rgba(255,255,255,0.08)",
+    textDecoration: "none",
+    transition: "all 0.25s ease",
+  },
 
+  cartActive: {
     background:
-      "rgba(255,255,255,0.06)",
-
-    color: "#fff",
-
-    border:
-      "1px solid rgba(255,255,255,0.08)",
-
-    transition: "0.3s"
-
+      "linear-gradient(135deg, rgba(124,58,237,0.95), rgba(59,130,246,0.95))",
+    boxShadow: "0 8px 20px rgba(124,58,237,0.35)",
   },
 
   badge: {
-
     position: "absolute",
-
     top: "-6px",
-
-    right: "-5px",
-
-    background:
-      "linear-gradient(135deg, #ef4444, #dc2626)",
-
-    color: "#fff",
-
-    borderRadius: "50%",
-
-    minWidth: "22px",
-
-    height: "22px",
-
+    right: "-6px",
+    minWidth: "21px",
+    height: "21px",
+    padding: "0 5px",
+    borderRadius: "20px",
     display: "flex",
-
     alignItems: "center",
-
     justifyContent: "center",
-
-    fontSize: "12px",
-
+    background: "linear-gradient(135deg, #ef4444, #dc2626)",
+    color: "#ffffff",
+    fontSize: "11px",
     fontWeight: "700",
-
-    boxShadow:
-      "0 4px 10px rgba(239,68,68,0.4)"
-
+    boxShadow: "0 4px 10px rgba(239,68,68,0.4)",
   },
 
-  /* ================= USER ================= */
-
   user: {
-
     display: "flex",
-
     alignItems: "center",
-
-    gap: "12px",
-
-    padding: "10px 16px",
-
-    borderRadius: "16px",
-
-    background:
-      "rgba(255,255,255,0.05)",
-
-    border:
-      "1px solid rgba(255,255,255,0.08)"
-
+    gap: "10px",
+    padding: "8px 13px",
+    borderRadius: "15px",
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.08)",
   },
 
   avatar: {
-
-    width: "42px",
-
-    height: "42px",
-
+    width: "40px",
+    height: "40px",
     borderRadius: "50%",
-
-    background:
-      "linear-gradient(135deg, #7c3aed, #3b82f6)",
-
+    background: "linear-gradient(135deg, #7c3aed, #3b82f6)",
     display: "flex",
-
     alignItems: "center",
-
     justifyContent: "center",
-
-    color: "#fff",
-
-    fontSize: "20px"
-
+    color: "#ffffff",
+    fontSize: "19px",
   },
 
   userLabel: {
-
     margin: 0,
-
     color: "#94a3b8",
-
-    fontSize: "12px"
-
+    fontSize: "11px",
   },
 
   userName: {
-
-    color: "#fff",
-
-    fontSize: "14px"
-
+    color: "#ffffff",
+    fontSize: "14px",
   },
 
-  /* ================= LOGOUT ================= */
-
   logoutBtn: {
-
     display: "flex",
-
     alignItems: "center",
-
     gap: "8px",
-
     border: "none",
-
-    padding: "12px 18px",
-
-    borderRadius: "14px",
-
-    background:
-      "linear-gradient(135deg, #ef4444, #dc2626)",
-
-    color: "#fff",
-
+    padding: "11px 15px",
+    borderRadius: "13px",
+    background: "linear-gradient(135deg, #ef4444, #dc2626)",
+    color: "#ffffff",
     fontWeight: "600",
-
+    fontSize: "14px",
     cursor: "pointer",
-
-    transition: "0.3s",
-
-    boxShadow:
-      "0 8px 20px rgba(239,68,68,0.35)"
-
-  }
-
+    transition: "all 0.25s ease",
+    boxShadow: "0 7px 18px rgba(239,68,68,0.28)",
+  },
 };

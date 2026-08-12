@@ -1,412 +1,262 @@
 import { useState } from "react";
-
-import {
-  useNavigate
-} from "react-router-dom";
-
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
-
-import {
-  FaEnvelope,
-  FaLock,
-  FaUser,
-  FaEye,
-  FaEyeSlash
-} from "react-icons/fa";
-
-/* ================= LOGO ================= */
+import { FaEnvelope, FaLock, FaUser, FaEye, FaEyeSlash } from "react-icons/fa";
 import logo from "../assets/Logo.png";
 
 function Login() {
-
   const navigate = useNavigate();
 
-  const [view, setView] =
-    useState("login");
+  const [view, setView] = useState("login");
 
   const [form, setForm] = useState({
-
     nombre: "",
     email: "",
-    password: ""
-
+    password: "",
   });
 
-  const [viewPassword,
-    setViewPassword] =
-    useState(false);
-
-  const [loading,
-    setLoading] =
-    useState(false);
-
-  const [errorMessage,
-    setErrorMessage] =
-    useState("");
-
-  /* ================= HANDLE INPUTS ================= */
+  const [viewPassword, setViewPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
 
-    setForm({
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
 
-      ...form,
-
-      [e.target.name]:
-        e.target.value
-
-    });
-
+    if (errorMessage) {
+      setErrorMessage("");
+    }
   };
-
-  /* ================= VALIDAR EMAIL ================= */
 
   const validarEmail = (email) => {
-
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
   };
-
-  /* ================= LIMPIAR ================= */
 
   const limpiarFormulario = () => {
-
     setForm({
-
       nombre: "",
       email: "",
-      password: ""
-
+      password: "",
     });
 
+    setViewPassword(false);
   };
 
-  /* ================= REDIRECCION ================= */
+  const guardarSesion = (token, usuario) => {
+    localStorage.setItem("token", token);
 
-  const redirigirDespuesLogin =
-    (usuario) => {
+    localStorage.setItem("rol", usuario?.rol?.toLowerCase?.() || "cliente");
 
-      const redirect =
-        localStorage.getItem(
-          "redirectAfterLogin"
-        );
+    localStorage.setItem("usuario", JSON.stringify(usuario || {}));
+  };
 
-      if (redirect) {
+  const redirigirDespuesLogin = (usuario) => {
+    const redirect = localStorage.getItem("redirectAfterLogin");
 
-        localStorage.removeItem(
-          "redirectAfterLogin"
-        );
+    if (redirect) {
+      localStorage.removeItem("redirectAfterLogin");
+      navigate(redirect);
+      return;
+    }
 
-        navigate(redirect);
+    const rol = usuario?.rol?.toLowerCase?.();
 
-        return;
+    switch (rol) {
+      case "administrador":
+        navigate("/admin");
+        break;
 
-      }
+      case "empleado":
+        navigate("/empleado");
+        break;
 
-      switch (
-        usuario.rol?.toLowerCase()
-      ) {
+      case "cliente":
+      default:
+        navigate("/cliente");
+        break;
+    }
+  };
 
-        case "administrador":
+  const cambiarVista = (nuevaVista) => {
+    setErrorMessage("");
+    limpiarFormulario();
+    setView(nuevaVista);
+  };
 
-          navigate("/admin");
-          break;
+  const validarFormularioLogin = () => {
+    const email = form.email.trim();
+    const password = form.password;
 
-        case "empleado":
+    if (!email || !password) {
+      setErrorMessage("Todos los campos son obligatorios.");
+      return false;
+    }
 
-          navigate("/empleado");
-          break;
+    if (!validarEmail(email)) {
+      setErrorMessage("Ingresa un correo electrónico válido.");
+      return false;
+    }
 
-        default:
+    if (password.length < 6) {
+      setErrorMessage("La contraseña debe tener mínimo 6 caracteres.");
+      return false;
+    }
 
-          navigate("/cliente");
-          break;
+    return true;
+  };
 
-      }
+  const validarFormularioRegistro = () => {
+    const nombre = form.nombre.trim();
+    const email = form.email.trim();
+    const password = form.password;
 
-    };
+    if (!nombre || !email || !password) {
+      setErrorMessage("Todos los campos son obligatorios.");
+      return false;
+    }
 
-  /* ================= GUARDAR SESION ================= */
+    if (nombre.length < 2) {
+      setErrorMessage("Ingresa un nombre válido.");
+      return false;
+    }
 
-  const guardarSesion =
-    (token, usuario) => {
+    if (!validarEmail(email)) {
+      setErrorMessage("Ingresa un correo electrónico válido.");
+      return false;
+    }
 
-      localStorage.setItem(
-        "token",
-        token
-      );
+    if (password.length < 6) {
+      setErrorMessage("La contraseña debe tener mínimo 6 caracteres.");
+      return false;
+    }
 
-      localStorage.setItem(
-        "rol",
-        usuario?.rol?.toLowerCase?.() || "cliente"
-      );
-
-      localStorage.setItem(
-        "usuario",
-        JSON.stringify(usuario)
-      );
-
-    };
-
-  /* ================= LOGIN ================= */
+    return true;
+  };
 
   const handleLogin = async (e) => {
-
     e.preventDefault();
 
-    setLoading(true);
+    if (loading) {
+      return;
+    }
 
     setErrorMessage("");
 
-    try {
-
-      if (
-        !form.email ||
-        !form.password
-      ) {
-
-        setErrorMessage(
-          "Todos los campos son obligatorios"
-        );
-
-        return;
-
-      }
-
-      if (
-        !validarEmail(form.email)
-      ) {
-
-        setErrorMessage(
-          "Correo electrónico inválido"
-        );
-
-        return;
-
-      }
-
-      const response =
-        await api.post(
-          "/auth/login",
-          {
-            email:
-              form.email.trim(),
-
-            password:
-              form.password.trim()
-          }
-        );
-
-      const {
-        token,
-        usuario
-      } = response.data;
-
-      guardarSesion(
-        token,
-        usuario
-      );
-
-      limpiarFormulario();
-
-      redirigirDespuesLogin(
-        usuario
-      );
-
-    } catch (error) {
-
-      console.error(
-        "Error login:",
-        error
-      );
-
-      setErrorMessage(
-
-        error.response?.data
-          ?.message ||
-
-        "Credenciales incorrectas ❌"
-
-      );
-
-    } finally {
-
-      setLoading(false);
-
+    if (!validarFormularioLogin()) {
+      return;
     }
 
-  };
+    setLoading(true);
 
-  /* ================= REGISTER ================= */
+    try {
+      const email = form.email.trim().toLowerCase();
 
-  const handleRegister =
-    async (e) => {
+      const response = await api.post("/auth/login", {
+        email,
+        password: form.password,
+      });
 
-      e.preventDefault();
+      const { token, usuario } = response.data || {};
 
-      setLoading(true);
-
-      setErrorMessage("");
-
-      try {
-
-        if (
-          !form.nombre ||
-          !form.email ||
-          !form.password
-        ) {
-
-          setErrorMessage(
-            "Todos los campos son obligatorios"
-          );
-
-          return;
-
-        }
-
-        if (
-          !validarEmail(
-            form.email
-          )
-        ) {
-
-          setErrorMessage(
-            "Correo electrónico inválido"
-          );
-
-          return;
-
-        }
-
-        if (
-          form.password.length < 6
-        ) {
-
-          setErrorMessage(
-            "La contraseña debe tener mínimo 6 caracteres"
-          );
-
-          return;
-
-        }
-
-        await api.post(
-          "/auth/register",
-          {
-
-            nombre:
-              form.nombre.trim(),
-
-            email:
-              form.email.trim(),
-
-            password:
-              form.password.trim()
-
-          }
-        );
-
-        const loginResponse =
-          await api.post(
-            "/auth/login",
-            {
-              email:
-                form.email.trim(),
-
-              password:
-                form.password.trim()
-            }
-          );
-
-        const {
-          token,
-          usuario
-        } = loginResponse.data;
-
-        guardarSesion(
-          token,
-          usuario
-        );
-
-        limpiarFormulario();
-
-        redirigirDespuesLogin(
-          usuario
-        );
-
-      } catch (error) {
-
-        console.error(
-          "Error register:",
-          error
-        );
-
-        setErrorMessage(
-
-          error.response?.data
-            ?.message ||
-
-          "No se pudo registrar ❌"
-
-        );
-
-      } finally {
-
-        setLoading(false);
-
+      if (!token || !usuario) {
+        setErrorMessage("La respuesta del servidor no es válida.");
+        return;
       }
 
-    };
+      guardarSesion(token, usuario);
+      limpiarFormulario();
+      redirigirDespuesLogin(usuario);
+    } catch (error) {
+      console.error("Error al iniciar sesión:", error);
 
-  /* ================= UI ================= */
+      setErrorMessage(
+        error.response?.data?.message ||
+          "Credenciales incorrectas. Verifica tu correo y contraseña.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+
+    if (loading) {
+      return;
+    }
+
+    setErrorMessage("");
+
+    if (!validarFormularioRegistro()) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const nombre = form.nombre.trim();
+      const email = form.email.trim().toLowerCase();
+      const password = form.password;
+
+      await api.post("/auth/register", {
+        nombre,
+        email,
+        password,
+      });
+
+      const loginResponse = await api.post("/auth/login", {
+        email,
+        password,
+      });
+
+      const { token, usuario } = loginResponse.data || {};
+
+      if (!token || !usuario) {
+        setErrorMessage(
+          "La cuenta fue creada, pero no fue posible iniciar sesión automáticamente.",
+        );
+        setView("login");
+        return;
+      }
+
+      guardarSesion(token, usuario);
+      limpiarFormulario();
+      redirigirDespuesLogin(usuario);
+    } catch (error) {
+      console.error("Error al registrar usuario:", error);
+
+      setErrorMessage(
+        error.response?.data?.message ||
+          "No fue posible crear la cuenta. Intenta nuevamente.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-
     <div style={styles.container}>
-
-      {/* ================= OVERLAY ================= */}
-
       <div style={styles.overlay} />
 
-      {/* ================= CARD ================= */}
-
       <div style={styles.card}>
-
         <div style={styles.logoBox}>
+          <img src={logo} alt="Logo de ModaGest Pro" style={styles.logoImage} />
 
-          {/* ================= LOGO ================= */}
-
-          <img
-            src={logo}
-            alt="ModaGest Pro"
-            style={styles.logoImage}
-          />
-
-          <h1 style={styles.title}>
-            ModaGest Pro
-          </h1>
+          <h1 style={styles.title}>ModaGest Pro</h1>
 
           <p style={styles.subtitle}>
             Plataforma inteligente de moda y gestión
           </p>
-
         </div>
 
-        {/* ================= LOGIN ================= */}
-
         {view === "login" && (
-
-          <form
-            onSubmit={handleLogin}
-          >
-
-            {/* EMAIL */}
-
+          <form onSubmit={handleLogin} noValidate>
             <div style={styles.inputBox}>
-
-              <FaEnvelope
-                style={styles.icon}
-              />
+              <FaEnvelope style={styles.icon} />
 
               <input
                 type="email"
@@ -414,107 +264,74 @@ function Login() {
                 placeholder="Correo electrónico"
                 value={form.email}
                 onChange={handleChange}
-                required
+                autoComplete="email"
+                disabled={loading}
                 style={styles.input}
               />
-
             </div>
 
-            {/* PASSWORD */}
-
             <div style={styles.inputBox}>
-
-              <FaLock
-                style={styles.icon}
-              />
+              <FaLock style={styles.icon} />
 
               <input
-                type={
-                  viewPassword
-                    ? "text"
-                    : "password"
-                }
+                type={viewPassword ? "text" : "password"}
                 name="password"
                 placeholder="Contraseña"
                 value={form.password}
                 onChange={handleChange}
-                required
+                autoComplete="current-password"
+                disabled={loading}
                 style={styles.input}
               />
 
-              <span
-                onClick={() =>
-                  setViewPassword(
-                    !viewPassword
-                  )
-                }
+              <button
+                type="button"
+                onClick={() => setViewPassword((prev) => !prev)}
                 style={styles.eye}
+                aria-label={
+                  viewPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                }
+                disabled={loading}
               >
-
-                {viewPassword
-                  ? <FaEyeSlash />
-                  : <FaEye />}
-
-              </span>
-
+                {viewPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
             </div>
 
+            {errorMessage && (
+              <div style={styles.error} role="alert">
+                {errorMessage}
+              </div>
+            )}
+
             <button
-              style={styles.primaryBtn}
+              type="submit"
+              style={{
+                ...styles.primaryBtn,
+                ...(loading ? styles.primaryBtnDisabled : {}),
+              }}
               disabled={loading}
             >
-
-              {loading
-                ? "Ingresando..."
-                : "Ingresar"}
-
+              {loading ? "Ingresando..." : "Ingresar"}
             </button>
 
             <p style={styles.switch}>
-
               ¿No tienes cuenta?{" "}
-
               <button
                 type="button"
                 style={styles.linkBtn}
-                onClick={() => {
-
-                  setErrorMessage("");
-
-                  limpiarFormulario();
-
-                  setView(
-                    "register"
-                  );
-
-                }}
+                onClick={() => cambiarVista("register")}
+                disabled={loading}
               >
-
                 Regístrate
-
               </button>
-
             </p>
-
           </form>
-
         )}
 
-        {/* ================= REGISTER ================= */}
-
         {view === "register" && (
-
-          <form
-            onSubmit={handleRegister}
-          >
-
-            {/* NOMBRE */}
-
+          <form onSubmit={handleRegister} noValidate>
             <div style={styles.inputBox}>
-
-              <FaUser
-                style={styles.icon}
-              />
+              <FaUser style={styles.icon} />
 
               <input
                 type="text"
@@ -522,19 +339,14 @@ function Login() {
                 placeholder="Nombre completo"
                 value={form.nombre}
                 onChange={handleChange}
-                required
+                autoComplete="name"
+                disabled={loading}
                 style={styles.input}
               />
-
             </div>
 
-            {/* EMAIL */}
-
             <div style={styles.inputBox}>
-
-              <FaEnvelope
-                style={styles.icon}
-              />
+              <FaEnvelope style={styles.icon} />
 
               <input
                 type="email"
@@ -542,372 +354,229 @@ function Login() {
                 placeholder="Correo electrónico"
                 value={form.email}
                 onChange={handleChange}
-                required
+                autoComplete="email"
+                disabled={loading}
                 style={styles.input}
               />
-
             </div>
 
-            {/* PASSWORD */}
-
             <div style={styles.inputBox}>
-
-              <FaLock
-                style={styles.icon}
-              />
+              <FaLock style={styles.icon} />
 
               <input
-                type={
-                  viewPassword
-                    ? "text"
-                    : "password"
-                }
+                type={viewPassword ? "text" : "password"}
                 name="password"
                 placeholder="Contraseña"
                 value={form.password}
                 onChange={handleChange}
-                required
+                autoComplete="new-password"
+                disabled={loading}
                 style={styles.input}
               />
 
-              <span
-                onClick={() =>
-                  setViewPassword(
-                    !viewPassword
-                  )
-                }
+              <button
+                type="button"
+                onClick={() => setViewPassword((prev) => !prev)}
                 style={styles.eye}
+                aria-label={
+                  viewPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                }
+                disabled={loading}
               >
-
-                {viewPassword
-                  ? <FaEyeSlash />
-                  : <FaEye />}
-
-              </span>
-
+                {viewPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
             </div>
 
+            {errorMessage && (
+              <div style={styles.error} role="alert">
+                {errorMessage}
+              </div>
+            )}
+
             <button
-              style={styles.primaryBtn}
+              type="submit"
+              style={{
+                ...styles.primaryBtn,
+                ...(loading ? styles.primaryBtnDisabled : {}),
+              }}
               disabled={loading}
             >
-
-              {loading
-                ? "Registrando..."
-                : "Crear cuenta"}
-
+              {loading ? "Registrando..." : "Crear cuenta"}
             </button>
 
             <p style={styles.switch}>
-
               ¿Ya tienes cuenta?{" "}
-
               <button
                 type="button"
                 style={styles.linkBtn}
-                onClick={() => {
-
-                  setErrorMessage("");
-
-                  limpiarFormulario();
-
-                  setView("login");
-
-                }}
+                onClick={() => cambiarVista("login")}
+                disabled={loading}
               >
-
                 Inicia sesión
-
               </button>
-
             </p>
-
           </form>
-
         )}
-
-        {/* ================= ERROR ================= */}
-
-        {errorMessage && (
-
-          <div style={styles.error}>
-
-            {errorMessage}
-
-          </div>
-
-        )}
-
       </div>
-
     </div>
-
   );
-
 }
 
 export default Login;
 
-/* ================= ESTILOS ================= */
-
 const styles = {
-
   container: {
-
     minHeight: "100vh",
-
     display: "flex",
-
     justifyContent: "center",
-
     alignItems: "center",
-
     position: "relative",
-
     overflow: "hidden",
-
     backgroundImage:
       "url('https://images.unsplash.com/photo-1529139574466-a303027c1d8b?q=80&w=2070&auto=format&fit=crop')",
-
     backgroundSize: "cover",
-
     backgroundPosition: "center",
-
-    padding: "20px"
-
+    padding: "20px",
+    boxSizing: "border-box",
   },
 
   overlay: {
-
     position: "absolute",
-
     inset: 0,
-
     background:
-      "linear-gradient(to right, rgba(15,23,42,0.9), rgba(88,28,135,0.8))",
-
-    backdropFilter:
-      "blur(4px)"
-
+      "linear-gradient(120deg, rgba(15,23,42,0.94), rgba(76,29,149,0.82))",
+    backdropFilter: "blur(4px)",
   },
 
   card: {
-
     position: "relative",
-
     zIndex: 10,
-
     width: "100%",
-
     maxWidth: "480px",
-
-    padding: "55px 45px",
-
+    padding: "45px 40px",
     borderRadius: "28px",
-
-    background:
-      "rgba(255,255,255,0.08)",
-
-    border:
-      "1px solid rgba(255,255,255,0.1)",
-
-    backdropFilter:
-      "blur(18px)",
-
-    boxShadow:
-      "0 20px 60px rgba(0,0,0,0.4)"
-
+    background: "rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    backdropFilter: "blur(18px)",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.45)",
+    boxSizing: "border-box",
   },
 
   logoBox: {
-
     textAlign: "center",
-
-    marginBottom: "30px"
-
+    marginBottom: "30px",
   },
 
-  /* ================= LOGO MEJORADO ================= */
-
   logoImage: {
-
-    width: "220px",
-
-    height: "220px",
-
+    width: "190px",
+    height: "190px",
     objectFit: "contain",
-
-    margin: "-40px auto -10px",
-
+    margin: "-25px auto -5px",
     display: "block",
-
-    transform: "scale(1.4)",
-
-    filter:
-      "drop-shadow(0 0 30px rgba(168,85,247,0.85))"
-
+    filter: "drop-shadow(0 0 28px rgba(168,85,247,0.7))",
   },
 
   title: {
-
     color: "#fff",
-
-    marginBottom: "12px",
-
-    fontSize: "42px",
-
+    margin: "0 0 10px",
+    fontSize: "40px",
     fontWeight: "800",
-
-    letterSpacing: "0.5px"
-
+    letterSpacing: "0.3px",
   },
 
   subtitle: {
-
     color: "#d1d5db",
-
     fontSize: "15px",
-
-    lineHeight: "1.5"
-
+    lineHeight: "1.5",
+    margin: 0,
   },
 
   inputBox: {
-
     display: "flex",
-
     alignItems: "center",
-
     gap: "12px",
-
-    background:
-      "rgba(255,255,255,0.08)",
-
-    border:
-      "1px solid rgba(255,255,255,0.08)",
-
+    background: "rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.1)",
     borderRadius: "16px",
-
-    padding: "14px 18px",
-
-    marginBottom: "18px"
-
+    padding: "14px 16px",
+    marginBottom: "16px",
+    boxSizing: "border-box",
   },
 
   icon: {
-
     color: "#c084fc",
-
-    fontSize: "15px"
-
+    fontSize: "15px",
+    flexShrink: 0,
   },
 
   input: {
-
     flex: 1,
-
+    minWidth: 0,
     background: "transparent",
-
     border: "none",
-
     outline: "none",
-
     color: "#fff",
-
-    fontSize: "15px"
-
+    fontSize: "15px",
   },
 
   eye: {
-
+    border: "none",
+    background: "transparent",
     color: "#d1d5db",
-
     cursor: "pointer",
-
     display: "flex",
-
-    alignItems: "center"
-
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "3px",
+    fontSize: "15px",
   },
 
   primaryBtn: {
-
     width: "100%",
-
     padding: "15px",
-
     border: "none",
-
     borderRadius: "16px",
-
-    background:
-      "linear-gradient(135deg, #7c3aed, #9333ea)",
-
+    background: "linear-gradient(135deg, #7c3aed, #9333ea)",
     color: "#fff",
-
     fontWeight: "700",
-
     fontSize: "15px",
-
     cursor: "pointer",
+    marginTop: "8px",
+    boxShadow: "0 0 30px rgba(168,85,247,0.35)",
+  },
 
-    marginTop: "10px",
-
-    transition: "0.3s",
-
-    boxShadow:
-      "0 0 30px rgba(168,85,247,0.4)"
-
+  primaryBtnDisabled: {
+    opacity: 0.65,
+    cursor: "not-allowed",
   },
 
   switch: {
-
     textAlign: "center",
-
     marginTop: "22px",
-
+    marginBottom: 0,
     color: "#d1d5db",
-
-    fontSize: "14px"
-
+    fontSize: "14px",
   },
 
   linkBtn: {
-
     background: "none",
-
     border: "none",
-
     color: "#c084fc",
-
     fontWeight: "bold",
-
     cursor: "pointer",
-
-    fontSize: "14px"
-
+    fontSize: "14px",
+    padding: 0,
   },
 
   error: {
-
-    marginTop: "20px",
-
-    background:
-      "rgba(239,68,68,0.15)",
-
-    border:
-      "1px solid rgba(239,68,68,0.3)",
-
+    marginBottom: "14px",
+    background: "rgba(239,68,68,0.13)",
+    border: "1px solid rgba(239,68,68,0.3)",
     color: "#fecaca",
-
     padding: "12px",
-
     borderRadius: "14px",
-
     textAlign: "center",
-
-    fontSize: "14px"
-
-  }
-
+    fontSize: "13px",
+    lineHeight: "1.4",
+  },
 };

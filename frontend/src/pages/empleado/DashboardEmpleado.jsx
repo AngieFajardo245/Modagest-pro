@@ -322,7 +322,7 @@ function DashboardEmpleado() {
             </div>
 
             <h1 style={styles.title}>
-              Hola, <span>{nombre}</span> 👋
+              Hola, <span style={styles.titleSpan}>{nombre}</span> 👋
             </h1>
 
             <p style={styles.subtitle}>

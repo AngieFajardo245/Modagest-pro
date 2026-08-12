@@ -1,95 +1,43 @@
 const verificarRol = (...rolesPermitidos) => {
-
-  /* ================= NORMALIZAR ROLES ================= */
-
-  const rolesNormalizados =
-    rolesPermitidos.map(rol =>
-
-      String(rol)
-        .toLowerCase()
-        .trim()
-
-    );
+  const rolesNormalizados = rolesPermitidos.map((rol) =>
+    String(rol).toLowerCase().trim()
+  );
 
   return (req, res, next) => {
-
     try {
-
-      /* ================= VALIDAR USUARIO ================= */
-
       if (!req.usuario) {
-
         return res.status(401).json({
-
-          message:
-            "Usuario no autenticado"
-
+          message: "Usuario no autenticado",
         });
-
       }
 
-      /* ================= VALIDAR ROL ================= */
-
-      const rolUsuario =
-        req.usuario.rol;
+      const rolUsuario = req.usuario.rol;
 
       if (!rolUsuario) {
-
         return res.status(403).json({
-
-          message:
-            "Usuario sin rol asignado"
-
+          message: "Usuario sin rol asignado",
         });
-
       }
 
-      const rolNormalizado =
-        String(rolUsuario)
-          .toLowerCase()
-          .trim();
+      const rolNormalizado = String(rolUsuario)
+        .toLowerCase()
+        .trim();
 
-      /* ================= VALIDAR PERMISOS ================= */
-
-      const tienePermiso =
-
-        rolesNormalizados.includes(
-          rolNormalizado
-        );
-
-      if (!tienePermiso) {
-
+      if (!rolesNormalizados.includes(rolNormalizado)) {
         return res.status(403).json({
-
-          message:
-            `Acceso denegado. Roles permitidos: ${rolesPermitidos.join(", ")}`
-
+          message: `Acceso denegado. Roles permitidos: ${rolesPermitidos.join(", ")}`,
         });
-
       }
-
-      /* ================= CONTINUAR ================= */
 
       next();
-
     } catch (error) {
-
-      console.error(
-        "❌ Error verificarRol:",
-        error.message
-      );
+      console.error("Error verificando rol:", error.message);
 
       return res.status(403).json({
-
-        message:
-          "No autorizado"
-
+        message: "No autorizado",
       });
-
     }
-
   };
-
 };
 
 module.exports = verificarRol;

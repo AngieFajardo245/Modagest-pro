@@ -7,7 +7,7 @@ const Direccion = sequelize.define(
     id: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
-      primaryKey: true
+      primaryKey: true,
     },
 
     clienteId: {
@@ -15,13 +15,14 @@ const Direccion = sequelize.define(
       allowNull: false,
 
       validate: {
-        notNull: {
-          msg: "El cliente es obligatorio"
-        },
         isInt: {
-          msg: "clienteId debe ser numérico"
-        }
-      }
+          msg: "clienteId debe ser un número entero",
+        },
+        min: {
+          args: [1],
+          msg: "clienteId debe ser mayor que 0",
+        },
+      },
     },
 
     direccion: {
@@ -30,20 +31,21 @@ const Direccion = sequelize.define(
 
       validate: {
         notEmpty: {
-          msg: "La dirección es obligatoria"
+          msg: "La dirección es obligatoria",
         },
+
         len: {
           args: [5, 255],
-          msg: "La dirección es demasiado corta"
-        }
+          msg: "La dirección debe tener entre 5 y 255 caracteres",
+        },
       },
 
       set(value) {
         this.setDataValue(
           "direccion",
-          value?.trim()
+          typeof value === "string" ? value.trim() : value,
         );
-      }
+      },
     },
 
     ciudad: {
@@ -52,16 +54,21 @@ const Direccion = sequelize.define(
 
       validate: {
         notEmpty: {
-          msg: "La ciudad es obligatoria"
-        }
+          msg: "La ciudad es obligatoria",
+        },
+
+        len: {
+          args: [2, 100],
+          msg: "La ciudad debe tener entre 2 y 100 caracteres",
+        },
       },
 
       set(value) {
         this.setDataValue(
           "ciudad",
-          value?.trim()
+          typeof value === "string" ? value.trim() : value,
         );
-      }
+      },
     },
 
     telefono: {
@@ -70,27 +77,27 @@ const Direccion = sequelize.define(
 
       validate: {
         notEmpty: {
-          msg: "El teléfono es obligatorio"
+          msg: "El teléfono es obligatorio",
         },
+
         len: {
           args: [7, 20],
-          msg: "Teléfono inválido"
-        }
+          msg: "El teléfono debe tener entre 7 y 20 caracteres",
+        },
       },
 
       set(value) {
         this.setDataValue(
           "telefono",
-          value?.trim()
+          typeof value === "string" ? value.trim() : value,
         );
-      }
-    }
+      },
+    },
   },
-
   {
     tableName: "direcciones",
-    timestamps: true
-  }
+    timestamps: true,
+  },
 );
 
 module.exports = Direccion;

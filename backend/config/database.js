@@ -1,113 +1,62 @@
 const { Sequelize } = require("sequelize");
-
 require("dotenv").config();
 
-/* ================= VALIDAR VARIABLES ENV ================= */
-
 const variablesRequeridas = [
-
   "DB_NAME",
   "DB_USER",
   "DB_PASSWORD",
-  "DB_HOST"
-
+  "DB_HOST",
+  "JWT_SECRET",
 ];
 
 variablesRequeridas.forEach((variable) => {
-
   if (!process.env[variable]) {
-
-    console.error(
-      `❌ Falta la variable de entorno: ${variable}`
-    );
-
+    console.error(`❌ Falta la variable de entorno: ${variable}`);
     process.exit(1);
-
   }
-
 });
 
-/* =================== CONFIGURAR SEQUELIZE ================= */
-
 const sequelize = new Sequelize(
-
   process.env.DB_NAME,
-
   process.env.DB_USER,
-
   process.env.DB_PASSWORD,
-
   {
-
     host: process.env.DB_HOST,
-
     port: process.env.DB_PORT || 3306,
-
     dialect: "mysql",
-
     logging: false,
-
     timezone: "-05:00",
 
     dialectOptions: {
-
-      charset: "utf8mb4"
-
+      charset: "utf8mb4",
     },
 
     define: {
-
       timestamps: true,
-
-      underscored: false
+      underscored: false,
     },
 
     pool: {
-
       max: 10,
       min: 0,
       acquire: 30000,
-      idle: 10000
-
+      idle: 10000,
     },
 
     retry: {
-
-      max: 3
-
-    }
-
-  }
-
+      max: 3,
+    },
+  },
 );
 
-
-/* =================== PROBAR CONEXIÓN DB ================== */
-
 const conectarDB = async () => {
-
   try {
-
     await sequelize.authenticate();
-
-    console.log(
-      "✅ Conexión a MySQL establecida correctamente"
-    );
-
+    console.log("✅ Conexión a MySQL establecida correctamente");
   } catch (error) {
-
-    console.error(
-      "❌ Error conectando MySQL:"
-    );
-
-    console.error(error.message);
-
+    console.error("❌ Error conectando MySQL:", error.message);
     process.exit(1);
-
   }
-
 };
-
-conectarDB();
 
 module.exports = sequelize;

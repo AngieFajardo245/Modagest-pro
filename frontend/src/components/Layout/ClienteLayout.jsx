@@ -2,46 +2,70 @@ import { Navigate, Outlet } from "react-router-dom";
 import ClienteNavbar from "../ClienteNavbar";
 
 export default function ClienteLayout() {
-
   const token = localStorage.getItem("token");
-  const rol = localStorage.getItem("rol");
+  const usuarioStorage = localStorage.getItem("usuario");
 
-  const rolNormalizado = rol?.toLowerCase().trim();
+  let usuario = null;
 
-  // Protección
-  if (!token || rolNormalizado !== "cliente") {
+  try {
+    usuario = usuarioStorage ? JSON.parse(usuarioStorage) : null;
+  } catch {
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
+    localStorage.removeItem("rol");
+
+    return <Navigate to="/login" replace />;
+  }
+
+  const tokenValido =
+    typeof token === "string" &&
+    token.trim() !== "" &&
+    token !== "undefined" &&
+    token !== "null";
+
+  const rol = String(usuario?.rol || "")
+    .toLowerCase()
+    .trim();
+
+  if (!tokenValido || !usuario || rol !== "cliente") {
+    if (!tokenValido) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("usuario");
+      localStorage.removeItem("rol");
+    }
+
     return <Navigate to="/login" replace />;
   }
 
   return (
     <div style={styles.container}>
-
-      {/* EFECTOS */}
       <div style={styles.glow1}></div>
       <div style={styles.glow2}></div>
 
-      {/* NAVBAR */}
-      <ClienteNavbar />
+      <div style={styles.content}>
+        <ClienteNavbar />
 
-      {/* CONTENIDO */}
-      <main style={styles.main}>
-        <Outlet />
-      </main>
-
+        <main style={styles.main}>
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }
 
-/* ================= ESTILOS ================= */
-
 const styles = {
-
   container: {
     minHeight: "100vh",
     background:
-      "linear-gradient(135deg, #050816, #0b1120, #140b2d)",
+      "linear-gradient(135deg, #050816 0%, #0b1120 50%, #140b2d 100%)",
     position: "relative",
-    overflowX: "hidden"
+    overflowX: "hidden",
+  },
+
+  content: {
+    position: "relative",
+    zIndex: 2,
+    minHeight: "100vh",
   },
 
   glow1: {
@@ -49,11 +73,12 @@ const styles = {
     width: "320px",
     height: "320px",
     borderRadius: "50%",
-    background: "rgba(168,85,247,0.18)",
+    background: "rgba(168, 85, 247, 0.16)",
     filter: "blur(120px)",
     top: "-120px",
     left: "-120px",
-    zIndex: 0
+    pointerEvents: "none",
+    zIndex: 0,
   },
 
   glow2: {
@@ -61,17 +86,17 @@ const styles = {
     width: "380px",
     height: "380px",
     borderRadius: "50%",
-    background: "rgba(59,130,246,0.12)",
+    background: "rgba(59, 130, 246, 0.10)",
     filter: "blur(140px)",
     bottom: "-140px",
     right: "-120px",
-    zIndex: 0
+    pointerEvents: "none",
+    zIndex: 0,
   },
 
   main: {
-    position: "relative",
-    zIndex: 2,
-    padding: "25px"
-  }
-
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "25px",
+  },
 };
