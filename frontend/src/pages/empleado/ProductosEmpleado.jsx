@@ -17,34 +17,48 @@ function ProductosEmpleado() {
   const [productos, setProductos] = useState([]);
   const [cantidades, setCantidades] = useState({});
   const [loading, setLoading] = useState(true);
+  const [actualizando, setActualizando] = useState(false);
   const [vendiendo, setVendiendo] = useState(null);
   const [busqueda, setBusqueda] = useState("");
   const [soloDisponibles, setSoloDisponibles] = useState(false);
 
-  const obtenerProductos = async () => {
+  const obtenerProductos = async (mostrarActualizando = false) => {
     try {
-      setLoading(true);
+      if (mostrarActualizando) {
+        setActualizando(true);
+      } else {
+        setLoading(true);
+      }
 
       const res = await api.get("/productos");
       const data = Array.isArray(res.data) ? res.data : [];
 
       setProductos(data);
 
-      const inicial = {};
+      setCantidades((prev) => {
+        const nuevasCantidades = {};
 
-      data.forEach((producto) => {
-        inicial[producto.id] = 1;
+        data.forEach((producto) => {
+          const stock = Number(producto?.stock) || 0;
+          const cantidadAnterior = Number(prev[producto.id]) || 1;
+
+          nuevasCantidades[producto.id] =
+            stock > 0 ? Math.min(Math.max(cantidadAnterior, 1), stock) : 1;
+        });
+
+        return nuevasCantidades;
       });
-
-      setCantidades(inicial);
     } catch (error) {
       console.error("Error al obtener productos:", error);
 
       alert(
-        error.response?.data?.message || "No se pudieron cargar los productos.",
+        error?.response?.data?.message ||
+          error?.response?.data?.mensaje ||
+          "No se pudieron cargar los productos.",
       );
     } finally {
       setLoading(false);
+      setActualizando(false);
     }
   };
 
@@ -54,7 +68,7 @@ function ProductosEmpleado() {
 
   const aumentar = (id, stock) => {
     setCantidades((prev) => {
-      const actual = prev[id] || 1;
+      const actual = Number(prev[id]) || 1;
 
       if (actual >= stock) {
         return prev;
@@ -69,7 +83,7 @@ function ProductosEmpleado() {
 
   const disminuir = (id) => {
     setCantidades((prev) => {
-      const actual = prev[id] || 1;
+      const actual = Number(prev[id]) || 1;
 
       if (actual <= 1) {
         return prev;
@@ -87,8 +101,9 @@ function ProductosEmpleado() {
   };
 
   const venderProducto = async (producto) => {
-    const cantidad = cantidades[producto.id] || 1;
-    const stock = Number(producto.stock) || 0;
+    const cantidad = Number(cantidades[producto.id]) || 1;
+    const stock = Number(producto?.stock) || 0;
+    const precio = Number(producto?.precio) || 0;
 
     if (stock <= 0) {
       alert("Este producto no tiene stock disponible.");
@@ -100,7 +115,7 @@ function ProductosEmpleado() {
       return;
     }
 
-    const total = Number(producto.precio || 0) * cantidad;
+    const total = precio * cantidad;
 
     const confirmar = window.confirm(
       `¿Deseas registrar esta venta?\n\n` +
@@ -127,7 +142,11 @@ function ProductosEmpleado() {
     } catch (error) {
       console.error("Error registrando venta:", error);
 
-      alert(error.response?.data?.message || "No se pudo registrar la venta.");
+      alert(
+        error?.response?.data?.message ||
+          error?.response?.data?.mensaje ||
+          "No se pudo registrar la venta.",
+      );
     } finally {
       setVendiendo(null);
     }
@@ -236,11 +255,15 @@ function ProductosEmpleado() {
 
         <button
           type="button"
-          style={styles.refreshButton}
-          onClick={obtenerProductos}
+          style={{
+            ...styles.refreshButton,
+            opacity: actualizando ? 0.7 : 1,
+          }}
+          onClick={() => obtenerProductos(true)}
+          disabled={actualizando}
         >
-          <FaSyncAlt />
-          Actualizar
+          <FaSyncAlt style={actualizando ? styles.spinningIcon : undefined} />
+          {actualizando ? "Actualizando..." : "Actualizar"}
         </button>
       </div>
 
@@ -261,15 +284,17 @@ function ProductosEmpleado() {
           <h3 style={styles.emptyTitle}>No hay productos</h3>
 
           <p style={styles.emptyText}>
-            No encontramos productos que coincidan con la búsqueda actual.
+            {productos.length === 0
+              ? "No hay productos registrados actualmente."
+              : "No encontramos productos que coincidan con la búsqueda actual."}
           </p>
         </div>
       ) : (
         <div style={styles.grid}>
           {productosFiltrados.map((producto) => {
-            const cantidad = cantidades[producto.id] || 1;
-            const precio = Number(producto.precio) || 0;
-            const stock = Number(producto.stock) || 0;
+            const cantidad = Number(cantidades[producto.id]) || 1;
+            const precio = Number(producto?.precio) || 0;
+            const stock = Number(producto?.stock) || 0;
             const total = precio * cantidad;
 
             const estadoStock = obtenerEstadoStock(stock);
@@ -291,11 +316,26 @@ function ProductosEmpleado() {
                       style={styles.image}
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
+
+                        const fallback =
+                          e.currentTarget.parentElement?.querySelector(
+                            ".image-fallback",
+                          );
+
+                        if (fallback) {
+                          fallback.style.display = "block";
+                        }
                       }}
                     />
-                  ) : (
-                    <FaBoxOpen style={styles.imageFallback} />
-                  )}
+                  ) : null}
+
+                  <FaBoxOpen
+                    className="image-fallback"
+                    style={{
+                      ...styles.imageFallback,
+                      display: imagen ? "none" : "block",
+                    }}
+                  />
 
                   <div
                     style={{
@@ -348,10 +388,12 @@ function ProductosEmpleado() {
                     <div style={styles.counter}>
                       <button
                         type="button"
-                        disabled={cantidad <= 1}
+                        disabled={cantidad <= 1 || stock <= 0}
                         style={{
                           ...styles.counterBtn,
-                          ...(cantidad <= 1 ? styles.counterBtnDisabled : {}),
+                          ...(cantidad <= 1 || stock <= 0
+                            ? styles.counterBtnDisabled
+                            : {}),
                         }}
                         onClick={() => disminuir(producto.id)}
                       >
@@ -553,6 +595,10 @@ const styles = {
     cursor: "pointer",
     fontWeight: "700",
     fontSize: "12px",
+  },
+
+  spinningIcon: {
+    animation: "spin 1s linear infinite",
   },
 
   resultsInfo: {

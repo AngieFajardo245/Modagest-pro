@@ -18,6 +18,156 @@ function ProductosCliente() {
   const [mostrarOrden, setMostrarOrden] = useState(false);
   const [mensajeCarrito, setMensajeCarrito] = useState("");
 
+  const obtenerUsuario = () => {
+    try {
+      return JSON.parse(localStorage.getItem("usuario")) || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const obtenerClaveCarrito = () => {
+    const token = localStorage.getItem("token");
+    const usuario = obtenerUsuario();
+
+    if (!token) {
+      return "carrito_invitado";
+    }
+
+    const usuarioId =
+      usuario?.id ||
+      usuario?.usuarioId ||
+      usuario?.idUsuario ||
+      usuario?.id_usuario;
+
+    if (usuarioId) {
+      return `carrito_cliente_${usuarioId}`;
+    }
+
+    return `carrito_cliente_token_${token}`;
+  };
+
+  const obtenerCarrito = () => {
+    try {
+      const clave = obtenerClaveCarrito();
+      const carritoGuardado = localStorage.getItem(clave);
+
+      if (!carritoGuardado) {
+        return [];
+      }
+
+      const carrito = JSON.parse(carritoGuardado);
+
+      return Array.isArray(carrito) ? carrito : [];
+    } catch (err) {
+      console.error("Error leyendo el carrito:", err);
+      return [];
+    }
+  };
+
+  const guardarCarrito = (carrito) => {
+    const clave = obtenerClaveCarrito();
+    const carritoJSON = JSON.stringify(carrito);
+
+    localStorage.setItem(clave, carritoJSON);
+
+    window.dispatchEvent(
+      new CustomEvent("carritoActualizado", {
+        detail: {
+          carrito,
+          clave,
+        },
+      }),
+    );
+
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: clave,
+        newValue: carritoJSON,
+        storageArea: localStorage,
+      }),
+    );
+  };
+
+  const migrarCarritoInvitado = () => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      return;
+    }
+
+    const usuario = obtenerUsuario();
+
+    const usuarioId =
+      usuario?.id ||
+      usuario?.usuarioId ||
+      usuario?.idUsuario ||
+      usuario?.id_usuario;
+
+    if (!usuarioId) {
+      return;
+    }
+
+    const claveCliente = `carrito_cliente_${usuarioId}`;
+
+    try {
+      const carritoInvitadoJSON = localStorage.getItem("carrito_invitado");
+
+      if (!carritoInvitadoJSON) {
+        return;
+      }
+
+      const carritoInvitado = JSON.parse(carritoInvitadoJSON);
+
+      if (!Array.isArray(carritoInvitado) || carritoInvitado.length === 0) {
+        localStorage.removeItem("carrito_invitado");
+        return;
+      }
+
+      const carritoClienteJSON = localStorage.getItem(claveCliente);
+
+      const carritoCliente = carritoClienteJSON
+        ? JSON.parse(carritoClienteJSON)
+        : [];
+
+      const carritoFinal = Array.isArray(carritoCliente)
+        ? [...carritoCliente]
+        : [];
+
+      carritoInvitado.forEach((productoInvitado) => {
+        const existente = carritoFinal.find(
+          (producto) => Number(producto.id) === Number(productoInvitado.id),
+        );
+
+        if (existente) {
+          existente.cantidad =
+            Number(existente.cantidad || 0) +
+            Number(productoInvitado.cantidad || 0);
+        } else {
+          carritoFinal.push(productoInvitado);
+        }
+      });
+
+      localStorage.setItem(claveCliente, JSON.stringify(carritoFinal));
+      localStorage.removeItem("carrito_invitado");
+
+      window.dispatchEvent(
+        new CustomEvent("carritoActualizado", {
+          detail: {
+            carrito: carritoFinal,
+            clave: claveCliente,
+          },
+        }),
+      );
+    } catch (err) {
+      console.error("Error migrando el carrito:", err);
+    }
+  };
+
+  const limpiarCarritoAntiguo = () => {
+    localStorage.removeItem("carrito");
+  };
+
   const formatearMoneda = (valor) =>
     Number(valor || 0).toLocaleString("es-CO", {
       style: "currency",
@@ -45,19 +195,27 @@ function ProductosCliente() {
       setCantidades(cantidadesIniciales);
     } catch (err) {
       console.error("Error obteniendo productos:", err);
+
       setProductos([]);
-      setError("No se pudieron cargar los productos.");
+
+      setError(
+        err.response?.data?.message || "No se pudieron cargar los productos.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    limpiarCarritoAntiguo();
+    migrarCarritoInvitado();
     obtenerProductos();
   }, []);
 
   useEffect(() => {
-    if (!mensajeCarrito) return;
+    if (!mensajeCarrito) {
+      return;
+    }
 
     const timer = setTimeout(() => {
       setMensajeCarrito("");
@@ -129,7 +287,9 @@ function ProductosCliente() {
     const stockDisponible = Number(stock || 0);
     const cantidadActual = Number(cantidades[id] || 0);
 
-    if (cantidadActual >= stockDisponible) return;
+    if (cantidadActual >= stockDisponible) {
+      return;
+    }
 
     setCantidades((prev) => ({
       ...prev,
@@ -140,7 +300,9 @@ function ProductosCliente() {
   const disminuir = (id) => {
     const cantidadActual = Number(cantidades[id] || 1);
 
-    if (cantidadActual <= 1) return;
+    if (cantidadActual <= 1) {
+      return;
+    }
 
     setCantidades((prev) => ({
       ...prev,
@@ -149,32 +311,17 @@ function ProductosCliente() {
   };
 
   const agregarAlCarrito = (producto) => {
-    const token = localStorage.getItem("token");
+    const productoId = Number(producto.id);
+    const stock = Number(producto.stock || 0);
 
-    if (!token) {
-      navigate("/login");
+    if (!productoId) {
+      setMensajeCarrito("No se pudo identificar el producto.");
       return;
     }
-
-    const stock = Number(producto.stock || 0);
 
     if (stock <= 0) {
       setMensajeCarrito("Este producto está agotado.");
       return;
-    }
-
-    let carritoActual = [];
-
-    try {
-      const carritoGuardado = localStorage.getItem("carrito");
-      carritoActual = carritoGuardado ? JSON.parse(carritoGuardado) : [];
-
-      if (!Array.isArray(carritoActual)) {
-        carritoActual = [];
-      }
-    } catch (err) {
-      console.error("Error leyendo el carrito:", err);
-      carritoActual = [];
     }
 
     const cantidadAgregar = Number(cantidades[producto.id] || 1);
@@ -184,41 +331,66 @@ function ProductosCliente() {
       return;
     }
 
+    if (cantidadAgregar > stock) {
+      setMensajeCarrito(
+        `Solo hay ${stock} ${stock === 1 ? "unidad" : "unidades"} disponibles.`,
+      );
+      return;
+    }
+
+    const carritoActual = obtenerCarrito();
+
     const productoExistente = carritoActual.find(
-      (item) => Number(item.id) === Number(producto.id),
+      (item) => Number(item.id) === productoId,
     );
 
     if (productoExistente) {
-      const nuevaCantidad =
-        Number(productoExistente.cantidad || 0) + cantidadAgregar;
+      const cantidadActual = Number(productoExistente.cantidad || 0);
+
+      const nuevaCantidad = cantidadActual + cantidadAgregar;
 
       if (nuevaCantidad > stock) {
-        setMensajeCarrito(`Solo hay ${stock} unidades disponibles.`);
+        setMensajeCarrito(
+          `Solo puedes tener hasta ${stock} ${
+            stock === 1 ? "unidad" : "unidades"
+          } de este producto.`,
+        );
         return;
       }
 
       productoExistente.cantidad = nuevaCantidad;
       productoExistente.stock = stock;
-      productoExistente.precio = producto.precio;
-      productoExistente.nombre = producto.nombre;
-      productoExistente.imagen = producto.imagen;
+      productoExistente.precio = Number(producto.precio || 0);
+      productoExistente.nombre = producto.nombre || "Producto";
+      productoExistente.imagen = producto.imagen || "";
+      productoExistente.descripcion = producto.descripcion || "";
+      productoExistente.categoria =
+        producto.categoria ||
+        producto.Categoria ||
+        producto.categoriaNombre ||
+        "";
     } else {
-      if (cantidadAgregar > stock) {
-        setMensajeCarrito(`Solo hay ${stock} unidades disponibles.`);
-        return;
-      }
-
       carritoActual.push({
-        ...producto,
+        id: productoId,
+        nombre: producto.nombre || "Producto",
+        descripcion: producto.descripcion || "",
+        precio: Number(producto.precio || 0),
+        stock,
+        imagen: producto.imagen || "",
         cantidad: cantidadAgregar,
+        categoria:
+          producto.categoria ||
+          producto.Categoria ||
+          producto.categoriaNombre ||
+          "",
       });
     }
 
-    localStorage.setItem("carrito", JSON.stringify(carritoActual));
+    guardarCarrito(carritoActual);
 
-    window.dispatchEvent(new Event("carritoActualizado"));
-
-    setMensajeCarrito(`${producto.nombre} fue agregado al carrito.`);
+    setMensajeCarrito(
+      `${producto.nombre || "Producto"} fue agregado al carrito.`,
+    );
 
     setCantidades((prev) => ({
       ...prev,
@@ -271,6 +443,7 @@ function ProductosCliente() {
     return (
       <div style={styles.loadingContainer}>
         <div style={styles.loader}></div>
+
         <p style={styles.loadingText}>Cargando productos...</p>
       </div>
     );
@@ -303,12 +476,13 @@ function ProductosCliente() {
       {mensajeCarrito && (
         <div style={styles.toast}>
           <span style={styles.toastIcon}>✓</span>
+
           <span>{mensajeCarrito}</span>
         </div>
       )}
 
       <div style={styles.header}>
-        <div style={styles.headerContent}>
+        <div style={styles.headerContent} className="cliente-header-content">
           <div>
             <p style={styles.brand}>MODAGEST PRO</p>
 
@@ -322,6 +496,7 @@ function ProductosCliente() {
           <button
             type="button"
             style={styles.cartButton}
+            className="cliente-cart-button"
             onClick={() => navigate("/cliente/carrito")}
           >
             🛒
@@ -338,12 +513,13 @@ function ProductosCliente() {
             type="text"
             placeholder="Buscar por nombre, categoría o descripción..."
             style={styles.searchInput}
+            className="cliente-search-input"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
           />
         </div>
 
-        <div style={styles.filterRow}>
+        <div style={styles.filterRow} className="cliente-filter-row">
           <div style={styles.priceWrapper}>
             <span style={styles.currencyIcon}>$</span>
 
@@ -351,6 +527,7 @@ function ProductosCliente() {
               type="number"
               placeholder="Precio máximo"
               style={styles.priceInput}
+              className="cliente-price-input"
               value={precioMax}
               min="0"
               onChange={(e) => setPrecioMax(e.target.value)}
@@ -392,9 +569,11 @@ function ProductosCliente() {
                     ...styles.selectOption,
                     ...(orden === "" ? styles.selectOptionActive : {}),
                   }}
+                  className="cliente-select-option"
                   onClick={() => seleccionarOrden("")}
                 >
                   <span>Ordenar por</span>
+
                   {orden === "" && <span>✓</span>}
                 </button>
 
@@ -406,9 +585,11 @@ function ProductosCliente() {
                       ? styles.selectOptionActive
                       : {}),
                   }}
+                  className="cliente-select-option"
                   onClick={() => seleccionarOrden("precio-asc")}
                 >
                   <span>Menor precio</span>
+
                   {orden === "precio-asc" && <span>✓</span>}
                 </button>
 
@@ -420,16 +601,18 @@ function ProductosCliente() {
                       ? styles.selectOptionActive
                       : {}),
                   }}
+                  className="cliente-select-option"
                   onClick={() => seleccionarOrden("precio-desc")}
                 >
                   <span>Mayor precio</span>
+
                   {orden === "precio-desc" && <span>✓</span>}
                 </button>
               </div>
             )}
           </div>
 
-          <label style={styles.stockLabel}>
+          <label style={styles.stockLabel} className="cliente-stock-label">
             <input
               type="checkbox"
               checked={soloStock}
@@ -443,6 +626,7 @@ function ProductosCliente() {
             <button
               type="button"
               style={styles.clearButton}
+              className="cliente-clear-button"
               onClick={limpiarFiltros}
             >
               Limpiar filtros
@@ -494,10 +678,15 @@ function ProductosCliente() {
             );
 
             const total = Number(producto.precio || 0) * cantidad;
+
             const agotado = stock <= 0;
 
             return (
-              <div key={producto.id} style={styles.card}>
+              <div
+                key={producto.id}
+                style={styles.card}
+                className="cliente-product-card"
+              >
                 <div
                   style={{
                     ...styles.stockBadge,
@@ -509,7 +698,7 @@ function ProductosCliente() {
                   <span>{agotado ? "Agotado" : "Disponible"}</span>
                 </div>
 
-                <div style={styles.imageBox}>
+                <div style={styles.imageBox} className="cliente-image-box">
                   <img
                     src={obtenerImagen(producto)}
                     alt={producto.nombre || "Producto"}
@@ -618,6 +807,97 @@ function ProductosCliente() {
           })}
         </div>
       )}
+
+      <style>
+        {`
+          @keyframes spin {
+            from {
+              transform: rotate(0deg);
+            }
+
+            to {
+              transform: rotate(360deg);
+            }
+          }
+
+          .cliente-product-card {
+            transition:
+              transform 0.2s ease,
+              border-color 0.2s ease,
+              box-shadow 0.2s ease;
+          }
+
+          .cliente-product-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(168, 85, 247, 0.3);
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
+          }
+
+          .cliente-search-input:focus,
+          .cliente-price-input:focus {
+            border-color: rgba(168, 85, 247, 0.5) !important;
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.08);
+          }
+
+          .cliente-select-option:hover {
+            background: rgba(124, 58, 237, 0.16) !important;
+            color: #fff !important;
+          }
+
+          @media (max-width: 900px) {
+            .cliente-header-content {
+              align-items: flex-start !important;
+              flex-direction: column !important;
+            }
+
+            .cliente-cart-button {
+              width: 100%;
+            }
+
+            .cliente-filter-row {
+              align-items: stretch !important;
+            }
+          }
+
+          @media (max-width: 700px) {
+            .cliente-page {
+              padding: 25px 15px 45px !important;
+            }
+
+            .cliente-title {
+              font-size: 34px !important;
+            }
+
+            .cliente-filter-row > * {
+              width: 100% !important;
+            }
+
+            .cliente-stock-label {
+              padding: 5px 0 !important;
+            }
+
+            .cliente-clear-button {
+              width: 100%;
+            }
+
+            .cliente-toast {
+              left: 15px !important;
+              right: 15px !important;
+              max-width: none !important;
+            }
+          }
+
+          @media (max-width: 520px) {
+            .cliente-page {
+              padding: 22px 12px 40px !important;
+            }
+
+            .cliente-image-box {
+              height: 165px !important;
+            }
+          }
+        `}
+      </style>
     </div>
   );
 }
@@ -868,16 +1148,19 @@ const styles = {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
     gap: "18px",
+    alignItems: "stretch",
   },
 
   card: {
     position: "relative",
     overflow: "hidden",
+    display: "flex",
+    flexDirection: "column",
+    height: "100%",
     borderRadius: "17px",
     border: "1px solid rgba(148,163,184,0.11)",
     background: "rgba(17,24,39,0.9)",
     boxShadow: "0 10px 28px rgba(0,0,0,0.22)",
-    transition: "transform 0.2s ease, border-color 0.2s ease",
   },
 
   stockBadge: {
@@ -908,6 +1191,7 @@ const styles = {
 
   imageBox: {
     height: "180px",
+    flexShrink: 0,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -923,7 +1207,11 @@ const styles = {
   },
 
   body: {
+    display: "flex",
+    flexDirection: "column",
+    flex: 1,
     padding: "17px",
+    minHeight: 0,
   },
 
   category: {
@@ -942,9 +1230,15 @@ const styles = {
     fontSize: "16px",
     lineHeight: "1.25",
     fontWeight: "800",
+    minHeight: "40px",
   },
 
   description: {
+    display: "-webkit-box",
+    WebkitBoxOrient: "vertical",
+    WebkitLineClamp: 2,
+    overflow: "hidden",
+    minHeight: "34px",
     margin: 0,
     color: "#94a3b8",
     fontSize: "11px",
@@ -1023,6 +1317,7 @@ const styles = {
   button: {
     width: "100%",
     minHeight: "39px",
+    marginTop: "auto",
     padding: "0 12px",
     border: "1px solid rgba(168,85,247,0.35)",
     borderRadius: "10px",
@@ -1032,7 +1327,6 @@ const styles = {
     fontSize: "11px",
     cursor: "pointer",
     boxShadow: "0 7px 18px rgba(79,70,229,0.18)",
-    transition: "0.2s ease",
   },
 
   buttonDisabled: {

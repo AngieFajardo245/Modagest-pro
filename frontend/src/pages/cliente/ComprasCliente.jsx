@@ -56,21 +56,26 @@ function ComprasCliente() {
   };
 
   const obtenerImagen = (imagen) => {
-    if (!imagen) {
-      return "https://via.placeholder.com/300x220?text=ModaGest";
+    const imagenFallback =
+      "https://placehold.co/300x220/161a2f/ffffff?text=ModaGest+Pro";
+
+    if (!imagen || typeof imagen !== "string") {
+      return imagenFallback;
     }
 
     if (imagen.startsWith("http://") || imagen.startsWith("https://")) {
       return imagen;
     }
 
-    return `http://localhost:5000/uploads/${imagen}`;
+    const nombreImagen = imagen.replace(/^\/+/, "");
+
+    return `http://localhost:5000/uploads/${nombreImagen}`;
   };
 
   const manejarErrorImagen = (event) => {
     event.currentTarget.onerror = null;
     event.currentTarget.src =
-      "https://via.placeholder.com/300x220?text=ModaGest";
+      "https://placehold.co/300x220/161a2f/ffffff?text=ModaGest+Pro";
   };
 
   const totalCompras = compras.length;

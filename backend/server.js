@@ -591,6 +591,20 @@ app.delete(
         });
       }
 
+      const detallesAsociados = await DetalleVenta.count({
+        where: {
+          productoId: producto.id,
+        },
+      });
+
+      if (detallesAsociados > 0) {
+        return res.status(400).json({
+          message:
+            "No puedes eliminar este producto porque tiene ventas registradas en el historial.",
+          ventasAsociadas: detallesAsociados,
+        });
+      }
+
       if (producto.imagen) {
         const rutaImagen = path.join(uploadPath, producto.imagen);
 
@@ -759,7 +773,9 @@ app.post(
         },
       });
     } catch (error) {
-      await transaction.rollback();
+      if (!transaction.finished) {
+        await transaction.rollback();
+      }
 
       console.error("Error realizando compra:", error);
 
@@ -861,10 +877,11 @@ app.post(
     try {
       const { productoId, cantidad } = req.body;
 
+      const productoIdNumerico = Number(productoId);
       const cantidadVenta = Number(cantidad);
 
       if (
-        !productoId ||
+        !Number.isInteger(productoIdNumerico) ||
         !Number.isInteger(cantidadVenta) ||
         cantidadVenta < 1
       ) {
@@ -875,7 +892,7 @@ app.post(
         });
       }
 
-      const producto = await Producto.findByPk(productoId, {
+      const producto = await Producto.findByPk(productoIdNumerico, {
         transaction,
         lock: transaction.LOCK.UPDATE,
       });
@@ -944,7 +961,7 @@ app.post(
           ventaId: venta.id,
           metodoPago: "efectivo",
           estado: "aprobado",
-          referencia: "EMP-" + Date.now(),
+          referencia: `EMP-${Date.now()}`,
           monto: total,
         },
         {
@@ -959,7 +976,9 @@ app.post(
         venta,
       });
     } catch (error) {
-      await transaction.rollback();
+      if (!transaction.finished) {
+        await transaction.rollback();
+      }
 
       console.error("Error registrando venta del empleado:", error);
 
@@ -982,11 +1001,26 @@ app.get(
       const where = {};
 
       if (desde && hasta) {
+        const fechaDesde = new Date(`${desde}T00:00:00`);
+        const fechaHasta = new Date(`${hasta}T23:59:59.999`);
+
+        if (
+          Number.isNaN(fechaDesde.getTime()) ||
+          Number.isNaN(fechaHasta.getTime())
+        ) {
+          return res.status(400).json({
+            message: "Las fechas proporcionadas no son válidas",
+          });
+        }
+
+        if (fechaDesde > fechaHasta) {
+          return res.status(400).json({
+            message: "La fecha inicial no puede ser mayor que la fecha final",
+          });
+        }
+
         where.createdAt = {
-          [Op.between]: [
-            new Date(`${desde} 00:00:00`),
-            new Date(`${hasta} 23:59:59`),
-          ],
+          [Op.between]: [fechaDesde, fechaHasta],
         };
       }
 
@@ -1200,10 +1234,13 @@ app.get(
   verificarRol("administrador"),
   async (req, res) => {
     try {
-      const totalUsuarios = await Usuario.count();
-      const totalProductos = await Producto.count();
-      const totalVentas = await Venta.count();
-      const ingresos = await Venta.sum("total");
+      const [totalUsuarios, totalProductos, totalVentas, ingresos] =
+        await Promise.all([
+          Usuario.count(),
+          Producto.count(),
+          Venta.count(),
+          Venta.sum("total"),
+        ]);
 
       const ahora = new Date();
 
@@ -1227,22 +1264,6 @@ app.get(
         999,
       );
 
-      const ventasHoy = await Venta.count({
-        where: {
-          createdAt: {
-            [Op.between]: [inicioHoy, finHoy],
-          },
-        },
-      });
-
-      const ingresosHoy = await Venta.sum("total", {
-        where: {
-          createdAt: {
-            [Op.between]: [inicioHoy, finHoy],
-          },
-        },
-      });
-
       const inicioMes = new Date(
         ahora.getFullYear(),
         ahora.getMonth(),
@@ -1263,21 +1284,40 @@ app.get(
         999,
       );
 
-      const ventasMes = await Venta.count({
-        where: {
-          createdAt: {
-            [Op.between]: [inicioMes, finMes],
-          },
-        },
-      });
+      const [ventasHoy, ingresosHoy, ventasMes, ingresosMes] =
+        await Promise.all([
+          Venta.count({
+            where: {
+              createdAt: {
+                [Op.between]: [inicioHoy, finHoy],
+              },
+            },
+          }),
 
-      const ingresosMes = await Venta.sum("total", {
-        where: {
-          createdAt: {
-            [Op.between]: [inicioMes, finMes],
-          },
-        },
-      });
+          Venta.sum("total", {
+            where: {
+              createdAt: {
+                [Op.between]: [inicioHoy, finHoy],
+              },
+            },
+          }),
+
+          Venta.count({
+            where: {
+              createdAt: {
+                [Op.between]: [inicioMes, finMes],
+              },
+            },
+          }),
+
+          Venta.sum("total", {
+            where: {
+              createdAt: {
+                [Op.between]: [inicioMes, finMes],
+              },
+            },
+          }),
+        ]);
 
       const pagos = await Pago.findAll({
         attributes: ["metodoPago"],
@@ -1455,7 +1495,7 @@ const crearAdmin = async () => {
 
 sequelize
   .sync({
-    alter: true,
+    alter: false,
     force: false,
   })
   .then(async () => {

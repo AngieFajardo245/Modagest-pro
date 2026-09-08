@@ -1,19 +1,84 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
+const METODOS = [
+  { value: "Tarjeta", icon: "💳", title: "Tarjeta", text: "Débito o crédito" },
+  { value: "PSE", icon: "🏦", title: "PSE", text: "Pago desde tu banco" },
+  { value: "Nequi", icon: "📱", title: "Nequi", text: "Pago con tu celular" },
+  {
+    value: "Contra Entrega",
+    icon: "📦",
+    title: "Contra Entrega",
+    text: "Paga al recibir",
+  },
+];
+
+const DATOS_INICIALES = {
+  titular: "",
+  numeroTarjeta: "",
+  vencimiento: "",
+  cvv: "",
+  banco: "",
+  tipoPersona: "natural",
+  correoPse: "",
+  celularNequi: "",
+};
+
 function Carrito() {
   const navigate = useNavigate();
-
   const [carrito, setCarrito] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
   const [mostrarPago, setMostrarPago] = useState(false);
   const [metodoPago, setMetodoPago] = useState("");
+  const [datosPago, setDatosPago] = useState(DATOS_INICIALES);
+  const [erroresPago, setErroresPago] = useState({});
   const [procesando, setProcesando] = useState(false);
-  const [error, setError] = useState("");
 
   const token = localStorage.getItem("token");
-  const rol = localStorage.getItem("rol");
+  const rol = (localStorage.getItem("rol") || "").toLowerCase().trim();
+
+  const obtenerClienteId = () => {
+    try {
+      const usuario = JSON.parse(localStorage.getItem("usuario") || "null");
+      const id =
+        usuario?.id ||
+        usuario?.usuarioId ||
+        usuario?.clienteId ||
+        usuario?.usuario?.id ||
+        usuario?.data?.id;
+      if (Number.isInteger(Number(id)) && Number(id) > 0) {
+        return Number(id);
+      }
+    } catch (err) {
+      console.error("Error leyendo usuario:", err);
+    }
+
+    try {
+      const payload = token
+        ? JSON.parse(
+            atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")),
+          )
+        : null;
+      const id =
+        payload?.id ||
+        payload?.usuarioId ||
+        payload?.clienteId ||
+        payload?.userId ||
+        payload?.sub;
+      if (Number.isInteger(Number(id)) && Number(id) > 0) {
+        return Number(id);
+      }
+    } catch (err) {
+      console.error("Error leyendo token:", err);
+    }
+
+    return null;
+  };
+
+  const clienteId = obtenerClienteId();
+  const claveCarrito = clienteId ? `carrito_cliente_${clienteId}` : "carrito";
 
   const formatoMoneda = (valor) =>
     Number(valor || 0).toLocaleString("es-CO", {
@@ -22,89 +87,76 @@ function Carrito() {
       maximumFractionDigits: 0,
     });
 
+  const obtenerCarritoGuardado = () => {
+    try {
+      const guardado = JSON.parse(localStorage.getItem(claveCarrito) || "[]");
+      return Array.isArray(guardado) ? guardado : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const notificarCarrito = (nuevoCarrito) => {
+    window.dispatchEvent(
+      new CustomEvent("carritoActualizado", {
+        detail: {
+          clave: claveCarrito,
+          claveCarrito,
+          clienteId,
+          carrito: nuevoCarrito,
+        },
+      }),
+    );
+  };
+
   const guardarCarrito = (nuevoCarrito) => {
-    localStorage.setItem("carrito", JSON.stringify(nuevoCarrito));
-
+    localStorage.setItem(claveCarrito, JSON.stringify(nuevoCarrito));
     setCarrito(nuevoCarrito);
-
-    window.dispatchEvent(new Event("carritoActualizado"));
+    notificarCarrito(nuevoCarrito);
   };
 
   const cargarCarrito = async () => {
     try {
       setCargando(true);
       setError("");
+      const guardado = obtenerCarritoGuardado();
 
-      const carritoGuardado = JSON.parse(
-        localStorage.getItem("carrito") || "[]",
-      );
-
-      if (!Array.isArray(carritoGuardado) || carritoGuardado.length === 0) {
+      if (!guardado.length) {
         setCarrito([]);
         return;
       }
 
       const response = await api.get("/productos");
-
       const productos = Array.isArray(response.data) ? response.data : [];
-
-      const carritoActualizado = carritoGuardado
+      const actualizado = guardado
         .map((producto) => {
-          const productoActual = productos.find(
-            (item) => item.id === producto.id,
+          const actual = productos.find(
+            (item) => Number(item.id) === Number(producto.id),
           );
-
-          if (!productoActual) {
+          if (!actual) {
             return null;
           }
-
-          const stock = Number(productoActual.stock || 0);
-
-          const precio = Number(productoActual.precio || 0);
-
-          if (stock <= 0) {
-            return {
-              ...producto,
-              nombre: productoActual.nombre,
-              descripcion: productoActual.descripcion || "",
-              imagen: productoActual.imagen || "",
-              precio,
-              stock: 0,
-              cantidad: 0,
-            };
-          }
-
-          const cantidadGuardada = Number(producto.cantidad);
-
-          const cantidad = Math.min(
-            Math.max(
-              Number.isInteger(cantidadGuardada) && cantidadGuardada > 0
-                ? cantidadGuardada
-                : 1,
-              1,
-            ),
-            stock,
-          );
+          const stock = Number(actual.stock || 0);
+          const guardada = Number(producto.cantidad);
+          const cantidadValida =
+            Number.isInteger(guardada) && guardada > 0 ? guardada : 1;
 
           return {
             ...producto,
-            nombre: productoActual.nombre,
-            descripcion: productoActual.descripcion || "",
-            imagen: productoActual.imagen || "",
-            precio,
+            id: actual.id,
+            nombre: actual.nombre,
+            descripcion: actual.descripcion || "",
+            imagen: actual.imagen || "",
+            precio: Number(actual.precio || 0),
             stock,
-            cantidad,
+            cantidad: stock > 0 ? Math.min(cantidadValida, stock) : 0,
           };
         })
         .filter(Boolean);
 
-      localStorage.setItem("carrito", JSON.stringify(carritoActualizado));
-
-      setCarrito(carritoActualizado);
-    } catch (error) {
-      console.error("Error cargando carrito:", error);
-
-      setCarrito([]);
+      guardarCarrito(actualizado);
+    } catch (err) {
+      console.error("Error cargando carrito:", err);
       setError("No fue posible cargar el carrito. Intenta nuevamente.");
     } finally {
       setCargando(false);
@@ -114,110 +166,120 @@ function Carrito() {
   useEffect(() => {
     cargarCarrito();
 
-    const actualizarCarrito = () => {
-      const carritoGuardado = JSON.parse(
-        localStorage.getItem("carrito") || "[]",
-      );
-
-      setCarrito(Array.isArray(carritoGuardado) ? carritoGuardado : []);
+    const actualizar = (event) => {
+      const claveEvento = event?.detail?.claveCarrito || event?.detail?.clave;
+      if (claveEvento && claveEvento !== claveCarrito) {
+        return;
+      }
+      setCarrito(obtenerCarritoGuardado());
     };
 
-    window.addEventListener("carritoActualizado", actualizarCarrito);
+    const manejarStorage = (event) => {
+      if (event.key === claveCarrito) {
+        actualizar();
+      }
+    };
 
-    window.addEventListener("storage", actualizarCarrito);
+    window.addEventListener("carritoActualizado", actualizar);
+    window.addEventListener("storage", manejarStorage);
 
     return () => {
-      window.removeEventListener("carritoActualizado", actualizarCarrito);
-
-      window.removeEventListener("storage", actualizarCarrito);
+      window.removeEventListener("carritoActualizado", actualizar);
+      window.removeEventListener("storage", manejarStorage);
     };
-  }, []);
+  }, [claveCarrito]);
 
-  const eliminar = (id) => {
-    const nuevoCarrito = carrito.filter((producto) => producto.id !== id);
+  const total = useMemo(
+    () =>
+      carrito.reduce(
+        (suma, producto) =>
+          suma + Number(producto.precio || 0) * Number(producto.cantidad || 0),
+        0,
+      ),
+    [carrito],
+  );
 
-    guardarCarrito(nuevoCarrito);
-  };
-
-  const cambiarCantidad = (id, nuevaCantidad) => {
-    const cantidad = Number(nuevaCantidad);
-
-    if (!Number.isInteger(cantidad) || cantidad < 1) {
-      return;
-    }
-
-    const producto = carrito.find((item) => item.id === id);
-
-    if (!producto) {
-      return;
-    }
-
-    const stock = Number(producto.stock || 0);
-
-    if (stock <= 0) {
-      return;
-    }
-
-    if (cantidad > stock) {
-      alert(`Solo hay ${stock} unidades disponibles.`);
-      return;
-    }
-
-    const nuevoCarrito = carrito.map((item) =>
-      item.id === id
-        ? {
-            ...item,
-            cantidad,
-          }
-        : item,
-    );
-
-    guardarCarrito(nuevoCarrito);
-  };
-
-  const total = carrito.reduce((acumulado, producto) => {
-    const precio = Number(producto.precio || 0);
-
-    const cantidad = Number(producto.cantidad || 0);
-
-    return acumulado + precio * cantidad;
-  }, 0);
-
-  const productosAgotados = carrito.filter(
-    (producto) => Number(producto.stock || 0) <= 0,
+  const totalUnidades = useMemo(
+    () =>
+      carrito.reduce(
+        (suma, producto) => suma + Number(producto.cantidad || 0),
+        0,
+      ),
+    [carrito],
   );
 
   const hayProblemasStock = carrito.some((producto) => {
     const stock = Number(producto.stock || 0);
-
     const cantidad = Number(producto.cantidad || 0);
-
-    return stock <= 0 || cantidad > stock;
+    return stock <= 0 || cantidad < 1 || cantidad > stock;
   });
+
+  const cambiarCantidad = (id, cantidad) => {
+    const producto = carrito.find((item) => Number(item.id) === Number(id));
+    if (
+      procesando ||
+      !producto ||
+      cantidad < 1 ||
+      cantidad > Number(producto.stock)
+    ) {
+      return;
+    }
+    guardarCarrito(
+      carrito.map((item) =>
+        Number(item.id) === Number(id) ? { ...item, cantidad } : item,
+      ),
+    );
+  };
+
+  const eliminar = (id) => {
+    if (!procesando) {
+      guardarCarrito(carrito.filter((item) => Number(item.id) !== Number(id)));
+    }
+  };
+
+  const irATienda = () => {
+    switch (rol) {
+      case "cliente":
+        navigate("/cliente/productos");
+        break;
+      case "administrador":
+        navigate("/admin/productos");
+        break;
+      case "empleado":
+        navigate("/empleado/productos");
+        break;
+      default:
+        navigate("/");
+        break;
+    }
+  };
 
   const abrirPago = () => {
     if (!token) {
-      alert("Debes iniciar sesión para realizar una compra.");
-
       localStorage.setItem("redirectAfterLogin", "/cliente/carrito");
-
+      alert("Debes iniciar sesión para realizar una compra.");
       navigate("/login");
       return;
     }
 
-    if (carrito.length === 0) {
+    if (!clienteId) {
+      alert("No fue posible identificar al cliente. Inicia sesión nuevamente.");
+      return;
+    }
+
+    if (!carrito.length) {
       alert("El carrito está vacío.");
       return;
     }
 
     if (hayProblemasStock) {
-      alert(
-        "Hay productos sin stock suficiente. Revisa tu carrito antes de continuar.",
-      );
+      alert("Hay productos sin stock suficiente. Revisa tu carrito.");
       return;
     }
 
     setMetodoPago("");
+    setDatosPago(DATOS_INICIALES);
+    setErroresPago({});
     setMostrarPago(true);
   };
 
@@ -225,33 +287,75 @@ function Carrito() {
     if (procesando) {
       return;
     }
-
     setMostrarPago(false);
     setMetodoPago("");
+    setErroresPago({});
+  };
+
+  const actualizarDatoPago = (campo, valor) => {
+    let nuevoValor = valor;
+    if (campo === "numeroTarjeta") {
+      nuevoValor = valor.replace(/\D/g, "").slice(0, 16);
+    }
+
+    if (campo === "cvv") {
+      nuevoValor = valor.replace(/\D/g, "").slice(0, 4);
+    }
+
+    if (campo === "celularNequi") {
+      nuevoValor = valor.replace(/\D/g, "").slice(0, 10);
+    }
+
+    if (campo === "vencimiento") {
+      const numeros = valor.replace(/\D/g, "").slice(0, 4);
+      nuevoValor =
+        numeros.length > 2
+          ? `${numeros.slice(0, 2)}/${numeros.slice(2)}`
+          : numeros;
+    }
+    setDatosPago((actual) => ({ ...actual, [campo]: nuevoValor }));
+    setErroresPago((actual) => ({ ...actual, [campo]: "" }));
+  };
+
+  const validarPago = () => {
+    const errores = {};
+
+    if (!metodoPago) {
+      errores.metodoPago = "Selecciona un método de pago.";
+    }
+
+    if (metodoPago === "Tarjeta") {
+      if (datosPago.titular.trim().length < 3)
+        errores.titular = "Ingresa el nombre del titular.";
+      if (!/^\d{16}$/.test(datosPago.numeroTarjeta))
+        errores.numeroTarjeta = "La tarjeta debe tener 16 dígitos.";
+      if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(datosPago.vencimiento))
+        errores.vencimiento = "Usa el formato MM/AA.";
+      if (!/^\d{3,4}$/.test(datosPago.cvv))
+        errores.cvv = "Ingresa un CVV válido.";
+    }
+
+    if (metodoPago === "PSE") {
+      if (!datosPago.banco) errores.banco = "Selecciona tu banco.";
+      if (!/^\S+@\S+\.\S+$/.test(datosPago.correoPse))
+        errores.correoPse = "Ingresa un correo válido.";
+    }
+
+    if (metodoPago === "Nequi" && !/^3\d{9}$/.test(datosPago.celularNequi)) {
+      errores.celularNequi = "Ingresa un celular colombiano válido.";
+    }
+
+    setErroresPago(errores);
+    return Object.keys(errores).length === 0;
   };
 
   const confirmarPago = async () => {
-    if (!metodoPago) {
-      alert("Selecciona un método de pago.");
-      return;
-    }
-
-    if (procesando) {
-      return;
-    }
-
-    if (!token) {
-      cerrarPago();
-
-      localStorage.setItem("redirectAfterLogin", "/cliente/carrito");
-
-      navigate("/login");
+    if (procesando || !validarPago()) {
       return;
     }
 
     try {
       setProcesando(true);
-
       await api.post(
         "/cliente/comprar",
         {
@@ -261,43 +365,29 @@ function Carrito() {
           })),
           metodoPago,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
-      localStorage.removeItem("carrito");
+      localStorage.removeItem(claveCarrito);
       setCarrito([]);
+      notificarCarrito([]);
       setMostrarPago(false);
-      setMetodoPago("");
-
-      window.dispatchEvent(new Event("carritoActualizado"));
-
       alert(`Compra realizada correctamente con ${metodoPago} ✅`);
-
       navigate("/cliente/compras");
-    } catch (error) {
-      console.error("Error procesando compra:", error);
-
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("rol");
-        localStorage.removeItem("usuario");
-
-        setMostrarPago(false);
-
+    } catch (err) {
+      console.error("Error procesando compra:", err);
+      if ([401, 403].includes(err.response?.status)) {
+        ["token", "rol", "usuario", claveCarrito].forEach((clave) =>
+          localStorage.removeItem(clave),
+        );
         localStorage.setItem("redirectAfterLogin", "/cliente/carrito");
-
         alert("Tu sesión ha expirado. Inicia sesión nuevamente.");
-
         navigate("/login");
         return;
       }
-
+      if (err.response?.status === 400) await cargarCarrito();
       alert(
-        error.response?.data?.message ||
+        err.response?.data?.message ||
           "No fue posible procesar la compra. Intenta nuevamente.",
       );
     } finally {
@@ -305,55 +395,25 @@ function Carrito() {
     }
   };
 
-  const irATienda = () => {
-    if (!token) {
-      navigate("/");
-      return;
-    }
-
-    switch (rol?.toLowerCase().trim()) {
-      case "cliente":
-        navigate("/cliente/productos");
-        break;
-
-      case "administrador":
-        navigate("/admin/productos");
-        break;
-
-      case "empleado":
-        navigate("/empleado/productos");
-        break;
-
-      default:
-        navigate("/");
-        break;
-    }
-  };
-
   const obtenerImagen = (imagen) => {
-    const imagenDefault =
+    const predeterminada =
       "https://placehold.co/180x180/111827/e5e7eb?text=ModaGest";
-
-    if (!imagen) {
-      return imagenDefault;
+    if (!imagen || typeof imagen !== "string") {
+      return predeterminada;
     }
-
-    if (typeof imagen === "string" && imagen.startsWith("http")) {
-      return imagen;
-    }
-
-    return `http://localhost:5000/uploads/${imagen}`;
+    const limpia = imagen.trim();
+    return /^https?:\/\//i.test(limpia)
+      ? limpia
+      : `http://localhost:5000/uploads/${limpia}`;
   };
 
   if (cargando) {
     return (
-      <div style={styles.loadingPage}>
-        <div style={styles.loadingCard}>
-          <div style={styles.loader}></div>
-
-          <h2 style={styles.loadingTitle}>Cargando tu carrito</h2>
-
-          <p style={styles.loadingText}>Estamos verificando tus productos...</p>
+      <div style={styles.center}>
+        <div style={styles.messageCard}>
+          <div className="loader" />
+          <h2>Cargando tu carrito</h2>
+          <p>Estamos verificando tus productos...</p>
         </div>
       </div>
     );
@@ -361,24 +421,12 @@ function Carrito() {
 
   if (error) {
     return (
-      <div style={styles.loadingPage}>
-        <div style={styles.errorCard}>
-          <div style={styles.errorIcon}>!</div>
-
-          <h2 style={styles.errorTitle}>No pudimos cargar tu carrito</h2>
-
-          <p style={styles.errorText}>{error}</p>
-
-          <button type="button" style={styles.shopBtn} onClick={cargarCarrito}>
+      <div style={styles.center}>
+        <div style={styles.messageCard}>
+          <h2>No pudimos cargar tu carrito</h2>
+          <p>{error}</p>
+          <button style={styles.primaryButton} onClick={cargarCarrito}>
             Intentar nuevamente
-          </button>
-
-          <button
-            type="button"
-            style={styles.secondaryErrorBtn}
-            onClick={irATienda}
-          >
-            Volver a la tienda
           </button>
         </div>
       </div>
@@ -387,175 +435,112 @@ function Carrito() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.backgroundGlow}></div>
-
-      <main style={styles.container}>
-        <div style={styles.header}>
+      <style>{css}</style>
+      <main className="carrito-page" style={styles.container}>
+        <header style={styles.header}>
           <div>
             <span style={styles.badge}>🛒 Tu selección</span>
-
-            <h1 style={styles.title}>Carrito de compras</h1>
-
-            <p style={styles.subtitle}>
-              Revisa tus productos antes de completar tu compra.
-            </p>
+            <h1>Carrito de compras</h1>
+            <p>Revisa tus productos antes de completar tu compra.</p>
           </div>
-
-          {carrito.length > 0 && (
-            <div style={styles.itemsBadge}>
-              {carrito.length} {carrito.length === 1 ? "producto" : "productos"}
-            </div>
+          {!!carrito.length && (
+            <span style={styles.units}>
+              {totalUnidades} {totalUnidades === 1 ? "unidad" : "unidades"}
+            </span>
           )}
-        </div>
+        </header>
 
-        {carrito.length === 0 ? (
-          <div style={styles.emptyCard}>
+        {!carrito.length ? (
+          <section style={styles.empty}>
             <div style={styles.emptyIcon}>🛒</div>
-
-            <h2 style={styles.emptyTitle}>Tu carrito está vacío</h2>
-
-            <p style={styles.emptyText}>
-              Explora nuestro catálogo y encuentra productos que te gusten.
-            </p>
-
-            <button type="button" style={styles.shopBtn} onClick={irATienda}>
+            <h2>Tu carrito está vacío</h2>
+            <p>Explora nuestro catálogo y encuentra productos que te gusten.</p>
+            <button style={styles.primaryButton} onClick={irATienda}>
               🛍️ Explorar productos
             </button>
-          </div>
+          </section>
         ) : (
-          <div style={styles.layout}>
-            <section style={styles.productsSection}>
-              {productosAgotados.length > 0 && (
+          <div className="cart-layout" style={styles.layout}>
+            <section>
+              {hayProblemasStock && (
                 <div style={styles.warning}>
-                  <span style={styles.warningIcon}>⚠️</span>
-
-                  <div>
-                    <strong>Revisa tu carrito</strong>
-
-                    <p>Algunos productos ya no tienen disponibilidad.</p>
-                  </div>
+                  ⚠️ Algunos productos no tienen stock suficiente.
                 </div>
               )}
-
               {carrito.map((producto) => {
                 const stock = Number(producto.stock || 0);
-
                 const cantidad = Number(producto.cantidad || 0);
-
-                const precio = Number(producto.precio || 0);
-
-                const subtotal = precio * cantidad;
-
-                const agotado = stock <= 0;
-
                 return (
-                  <article key={producto.id} style={styles.productCard}>
-                    <div style={styles.imageWrapper}>
+                  <article
+                    className="product-card"
+                    style={styles.productCard}
+                    key={producto.id}
+                  >
+                    <div className="image-wrap" style={styles.imageWrap}>
                       <img
                         src={obtenerImagen(producto.imagen)}
-                        alt={producto.nombre || "Producto"}
-                        style={styles.productImage}
+                        alt={producto.nombre}
+                        style={styles.image}
                         onError={(e) => {
                           e.currentTarget.src =
                             "https://placehold.co/180x180/111827/e5e7eb?text=ModaGest";
                         }}
                       />
-
-                      <span
-                        style={{
-                          ...styles.stockBadge,
-                          background: agotado
-                            ? "rgba(239,68,68,0.15)"
-                            : "rgba(34,197,94,0.15)",
-                          color: agotado ? "#f87171" : "#4ade80",
-                        }}
-                      >
-                        {agotado ? "Agotado" : "Disponible"}
-                      </span>
                     </div>
-
                     <div style={styles.productInfo}>
                       <div style={styles.productTop}>
                         <div>
-                          <h2 style={styles.productName}>{producto.nombre}</h2>
-
-                          <p style={styles.description}>
+                          <h2>{producto.nombre}</h2>
+                          <p>
                             {producto.descripcion || "Producto de ModaGest Pro"}
                           </p>
                         </div>
-
                         <button
-                          type="button"
-                          style={styles.deleteBtn}
+                          style={styles.deleteButton}
                           onClick={() => eliminar(producto.id)}
-                          aria-label={`Eliminar ${producto.nombre}`}
                           disabled={procesando}
                         >
                           🗑️
                         </button>
                       </div>
-
-                      <div style={styles.productBottom}>
+                      <div
+                        className="product-bottom"
+                        style={styles.productBottom}
+                      >
                         <div>
-                          <span style={styles.priceLabel}>Precio unitario</span>
-
-                          <p style={styles.price}>{formatoMoneda(precio)}</p>
+                          <small>PRECIO UNITARIO</small>
+                          <strong style={styles.purple}>
+                            {formatoMoneda(producto.precio)}
+                          </strong>
                         </div>
-
-                        <div style={styles.quantityBlock}>
-                          <span style={styles.priceLabel}>Cantidad</span>
-
+                        <div>
+                          <small>CANTIDAD</small>
                           <div style={styles.controls}>
                             <button
-                              type="button"
-                              style={{
-                                ...styles.btnQty,
-                                opacity:
-                                  cantidad <= 1 || agotado || procesando
-                                    ? 0.45
-                                    : 1,
-                              }}
                               onClick={() =>
                                 cambiarCantidad(producto.id, cantidad - 1)
                               }
-                              disabled={cantidad <= 1 || agotado || procesando}
+                              disabled={cantidad <= 1 || procesando}
                             >
                               −
                             </button>
-
-                            <span style={styles.qty}>{cantidad}</span>
-
+                            <b>{cantidad}</b>
                             <button
-                              type="button"
-                              style={{
-                                ...styles.btnQty,
-                                opacity:
-                                  agotado || cantidad >= stock || procesando
-                                    ? 0.45
-                                    : 1,
-                              }}
                               onClick={() =>
                                 cambiarCantidad(producto.id, cantidad + 1)
                               }
-                              disabled={
-                                agotado || cantidad >= stock || procesando
-                              }
+                              disabled={cantidad >= stock || procesando}
                             >
                               +
                             </button>
                           </div>
-
-                          <span style={styles.stockText}>
-                            {agotado ? "Sin unidades" : `${stock} disponibles`}
-                          </span>
+                          <em>{stock} disponibles</em>
                         </div>
-
-                        <div style={styles.subtotalBlock}>
-                          <span style={styles.priceLabel}>Subtotal</span>
-
-                          <p style={styles.subtotal}>
-                            {formatoMoneda(subtotal)}
-                          </p>
+                        <div className="subtotal">
+                          <small>SUBTOTAL</small>
+                          <strong style={styles.green}>
+                            {formatoMoneda(Number(producto.precio) * cantidad)}
+                          </strong>
                         </div>
                       </div>
                     </div>
@@ -564,139 +549,85 @@ function Carrito() {
               })}
             </section>
 
-            <aside style={styles.summaryCard}>
-              <div style={styles.summaryHeader}>
-                <span style={styles.summaryBadge}>Resumen</span>
-
-                <span style={styles.secureText}>🔒 Compra segura</span>
-              </div>
-
-              <h2 style={styles.summaryTitle}>Resumen de compra</h2>
-
-              <div style={styles.summaryRows}>
-                <div style={styles.summaryRow}>
+            <aside className="summary" style={styles.summary}>
+              <span style={styles.badge}>RESUMEN</span>
+              <h2>Resumen de compra</h2>
+              <div style={styles.rows}>
+                <p>
                   <span>Productos</span>
-                  <strong>{carrito.length}</strong>
-                </div>
-
-                <div style={styles.summaryRow}>
+                  <b>{carrito.length}</b>
+                </p>
+                <p>
+                  <span>Unidades</span>
+                  <b>{totalUnidades}</b>
+                </p>
+                <p>
                   <span>Subtotal</span>
-                  <strong>{formatoMoneda(total)}</strong>
-                </div>
-
-                <div style={styles.summaryRow}>
+                  <b>{formatoMoneda(total)}</b>
+                </p>
+                <p>
                   <span>Envío</span>
-                  <strong style={styles.freeText}>Gratis</strong>
-                </div>
+                  <b style={styles.green}>Gratis</b>
+                </p>
               </div>
-
-              <div style={styles.divider}></div>
-
-              <div style={styles.totalRow}>
+              <div style={styles.total}>
                 <span>Total</span>
-
                 <strong>{formatoMoneda(total)}</strong>
               </div>
-
               <button
-                type="button"
-                style={{
-                  ...styles.buyBtn,
-                  opacity: procesando || hayProblemasStock ? 0.55 : 1,
-                  cursor:
-                    procesando || hayProblemasStock ? "not-allowed" : "pointer",
-                }}
+                style={styles.buyButton}
                 onClick={abrirPago}
                 disabled={procesando || hayProblemasStock}
               >
                 💳 Finalizar compra
               </button>
-
-              <button
-                type="button"
-                style={styles.continueBtn}
-                onClick={irATienda}
-                disabled={procesando}
-              >
+              <button style={styles.secondaryButton} onClick={irATienda}>
                 ← Seguir comprando
               </button>
-
-              <p style={styles.securityText}>
-                🔐 Tus datos están protegidos durante el proceso de compra.
-              </p>
+              <small style={styles.security}>
+                🔐 Tus datos están protegidos durante el proceso.
+              </small>
             </aside>
           </div>
         )}
       </main>
 
       {mostrarPago && (
-        <div style={styles.overlay}>
-          <div
+        <div
+          style={styles.overlay}
+          onMouseDown={(e) => e.target === e.currentTarget && cerrarPago()}
+        >
+          <section
+            className="payment-modal"
             style={styles.modal}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="titulo-pago"
           >
-            <div style={styles.modalHeader}>
+            <header style={styles.modalHeader}>
               <div>
-                <span style={styles.modalBadge}>Pago seguro</span>
-
-                <h2 id="titulo-pago" style={styles.modalTitle}>
-                  Elige tu método de pago
-                </h2>
+                <span style={styles.badge}>PAGO SEGURO</span>
+                <h2>Elige tu método de pago</h2>
               </div>
-
               <button
-                type="button"
-                style={styles.closeBtn}
+                style={styles.closeButton}
                 onClick={cerrarPago}
                 disabled={procesando}
-                aria-label="Cerrar ventana de pago"
               >
                 ✕
               </button>
-            </div>
-
-            <div style={styles.modalTotalBox}>
+            </header>
+            <div style={styles.totalBox}>
               <span>Total a pagar</span>
-
               <strong>{formatoMoneda(total)}</strong>
             </div>
 
-            <div style={styles.paymentMethods}>
-              {[
-                {
-                  value: "Tarjeta",
-                  icon: "💳",
-                  title: "Tarjeta",
-                  text: "Débito o crédito",
-                },
-                {
-                  value: "PSE",
-                  icon: "🏦",
-                  title: "PSE",
-                  text: "Pago desde tu banco",
-                },
-                {
-                  value: "Nequi",
-                  icon: "📱",
-                  title: "Nequi",
-                  text: "Pago con tu celular",
-                },
-                {
-                  value: "Contra Entrega",
-                  icon: "📦",
-                  title: "Contra Entrega",
-                  text: "Paga al recibir",
-                },
-              ].map((metodo) => (
+            <div style={styles.methods}>
+              {METODOS.map((metodo) => (
                 <label
                   key={metodo.value}
                   style={{
-                    ...styles.paymentOption,
-                    ...(metodoPago === metodo.value
-                      ? styles.paymentOptionActive
-                      : {}),
+                    ...styles.method,
+                    ...(metodoPago === metodo.value ? styles.methodActive : {}),
                   }}
                 >
                   <input
@@ -704,62 +635,160 @@ function Carrito() {
                     name="metodoPago"
                     value={metodo.value}
                     checked={metodoPago === metodo.value}
-                    onChange={(e) => setMetodoPago(e.target.value)}
-                    style={styles.radio}
+                    onChange={(e) => {
+                      setMetodoPago(e.target.value);
+                      setErroresPago({});
+                    }}
                     disabled={procesando}
                   />
-
-                  <span style={styles.paymentIcon}>{metodo.icon}</span>
-
-                  <span style={styles.paymentInfo}>
+                  <span style={styles.methodIcon}>{metodo.icon}</span>
+                  <span style={styles.methodInfo}>
                     <strong>{metodo.title}</strong>
-
                     <small>{metodo.text}</small>
                   </span>
-
-                  <span style={styles.paymentCheck}>
-                    {metodoPago === metodo.value ? "✓" : ""}
-                  </span>
+                  <b>{metodoPago === metodo.value ? "✓" : ""}</b>
                 </label>
               ))}
             </div>
+            {erroresPago.metodoPago && (
+              <p style={styles.fieldError}>{erroresPago.metodoPago}</p>
+            )}
 
-            <div style={styles.simulationNote}>
-              <span>ℹ️</span>
+            {metodoPago === "Tarjeta" && (
+              <div style={styles.formBox}>
+                <h3>Datos de la tarjeta</h3>
+                <Campo
+                  label="Nombre del titular"
+                  value={datosPago.titular}
+                  onChange={(v) => actualizarDatoPago("titular", v)}
+                  error={erroresPago.titular}
+                  placeholder="Como aparece en la tarjeta"
+                />
+                <Campo
+                  label="Número de tarjeta"
+                  value={datosPago.numeroTarjeta}
+                  onChange={(v) => actualizarDatoPago("numeroTarjeta", v)}
+                  error={erroresPago.numeroTarjeta}
+                  placeholder="1234 5678 9012 3456"
+                  inputMode="numeric"
+                />
+                <div style={styles.twoColumns}>
+                  <Campo
+                    label="Vencimiento"
+                    value={datosPago.vencimiento}
+                    onChange={(v) => actualizarDatoPago("vencimiento", v)}
+                    error={erroresPago.vencimiento}
+                    placeholder="MM/AA"
+                    inputMode="numeric"
+                  />
+                  <Campo
+                    label="CVV"
+                    value={datosPago.cvv}
+                    onChange={(v) => actualizarDatoPago("cvv", v)}
+                    error={erroresPago.cvv}
+                    placeholder="123"
+                    inputMode="numeric"
+                    type="password"
+                  />
+                </div>
+              </div>
+            )}
 
-              <p>
-                Esta es una simulación de pago. No se realizará ningún cobro
-                real.
-              </p>
+            {metodoPago === "PSE" && (
+              <div style={styles.formBox}>
+                <h3>Datos para PSE</h3>
+                <label style={styles.field}>
+                  <span>Banco</span>
+                  <select
+                    value={datosPago.banco}
+                    onChange={(e) =>
+                      actualizarDatoPago("banco", e.target.value)
+                    }
+                  >
+                    <option value="">Selecciona tu banco</option>
+                    <option>Bancolombia</option>
+                    <option>Banco de Bogotá</option>
+                    <option>Davivienda</option>
+                    <option>BBVA Colombia</option>
+                    <option>Banco de Occidente</option>
+                    <option>Nequi</option>
+                  </select>
+                  {erroresPago.banco && <small>{erroresPago.banco}</small>}
+                </label>
+                <Campo
+                  label="Correo electrónico"
+                  value={datosPago.correoPse}
+                  onChange={(v) => actualizarDatoPago("correoPse", v)}
+                  error={erroresPago.correoPse}
+                  placeholder="correo@ejemplo.com"
+                  type="email"
+                />
+              </div>
+            )}
+
+            {metodoPago === "Nequi" && (
+              <div style={styles.formBox}>
+                <h3>Pago con Nequi</h3>
+                <Campo
+                  label="Número de celular"
+                  value={datosPago.celularNequi}
+                  onChange={(v) => actualizarDatoPago("celularNequi", v)}
+                  error={erroresPago.celularNequi}
+                  placeholder="3001234567"
+                  inputMode="numeric"
+                />
+                <p style={styles.help}>
+                  Recibirás una solicitud simulada de aprobación.
+                </p>
+              </div>
+            )}
+            {metodoPago === "Contra Entrega" && (
+              <div style={styles.formBox}>
+                <h3>Pago contra entrega</h3>
+                <p style={styles.help}>
+                  Pagarás cuando recibas tu pedido. Verifica tus datos de
+                  entrega antes de continuar.
+                </p>
+              </div>
+            )}
+
+            <div style={styles.note}>
+              ℹ️ Esta es una simulación. No se realizará ningún cobro real.
             </div>
-
-            <div style={styles.modalActions}>
+            <div className="modal-actions" style={styles.actions}>
               <button
-                type="button"
-                style={styles.cancelBtn}
+                style={styles.secondaryButton}
                 onClick={cerrarPago}
                 disabled={procesando}
               >
                 Cancelar
               </button>
-
               <button
-                type="button"
-                style={{
-                  ...styles.confirmBtn,
-                  opacity: procesando ? 0.65 : 1,
-                  cursor: procesando ? "not-allowed" : "pointer",
-                }}
+                style={styles.confirmButton}
                 onClick={confirmarPago}
                 disabled={procesando}
               >
                 {procesando ? "Procesando..." : "Confirmar pago"}
               </button>
             </div>
-          </div>
+          </section>
         </div>
       )}
     </div>
+  );
+}
+
+function Campo({ label, value, onChange, error, ...props }) {
+  return (
+    <label style={styles.field}>
+      <span>{label}</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        {...props}
+      />
+      {error && <small>{error}</small>}
+    </label>
   );
 }
 
@@ -768,654 +797,397 @@ export default Carrito;
 const styles = {
   page: {
     minHeight: "100vh",
-    background:
-      "linear-gradient(135deg, #050816 0%, #0f172a 48%, #17102f 100%)",
+    background: "linear-gradient(135deg,#050816,#0f172a 48%,#17102f)",
     color: "#fff",
     padding: "40px 24px 70px",
-    position: "relative",
-    overflow: "hidden",
-    boxSizing: "border-box",
   },
-
-  backgroundGlow: {
-    position: "absolute",
-    width: "420px",
-    height: "420px",
-    borderRadius: "50%",
-    background: "rgba(124,58,237,0.12)",
-    filter: "blur(100px)",
-    top: "-160px",
-    right: "-120px",
-    pointerEvents: "none",
+  container: { maxWidth: 1250, margin: "0 auto" },
+  center: {
+    minHeight: "100vh",
+    display: "grid",
+    placeItems: "center",
+    background: "#050816",
+    color: "#fff",
+    padding: 20,
   },
-
-  container: {
-    maxWidth: "1250px",
-    margin: "0 auto",
-    position: "relative",
-    zIndex: 1,
+  messageCard: {
+    textAlign: "center",
+    padding: 36,
+    background: "rgba(255,255,255,.05)",
+    border: "1px solid rgba(255,255,255,.09)",
+    borderRadius: 24,
   },
-
   header: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "flex-end",
-    gap: "20px",
-    marginBottom: "32px",
+    alignItems: "end",
+    gap: 20,
     flexWrap: "wrap",
+    marginBottom: 32,
   },
-
   badge: {
     display: "inline-block",
     color: "#c084fc",
-    background: "rgba(124,58,237,0.12)",
-    border: "1px solid rgba(168,85,247,0.22)",
-    borderRadius: "999px",
+    background: "rgba(124,58,237,.13)",
+    border: "1px solid rgba(168,85,247,.22)",
+    borderRadius: 999,
     padding: "7px 13px",
-    fontSize: "13px",
-    fontWeight: "700",
-    marginBottom: "12px",
+    fontSize: 12,
+    fontWeight: 800,
   },
-
-  title: {
-    fontSize: "42px",
-    lineHeight: "1.1",
-    fontWeight: "800",
-    margin: 0,
-    letterSpacing: "-1px",
-  },
-
-  subtitle: {
-    color: "#94a3b8",
-    fontSize: "16px",
-    marginTop: "12px",
-    marginBottom: 0,
-  },
-
-  itemsBadge: {
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.1)",
+  units: {
+    background: "rgba(255,255,255,.06)",
     padding: "10px 16px",
-    borderRadius: "999px",
-    color: "#e2e8f0",
-    fontSize: "14px",
-    fontWeight: "600",
+    borderRadius: 999,
   },
-
   layout: {
     display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr) 350px",
-    gap: "28px",
+    gridTemplateColumns: "minmax(0,1fr) 350px",
+    gap: 28,
     alignItems: "start",
   },
-
-  productsSection: {
-    minWidth: 0,
-  },
-
   warning: {
-    display: "flex",
-    gap: "13px",
-    alignItems: "center",
-    background: "rgba(245,158,11,0.09)",
-    border: "1px solid rgba(245,158,11,0.2)",
+    padding: 16,
+    marginBottom: 18,
     color: "#fcd34d",
-    padding: "15px 18px",
-    borderRadius: "17px",
-    marginBottom: "18px",
+    background: "rgba(245,158,11,.09)",
+    border: "1px solid rgba(245,158,11,.2)",
+    borderRadius: 16,
   },
-
-  warningIcon: {
-    fontSize: "20px",
-  },
-
   productCard: {
     display: "flex",
-    gap: "22px",
-    background: "rgba(255,255,255,0.045)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "24px",
-    padding: "20px",
-    marginBottom: "18px",
-    backdropFilter: "blur(16px)",
-    boxShadow: "0 14px 35px rgba(0,0,0,0.18)",
-    boxSizing: "border-box",
+    gap: 22,
+    padding: 20,
+    marginBottom: 18,
+    background: "rgba(255,255,255,.045)",
+    border: "1px solid rgba(255,255,255,.08)",
+    borderRadius: 24,
   },
-
-  imageWrapper: {
-    width: "170px",
-    height: "170px",
+  imageWrap: {
+    width: 170,
+    height: 170,
     flexShrink: 0,
-    borderRadius: "19px",
+    borderRadius: 19,
     overflow: "hidden",
-    position: "relative",
-    background: "rgba(255,255,255,0.05)",
+    background: "rgba(255,255,255,.05)",
   },
-
-  productImage: {
-    width: "100%",
-    height: "100%",
-    objectFit: "contain",
-    padding: "8px",
-    boxSizing: "border-box",
-  },
-
-  stockBadge: {
-    position: "absolute",
-    left: "10px",
-    bottom: "10px",
-    padding: "6px 10px",
-    borderRadius: "999px",
-    fontSize: "11px",
-    fontWeight: "700",
-    backdropFilter: "blur(8px)",
-  },
-
+  image: { width: "100%", height: "100%", objectFit: "contain", padding: 8 },
   productInfo: {
     flex: 1,
     minWidth: 0,
-  },
-
-  productTop: {
     display: "flex",
+    flexDirection: "column",
     justifyContent: "space-between",
-    gap: "15px",
   },
-
-  productName: {
-    fontSize: "21px",
-    fontWeight: "750",
-    margin: "2px 0 7px",
-  },
-
-  description: {
-    color: "#94a3b8",
-    fontSize: "14px",
-    lineHeight: "1.5",
-    margin: 0,
-    maxWidth: "620px",
-  },
-
-  deleteBtn: {
-    width: "38px",
-    height: "38px",
-    flexShrink: 0,
-    border: "1px solid rgba(239,68,68,0.18)",
-    borderRadius: "12px",
-    background: "rgba(239,68,68,0.08)",
-    color: "#f87171",
+  productTop: { display: "flex", justifyContent: "space-between", gap: 15 },
+  deleteButton: {
+    width: 40,
+    height: 40,
+    border: "1px solid rgba(239,68,68,.2)",
+    borderRadius: 12,
+    background: "rgba(239,68,68,.08)",
     cursor: "pointer",
-    fontSize: "15px",
   },
-
   productBottom: {
     display: "grid",
     gridTemplateColumns: "1fr auto 1fr",
     alignItems: "end",
-    gap: "20px",
-    marginTop: "25px",
+    gap: 20,
+    marginTop: 24,
   },
-
-  priceLabel: {
-    display: "block",
-    color: "#64748b",
-    fontSize: "11px",
-    textTransform: "uppercase",
-    letterSpacing: "0.7px",
-    marginBottom: "6px",
-    fontWeight: "700",
-  },
-
-  price: {
-    color: "#c084fc",
-    fontSize: "19px",
-    fontWeight: "800",
-    margin: 0,
-  },
-
-  quantityBlock: {
-    textAlign: "center",
-  },
-
-  controls: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "10px",
-  },
-
-  btnQty: {
-    width: "34px",
-    height: "34px",
-    borderRadius: "10px",
-    border: "1px solid rgba(168,85,247,0.2)",
-    background: "rgba(124,58,237,0.18)",
-    color: "#fff",
-    cursor: "pointer",
-    fontSize: "19px",
-    fontWeight: "800",
-  },
-
-  qty: {
-    minWidth: "28px",
-    textAlign: "center",
-    fontSize: "16px",
-    fontWeight: "800",
-  },
-
-  stockText: {
-    display: "block",
-    color: "#64748b",
-    fontSize: "11px",
-    marginTop: "6px",
-  },
-
-  subtotalBlock: {
-    textAlign: "right",
-  },
-
-  subtotal: {
-    color: "#4ade80",
-    fontSize: "19px",
-    fontWeight: "800",
-    margin: 0,
-  },
-
-  summaryCard: {
-    background:
-      "linear-gradient(145deg, rgba(124,58,237,0.14), rgba(255,255,255,0.045))",
-    border: "1px solid rgba(168,85,247,0.2)",
-    borderRadius: "26px",
-    padding: "25px",
-    backdropFilter: "blur(18px)",
-    boxShadow: "0 18px 45px rgba(0,0,0,0.25)",
+  controls: { display: "flex", alignItems: "center", gap: 10, margin: "7px 0" },
+  purple: { display: "block", color: "#c084fc", fontSize: 19 },
+  green: { display: "block", color: "#4ade80", fontSize: 19 },
+  summary: {
     position: "sticky",
-    top: "25px",
+    top: 25,
+    padding: 25,
+    background:
+      "linear-gradient(145deg,rgba(124,58,237,.14),rgba(255,255,255,.045))",
+    border: "1px solid rgba(168,85,247,.2)",
+    borderRadius: 26,
   },
-
-  summaryHeader: {
+  rows: { color: "#94a3b8" },
+  total: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
-    gap: "10px",
-    marginBottom: "20px",
+    padding: "20px 0",
+    borderTop: "1px solid rgba(255,255,255,.08)",
+    fontSize: 18,
   },
-
-  summaryBadge: {
-    color: "#c084fc",
-    fontSize: "12px",
-    fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: "1px",
-  },
-
-  secureText: {
-    color: "#64748b",
-    fontSize: "11px",
-  },
-
-  summaryTitle: {
-    fontSize: "22px",
-    margin: "0 0 22px",
-    fontWeight: "800",
-  },
-
-  summaryRows: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "15px",
-  },
-
-  summaryRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    color: "#94a3b8",
-    fontSize: "14px",
-  },
-
-  freeText: {
-    color: "#4ade80",
-  },
-
-  divider: {
-    height: "1px",
-    background: "rgba(255,255,255,0.08)",
-    margin: "22px 0",
-  },
-
-  totalRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "22px",
-    fontSize: "17px",
-    color: "#e2e8f0",
-  },
-
-  buyBtn: {
-    width: "100%",
-    padding: "16px",
-    border: "none",
-    borderRadius: "15px",
-    background: "linear-gradient(135deg, #7c3aed, #9333ea)",
+  primaryButton: {
+    border: 0,
+    borderRadius: 14,
+    padding: "14px 22px",
+    background: "linear-gradient(135deg,#7c3aed,#9333ea)",
     color: "#fff",
-    fontWeight: "800",
-    fontSize: "15px",
+    fontWeight: 800,
     cursor: "pointer",
-    boxShadow: "0 10px 25px rgba(124,58,237,0.25)",
   },
-
-  continueBtn: {
+  buyButton: {
     width: "100%",
-    marginTop: "12px",
-    padding: "13px",
-    border: "1px solid rgba(255,255,255,0.09)",
-    borderRadius: "14px",
-    background: "rgba(255,255,255,0.035)",
-    color: "#cbd5e1",
-    fontWeight: "700",
-    fontSize: "14px",
+    border: 0,
+    borderRadius: 15,
+    padding: 16,
+    background: "linear-gradient(135deg,#7c3aed,#9333ea)",
+    color: "#fff",
+    fontWeight: 800,
     cursor: "pointer",
   },
-
-  securityText: {
-    color: "#64748b",
-    fontSize: "11px",
-    lineHeight: "1.5",
-    textAlign: "center",
-    margin: "17px 0 0",
+  secondaryButton: {
+    width: "100%",
+    marginTop: 12,
+    border: "1px solid rgba(255,255,255,.1)",
+    borderRadius: 14,
+    padding: 13,
+    background: "rgba(255,255,255,.04)",
+    color: "#cbd5e1",
+    fontWeight: 700,
+    cursor: "pointer",
   },
-
-  emptyCard: {
-    maxWidth: "650px",
+  security: {
+    display: "block",
+    textAlign: "center",
+    color: "#64748b",
+    marginTop: 17,
+  },
+  empty: {
+    maxWidth: 650,
     margin: "50px auto",
     textAlign: "center",
     padding: "70px 30px",
-    background: "rgba(255,255,255,0.045)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "28px",
-    backdropFilter: "blur(16px)",
-    boxSizing: "border-box",
+    background: "rgba(255,255,255,.045)",
+    border: "1px solid rgba(255,255,255,.08)",
+    borderRadius: 28,
   },
-
-  emptyIcon: {
-    width: "82px",
-    height: "82px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    margin: "0 auto 20px",
-    borderRadius: "50%",
-    background: "rgba(124,58,237,0.14)",
-    fontSize: "37px",
-  },
-
-  emptyTitle: {
-    fontSize: "28px",
-    margin: "0 0 10px",
-  },
-
-  emptyText: {
-    color: "#94a3b8",
-    lineHeight: "1.6",
-    maxWidth: "450px",
-    margin: "0 auto 28px",
-  },
-
-  shopBtn: {
-    border: "none",
-    padding: "14px 22px",
-    borderRadius: "14px",
-    background: "linear-gradient(135deg, #7c3aed, #9333ea)",
-    color: "#fff",
-    fontWeight: "800",
-    cursor: "pointer",
-    fontSize: "14px",
-  },
-
-  secondaryErrorBtn: {
-    display: "block",
-    width: "100%",
-    marginTop: "12px",
-    padding: "13px",
-    border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "14px",
-    background: "rgba(255,255,255,0.04)",
-    color: "#cbd5e1",
-    fontWeight: "700",
-    cursor: "pointer",
-  },
-
-  loadingPage: {
-    minHeight: "100vh",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "#050816",
-    color: "#fff",
-    padding: "20px",
-    boxSizing: "border-box",
-  },
-
-  loadingCard: {
-    textAlign: "center",
-    padding: "35px",
-    background: "rgba(255,255,255,0.045)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "24px",
-  },
-
-  loader: {
-    width: "46px",
-    height: "46px",
-    border: "4px solid rgba(255,255,255,0.12)",
-    borderTop: "4px solid #a855f7",
-    borderRadius: "50%",
-    margin: "0 auto 20px",
-  },
-
-  loadingTitle: {
-    margin: "0 0 8px",
-    fontSize: "20px",
-  },
-
-  loadingText: {
-    color: "#94a3b8",
-    margin: 0,
-  },
-
-  errorCard: {
-    textAlign: "center",
-    maxWidth: "450px",
-    padding: "40px",
-    background: "rgba(255,255,255,0.045)",
-    border: "1px solid rgba(239,68,68,0.18)",
-    borderRadius: "24px",
-    boxSizing: "border-box",
-  },
-
-  errorIcon: {
-    width: "50px",
-    height: "50px",
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    margin: "0 auto 18px",
-    background: "rgba(239,68,68,0.12)",
-    color: "#f87171",
-    fontSize: "24px",
-    fontWeight: "800",
-  },
-
-  errorTitle: {
-    fontSize: "21px",
-    marginBottom: "10px",
-  },
-
-  errorText: {
-    color: "#94a3b8",
-    lineHeight: "1.5",
-    marginBottom: "25px",
-  },
-
+  emptyIcon: { fontSize: 42 },
   overlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(2,6,23,0.78)",
-    backdropFilter: "blur(8px)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "20px",
     zIndex: 999,
-    boxSizing: "border-box",
+    display: "grid",
+    placeItems: "center",
+    padding: 20,
+    background: "rgba(2,6,23,.8)",
+    backdropFilter: "blur(8px)",
   },
-
   modal: {
     width: "100%",
-    maxWidth: "520px",
-    maxHeight: "90vh",
+    maxWidth: 570,
+    maxHeight: "92vh",
     overflowY: "auto",
+    padding: 27,
     background: "#0b1120",
-    border: "1px solid rgba(168,85,247,0.22)",
-    borderRadius: "26px",
-    padding: "27px",
-    boxShadow: "0 25px 80px rgba(0,0,0,0.55)",
-    boxSizing: "border-box",
+    border: "1px solid rgba(168,85,247,.25)",
+    borderRadius: 26,
+    boxShadow: "0 25px 80px rgba(0,0,0,.55)",
   },
-
-  modalHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "15px",
-    marginBottom: "22px",
-  },
-
-  modalBadge: {
-    color: "#a855f7",
-    fontSize: "11px",
-    fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: "1px",
-  },
-
-  modalTitle: {
-    fontSize: "25px",
-    fontWeight: "800",
-    margin: "7px 0 0",
-  },
-
-  closeBtn: {
-    width: "38px",
-    height: "38px",
-    flexShrink: 0,
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "12px",
-    background: "rgba(255,255,255,0.04)",
-    color: "#94a3b8",
-    cursor: "pointer",
-  },
-
-  modalTotalBox: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "15px",
-    background: "rgba(124,58,237,0.1)",
-    border: "1px solid rgba(168,85,247,0.16)",
-    padding: "17px",
-    borderRadius: "16px",
-    marginBottom: "20px",
-    color: "#94a3b8",
-  },
-
-  paymentMethods: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-  },
-
-  paymentOption: {
-    display: "flex",
-    alignItems: "center",
-    gap: "13px",
-    padding: "14px",
-    border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: "15px",
-    background: "rgba(255,255,255,0.025)",
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-  },
-
-  paymentOptionActive: {
-    border: "1px solid rgba(168,85,247,0.55)",
-    background: "rgba(124,58,237,0.12)",
-  },
-
-  radio: {
-    accentColor: "#8b5cf6",
-  },
-
-  paymentIcon: {
-    width: "38px",
-    height: "38px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: "11px",
-    background: "rgba(255,255,255,0.06)",
-    fontSize: "19px",
-  },
-
-  paymentInfo: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "3px",
-    flex: 1,
-  },
-
-  paymentCheck: {
-    color: "#c084fc",
-    fontWeight: "800",
-  },
-
-  simulationNote: {
-    display: "flex",
-    gap: "10px",
-    alignItems: "flex-start",
-    background: "rgba(59,130,246,0.08)",
-    border: "1px solid rgba(59,130,246,0.14)",
-    borderRadius: "14px",
-    padding: "13px",
-    marginTop: "18px",
-    color: "#93c5fd",
-  },
-
-  modalActions: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1.4fr",
-    gap: "12px",
-    marginTop: "22px",
-  },
-
-  cancelBtn: {
-    padding: "14px",
-    border: "1px solid rgba(255,255,255,0.09)",
-    borderRadius: "14px",
-    background: "rgba(255,255,255,0.04)",
-    color: "#cbd5e1",
-    cursor: "pointer",
-    fontWeight: "700",
-  },
-
-  confirmBtn: {
-    padding: "14px",
-    border: "none",
-    borderRadius: "14px",
-    background: "linear-gradient(135deg, #10b981, #059669)",
+  modalHeader: { display: "flex", justifyContent: "space-between", gap: 15 },
+  closeButton: {
+    width: 38,
+    height: 38,
+    border: "1px solid rgba(255,255,255,.1)",
+    borderRadius: 12,
+    background: "rgba(255,255,255,.04)",
     color: "#fff",
     cursor: "pointer",
-    fontWeight: "800",
+  },
+  totalBox: {
+    display: "flex",
+    justifyContent: "space-between",
+    margin: "20px 0",
+    padding: 17,
+    background: "rgba(124,58,237,.1)",
+    borderRadius: 16,
+  },
+  methods: { display: "grid", gap: 10 },
+  method: {
+    display: "flex",
+    alignItems: "center",
+    gap: 13,
+    padding: 14,
+    border: "1px solid rgba(255,255,255,.08)",
+    borderRadius: 15,
+    background: "rgba(255,255,255,.025)",
+    cursor: "pointer",
+  },
+  methodActive: {
+    borderColor: "rgba(168,85,247,.65)",
+    background: "rgba(124,58,237,.13)",
+  },
+  methodIcon: {
+    display: "grid",
+    placeItems: "center",
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    background: "rgba(255,255,255,.06)",
+  },
+  methodInfo: { display: "flex", flexDirection: "column", gap: 3, flex: 1 },
+  formBox: {
+    marginTop: 16,
+    padding: 17,
+    border: "1px solid rgba(168,85,247,.18)",
+    borderRadius: 16,
+    background: "rgba(124,58,237,.06)",
+  },
+  field: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 7,
+    marginTop: 13,
+    color: "#cbd5e1",
+    fontSize: 13,
+    fontWeight: 700,
+  },
+  twoColumns: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 },
+  fieldError: { color: "#f87171", fontSize: 12, margin: "7px 0 0" },
+  help: { color: "#94a3b8", fontSize: 13, lineHeight: 1.5 },
+  note: {
+    marginTop: 18,
+    padding: 13,
+    color: "#93c5fd",
+    background: "rgba(59,130,246,.08)",
+    borderRadius: 14,
+  },
+  actions: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1.4fr",
+    gap: 12,
+    marginTop: 20,
+  },
+  confirmButton: {
+    marginTop: 12,
+    border: 0,
+    borderRadius: 14,
+    padding: 14,
+    background: "linear-gradient(135deg,#10b981,#059669)",
+    color: "#fff",
+    fontWeight: 800,
+    cursor: "pointer",
   },
 };
+
+const css = `
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+  }
+
+  h1 {
+    margin: 12px 0 8px;
+    font-size: 42px;
+  }
+
+  h2 {
+    margin: 10px 0;
+  }
+
+  p {
+    color: #94a3b8;
+    line-height: 1.5;
+  }
+
+  small {
+    color: #64748b;
+  }
+
+  em {
+    display: block;
+    color: #64748b;
+    font-size: 11px;
+    font-style: normal;
+  }
+
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed !important;
+  }
+
+  .product-bottom button {
+    border: 1px solid rgba(168, 85, 247, 0.2);
+    border-radius: 10px;
+    background: rgba(124, 58, 237, 0.18);
+    color: white;
+    font-size: 18px;
+  }
+
+  .summary p {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .payment-modal input:not([type="radio"]),
+  .payment-modal select {
+    width: 100%;
+    padding: 13px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 11px;
+    outline: none;
+    background: #111827;
+    color: #fff;
+    font: inherit;
+  }
+
+  .payment-modal input:focus,
+  .payment-modal select:focus {
+    border-color: #a855f7;
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.12);
+  }
+
+  .payment-modal label small {
+    color: #f87171;
+  }
+
+  @media (max-width: 900px) {
+    .cart-layout {
+      grid-template-columns: 1fr !important;
+    }
+
+    .summary {
+      position: static !important;
+    }
+  }
+
+  @media (max-width: 650px) {
+    .carrito-page {
+      padding: 10px 0 !important;
+    }
+
+    h1 {
+      font-size: 32px;
+    }
+
+    .product-card {
+      flex-direction: column;
+    }
+
+    .image-wrap {
+      width: 100% !important;
+      height: 230px !important;
+    }
+
+    .product-bottom {
+      grid-template-columns: 1fr 1fr !important;
+    }
+
+    .subtotal {
+      text-align: left !important;
+    }
+  }
+
+  @media (max-width: 430px) {
+    .product-bottom,
+    .modal-actions,
+    .payment-modal div[style*="grid-template-columns"] {
+      grid-template-columns: 1fr !important;
+    }
+
+    .payment-modal {
+      padding: 20px !important;
+    }
+  }
+`;

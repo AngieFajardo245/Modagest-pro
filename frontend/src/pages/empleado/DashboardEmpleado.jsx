@@ -23,8 +23,6 @@ function DashboardEmpleado() {
   const navigate = useNavigate();
 
   const [nombre, setNombre] = useState("Empleado");
-  const [ventas, setVentas] = useState([]);
-  const [productos, setProductos] = useState([]);
 
   const [stats, setStats] = useState({
     productos: 0,
@@ -40,6 +38,7 @@ function DashboardEmpleado() {
   const [productoMasVendido, setProductoMasVendido] = useState(null);
   const [ultimaVenta, setUltimaVenta] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [actualizando, setActualizando] = useState(false);
 
   const obtenerUsuario = () => {
     try {
@@ -51,6 +50,7 @@ function DashboardEmpleado() {
       }
 
       const usuario = JSON.parse(usuarioGuardado);
+
       setNombre(usuario?.nombre || "Empleado");
     } catch (error) {
       console.error("Error leyendo usuario:", error);
@@ -61,7 +61,9 @@ function DashboardEmpleado() {
   const obtenerPago = (venta) => {
     if (!venta) return null;
 
-    if (venta.Pago) return venta.Pago;
+    if (venta.Pago) {
+      return venta.Pago;
+    }
 
     if (Array.isArray(venta.Pagos) && venta.Pagos.length > 0) {
       return venta.Pagos[0];
@@ -73,20 +75,51 @@ function DashboardEmpleado() {
   const ventaAprobada = (venta) => {
     const pago = obtenerPago(venta);
 
-    if (!pago) return true;
+    if (!pago) {
+      return true;
+    }
 
     const estado = String(pago.estado || "")
       .toLowerCase()
       .trim();
 
+    return ["aprobado", "aprobada", "approved"].includes(estado);
+  };
+
+  const esMismoDia = (fecha, referencia) => {
+    if (!fecha) return false;
+
+    const fechaVenta = new Date(fecha);
+
+    if (Number.isNaN(fechaVenta.getTime())) {
+      return false;
+    }
+
     return (
-      estado === "aprobado" || estado === "aprobada" || estado === "approved"
+      fechaVenta.getDate() === referencia.getDate() &&
+      fechaVenta.getMonth() === referencia.getMonth() &&
+      fechaVenta.getFullYear() === referencia.getFullYear()
+    );
+  };
+
+  const esMismoMes = (fecha, referencia) => {
+    if (!fecha) return false;
+
+    const fechaVenta = new Date(fecha);
+
+    if (Number.isNaN(fechaVenta.getTime())) {
+      return false;
+    }
+
+    return (
+      fechaVenta.getMonth() === referencia.getMonth() &&
+      fechaVenta.getFullYear() === referencia.getFullYear()
     );
   };
 
   const obtenerDatos = async () => {
     try {
-      setLoading(true);
+      setActualizando(true);
 
       const [productosRes, ventasRes] = await Promise.all([
         api.get("/productos"),
@@ -99,62 +132,36 @@ function DashboardEmpleado() {
 
       const ventasData = Array.isArray(ventasRes.data) ? ventasRes.data : [];
 
-      setProductos(productosData);
-      setVentas(ventasData);
+      const ventasAprobadas = ventasData.filter(ventaAprobada);
 
       const ahora = new Date();
 
-      const diaActual = ahora.getDate();
-      const mesActual = ahora.getMonth();
-      const anioActual = ahora.getFullYear();
-
-      const ventasAprobadas = ventasData.filter(ventaAprobada);
-
-      const ventasOrdenadas = [...ventasAprobadas].sort((a, b) => {
-        return (
+      const ventasOrdenadas = [...ventasAprobadas].sort(
+        (a, b) =>
           new Date(b?.createdAt || 0).getTime() -
-          new Date(a?.createdAt || 0).getTime()
-        );
-      });
+          new Date(a?.createdAt || 0).getTime(),
+      );
 
-      setUltimaVenta(ventasOrdenadas.length > 0 ? ventasOrdenadas[0] : null);
+      const ultimaVentaData =
+        ventasOrdenadas.length > 0 ? ventasOrdenadas[0] : null;
 
-      const totalVendido = ventasAprobadas.reduce(
+      const ingresosTotales = ventasAprobadas.reduce(
         (total, venta) => total + Number(venta?.total || 0),
         0,
       );
 
-      const ventasHoy = ventasAprobadas.filter((venta) => {
-        if (!venta?.createdAt) return false;
-
-        const fechaVenta = new Date(venta.createdAt);
-
-        if (Number.isNaN(fechaVenta.getTime())) return false;
-
-        return (
-          fechaVenta.getDate() === diaActual &&
-          fechaVenta.getMonth() === mesActual &&
-          fechaVenta.getFullYear() === anioActual
-        );
-      });
+      const ventasHoy = ventasAprobadas.filter((venta) =>
+        esMismoDia(venta?.createdAt, ahora),
+      );
 
       const totalHoy = ventasHoy.reduce(
         (total, venta) => total + Number(venta?.total || 0),
         0,
       );
 
-      const ventasMes = ventasAprobadas.filter((venta) => {
-        if (!venta?.createdAt) return false;
-
-        const fechaVenta = new Date(venta.createdAt);
-
-        if (Number.isNaN(fechaVenta.getTime())) return false;
-
-        return (
-          fechaVenta.getMonth() === mesActual &&
-          fechaVenta.getFullYear() === anioActual
-        );
-      });
+      const ventasMes = ventasAprobadas.filter((venta) =>
+        esMismoMes(venta?.createdAt, ahora),
+      );
 
       const totalMes = ventasMes.reduce(
         (total, venta) => total + Number(venta?.total || 0),
@@ -162,7 +169,9 @@ function DashboardEmpleado() {
       );
 
       const unidadesVendidas = ventasAprobadas.reduce((totalVenta, venta) => {
-        if (!Array.isArray(venta?.Detalles)) return totalVenta;
+        if (!Array.isArray(venta?.Detalles)) {
+          return totalVenta;
+        }
 
         return (
           totalVenta +
@@ -177,14 +186,22 @@ function DashboardEmpleado() {
       const productosVendidos = {};
 
       ventasAprobadas.forEach((venta) => {
-        if (!Array.isArray(venta?.Detalles)) return;
+        if (!Array.isArray(venta?.Detalles)) {
+          return;
+        }
 
         venta.Detalles.forEach((detalle) => {
           const productoId = detalle?.productoId;
 
-          if (!productoId) return;
+          if (!productoId) {
+            return;
+          }
 
           const cantidad = Number(detalle?.cantidad || 0);
+
+          if (cantidad <= 0) {
+            return;
+          }
 
           const nombreProducto =
             detalle?.Producto?.nombre || `Producto #${productoId}`;
@@ -205,25 +222,24 @@ function DashboardEmpleado() {
         (a, b) => b.cantidad - a.cantidad,
       );
 
-      setProductoMasVendido(
-        rankingProductos.length > 0 ? rankingProductos[0] : null,
-      );
-
       setStats({
         productos: productosData.length,
         ventas: ventasAprobadas.length,
-        totalVendido,
+        totalVendido: ingresosTotales,
         ventasHoy: ventasHoy.length,
         totalHoy,
         ventasMes: ventasMes.length,
         totalMes,
         unidadesVendidas,
       });
+
+      setProductoMasVendido(
+        rankingProductos.length > 0 ? rankingProductos[0] : null,
+      );
+
+      setUltimaVenta(ultimaVentaData);
     } catch (error) {
       console.error("Error cargando datos del empleado:", error);
-
-      setVentas([]);
-      setProductos([]);
 
       setStats({
         productos: 0,
@@ -240,6 +256,10 @@ function DashboardEmpleado() {
       setUltimaVenta(null);
     } finally {
       setLoading(false);
+
+      setTimeout(() => {
+        setActualizando(false);
+      }, 400);
     }
   };
 
@@ -257,7 +277,9 @@ function DashboardEmpleado() {
   };
 
   const formatoFecha = (fecha) => {
-    if (!fecha) return "Sin fecha";
+    if (!fecha) {
+      return "Sin fecha";
+    }
 
     const fechaObj = new Date(fecha);
 
@@ -294,9 +316,11 @@ function DashboardEmpleado() {
   };
 
   const porcentajeHoyVsMes = useMemo(() => {
-    if (stats.totalMes <= 0) return 0;
+    if (stats.totalMes <= 0 || stats.totalHoy <= 0) {
+      return 0;
+    }
 
-    return Math.round((stats.totalHoy / stats.totalMes) * 100);
+    return Math.min(100, Math.round((stats.totalHoy / stats.totalMes) * 100));
   }, [stats.totalHoy, stats.totalMes]);
 
   if (loading) {
@@ -338,18 +362,31 @@ function DashboardEmpleado() {
               </div>
 
               <div>
-                <strong>Área Comercial</strong>
-                <small>Gestión de ventas</small>
+                <strong style={styles.commercialStrong}>Área Comercial</strong>
+
+                <small style={styles.commercialSmall}>Gestión de ventas</small>
               </div>
             </div>
 
             <button
               type="button"
-              style={styles.refreshButton}
-              onClick={obtenerDatos}
+              style={{
+                ...styles.refreshButton,
+                opacity: actualizando ? 0.75 : 1,
+                cursor: actualizando ? "wait" : "pointer",
+              }}
+              onClick={actualizando ? undefined : obtenerDatos}
+              disabled={actualizando}
             >
-              <FaSyncAlt />
-              Actualizar
+              <FaSyncAlt
+                style={{
+                  animation: actualizando
+                    ? "spin 0.8s linear infinite"
+                    : "none",
+                }}
+              />
+
+              {actualizando ? "Actualizando..." : "Actualizar"}
             </button>
           </div>
         </header>
@@ -362,7 +399,9 @@ function DashboardEmpleado() {
 
             <div>
               <p style={styles.statLabel}>Productos disponibles</p>
+
               <h2 style={styles.statNumber}>{stats.productos}</h2>
+
               <span style={styles.statDescription}>Productos registrados</span>
             </div>
           </div>
@@ -374,7 +413,9 @@ function DashboardEmpleado() {
 
             <div>
               <p style={styles.statLabel}>Ventas realizadas</p>
+
               <h2 style={styles.statNumber}>{stats.ventas}</h2>
+
               <span style={styles.statDescription}>Ventas aprobadas</span>
             </div>
           </div>
@@ -386,9 +427,11 @@ function DashboardEmpleado() {
 
             <div style={{ minWidth: 0 }}>
               <p style={styles.statLabel}>Total vendido</p>
+
               <h2 style={styles.statMoney}>
                 {formatoMoneda(stats.totalVendido)}
               </h2>
+
               <span style={styles.statDescription}>Acumulado general</span>
             </div>
           </div>
@@ -398,7 +441,9 @@ function DashboardEmpleado() {
           <div style={styles.sectionHeader}>
             <div>
               <span style={styles.eyebrow}>RENDIMIENTO</span>
+
               <h2 style={styles.sectionTitle}>Tu actividad comercial</h2>
+
               <p style={styles.sectionSubtitle}>
                 Una vista rápida de tus principales indicadores.
               </p>
@@ -488,12 +533,16 @@ function DashboardEmpleado() {
           <div style={styles.monthTop}>
             <div>
               <span style={styles.eyebrow}>RESUMEN DEL MES</span>
+
               <h2 style={styles.monthTitle}>Actividad de hoy</h2>
             </div>
 
             <div style={styles.percentageBox}>
-              <strong>{porcentajeHoyVsMes}%</strong>
-              <span>del mes</span>
+              <strong style={styles.percentageStrong}>
+                {porcentajeHoyVsMes}%
+              </strong>
+
+              <span style={styles.percentageSpan}>del mes</span>
             </div>
           </div>
 
@@ -501,7 +550,7 @@ function DashboardEmpleado() {
             <div
               style={{
                 ...styles.progressFill,
-                width: `${Math.min(porcentajeHoyVsMes, 100)}%`,
+                width: `${porcentajeHoyVsMes}%`,
               }}
             />
           </div>
@@ -629,6 +678,7 @@ function DashboardEmpleado() {
           ) : (
             <div style={styles.noSale}>
               <FaShoppingBag />
+
               <span>Todavía no has realizado ventas aprobadas.</span>
             </div>
           )}
@@ -776,9 +826,17 @@ const styles = {
     fontSize: "18px",
   },
 
-  commercialBadgeStrong: {
+  commercialStrong: {
+    display: "block",
     color: "#ffffff",
     fontSize: "13px",
+  },
+
+  commercialSmall: {
+    display: "block",
+    marginTop: "3px",
+    color: "#64748b",
+    fontSize: "10px",
   },
 
   refreshButton: {
@@ -794,7 +852,6 @@ const styles = {
     color: "#ffffff",
     fontSize: "12px",
     fontWeight: "800",
-    cursor: "pointer",
     boxShadow: "0 10px 25px rgba(79,70,229,0.20)",
   },
 
@@ -1054,12 +1111,12 @@ const styles = {
     color: "#a78bfa",
   },
 
-  percentageBoxStrong: {
+  percentageStrong: {
     fontSize: "25px",
     fontWeight: "850",
   },
 
-  percentageBoxSpan: {
+  percentageSpan: {
     fontSize: "11px",
     color: "#64748b",
     paddingBottom: "4px",
@@ -1255,6 +1312,7 @@ const styles = {
   },
 
   saleMain: {
+    minWidth: 0,
     display: "flex",
     flexDirection: "column",
     gap: "5px",
@@ -1267,9 +1325,13 @@ const styles = {
   },
 
   saleProduct: {
+    maxWidth: "700px",
     color: "#f8fafc",
     fontSize: "17px",
     fontWeight: "750",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
 
   saleDate: {
@@ -1282,6 +1344,7 @@ const styles = {
     flexDirection: "column",
     alignItems: "flex-end",
     gap: "6px",
+    flexShrink: 0,
   },
 
   saleTotal: {
@@ -1310,6 +1373,7 @@ const styles = {
     border: "1px solid rgba(255,255,255,0.06)",
     color: "#64748b",
     fontSize: "13px",
+    textAlign: "center",
   },
 
   summarySection: {

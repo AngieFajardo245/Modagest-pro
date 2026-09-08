@@ -10,29 +10,22 @@ import {
   Legend,
 } from "recharts";
 
-export default function VentaGrafica({
-  ventas = [],
-  formatoMoneda,
-  styles,
-}) {
- 
-  /* ================ PREPARAR DATOS ===================== */ 
-
+export default function VentaGrafica({ ventas = [], formatoMoneda, styles }) {
   const datosGrafica = useMemo(() => {
     const ventasPorFecha = {};
 
     ventas.forEach((venta) => {
-      if (!venta.createdAt) {
-        return;
-      }
+      if (!venta?.createdAt) return;
 
       const fecha = new Date(venta.createdAt);
 
-      if (Number.isNaN(fecha.getTime())) {
-        return;
-      }
+      if (Number.isNaN(fecha.getTime())) return;
 
-      const claveFecha = fecha.toLocaleDateString("en-CA");
+      const claveFecha = [
+        fecha.getFullYear(),
+        String(fecha.getMonth() + 1).padStart(2, "0"),
+        String(fecha.getDate()).padStart(2, "0"),
+      ].join("-");
 
       if (!ventasPorFecha[claveFecha]) {
         ventasPorFecha[claveFecha] = {
@@ -43,20 +36,17 @@ export default function VentaGrafica({
       }
 
       ventasPorFecha[claveFecha].ventas += 1;
-
-      ventasPorFecha[claveFecha].ingresos += Number(
-        venta.total || 0
-      );
+      ventasPorFecha[claveFecha].ingresos += Number(venta.total || 0);
     });
 
     return Object.values(ventasPorFecha)
       .sort((a, b) => a.fecha.localeCompare(b.fecha))
       .map((item) => {
-        const fecha = new Date(`${item.fecha}T00:00:00`);
+        const [year, month, day] = item.fecha.split("-").map(Number);
+        const fecha = new Date(year, month - 1, day);
 
         return {
           ...item,
-
           nombreFecha: fecha.toLocaleDateString("es-CO", {
             day: "2-digit",
             month: "short",
@@ -65,45 +55,37 @@ export default function VentaGrafica({
       });
   }, [ventas]);
 
-
-  /* ================ SIN DATOS ========================== */
-
   if (datosGrafica.length === 0) {
     return (
       <div style={styles.rankingCard}>
-        <h3 style={styles.rankingTitle}>
-          📈 Evolución de ventas
-        </h3>
+        <h3 style={styles.rankingTitle}>📈 Evolución de ventas</h3>
 
         <p style={styles.rankingEmpty}>
-          No hay datos suficientes para mostrar la evolución
-          de ventas.
+          No hay datos suficientes para mostrar la evolución de ventas.
         </p>
       </div>
     );
   }
 
-  
-  /* ================= TOOLTIP =========================== */
+  const formatearMoneda = (valor) => {
+    if (typeof formatoMoneda === "function") {
+      return formatoMoneda(valor);
+    }
 
-  const formatearTooltip = (valor) => {
-    return formatoMoneda
-      ? formatoMoneda(valor)
-      : `$${Number(valor).toLocaleString("es-CO")}`;
+    return Number(valor || 0).toLocaleString("es-CO", {
+      style: "currency",
+      currency: "COP",
+    });
   };
 
-
-  /* ======================= UI ========================== */
+  const intervaloFechas =
+    datosGrafica.length > 10 ? Math.ceil(datosGrafica.length / 8) : 0;
 
   return (
     <div style={styles.rankingCard}>
-      {/* ================= HEADER ================= */}
-
       <div style={styles.rankingChartHeader}>
         <div>
-          <h3 style={styles.rankingTitle}>
-            📈 Evolución de ventas
-          </h3>
+          <h3 style={styles.rankingTitle}>📈 Evolución de ventas</h3>
 
           <p style={styles.rankingSubtitle}>
             Ingresos y cantidad de ventas por fecha
@@ -111,12 +93,9 @@ export default function VentaGrafica({
         </div>
 
         <span style={styles.rankingBadge}>
-          {datosGrafica.length}{" "}
-          {datosGrafica.length === 1 ? "día" : "días"}
+          {datosGrafica.length} {datosGrafica.length === 1 ? "día" : "días"}
         </span>
       </div>
-
-      {/* ================= GRAFICA ================= */}
 
       <div style={styles.rankingChartContainer}>
         <ResponsiveContainer width="100%" height="100%">
@@ -132,20 +111,22 @@ export default function VentaGrafica({
             <CartesianGrid
               strokeDasharray="3 3"
               stroke="rgba(255,255,255,0.10)"
+              vertical={false}
             />
-
-            {/* ================= EJE X ================= */}
 
             <XAxis
               dataKey="nombreFecha"
               stroke="#cbd5e1"
+              interval={intervaloFechas}
               tick={{
                 fill: "#cbd5e1",
                 fontSize: 12,
               }}
+              axisLine={{
+                stroke: "rgba(255,255,255,0.10)",
+              }}
+              tickLine={false}
             />
-
-            {/* ================= EJE INGRESOS ================= */}
 
             <YAxis
               yAxisId="ingresos"
@@ -156,11 +137,11 @@ export default function VentaGrafica({
                 fontSize: 12,
               }}
               tickFormatter={(valor) =>
-                `$${Number(valor).toLocaleString("es-CO")}`
+                `$${Number(valor || 0).toLocaleString("es-CO")}`
               }
+              axisLine={false}
+              tickLine={false}
             />
-
-            {/* ================= EJE VENTAS ================= */}
 
             <YAxis
               yAxisId="ventas"
@@ -171,9 +152,9 @@ export default function VentaGrafica({
                 fill: "#cbd5e1",
                 fontSize: 12,
               }}
+              axisLine={false}
+              tickLine={false}
             />
-
-            {/* ================= TOOLTIP ================= */}
 
             <Tooltip
               contentStyle={{
@@ -189,19 +170,12 @@ export default function VentaGrafica({
               }}
               formatter={(valor, nombre) => {
                 if (nombre === "Ingresos") {
-                  return [
-                    formatearTooltip(valor),
-                    "💰 Ingresos",
-                  ];
+                  return [formatearMoneda(valor), "💰 Ingresos"];
                 }
 
                 if (nombre === "Ventas") {
                   return [
-                    `${valor} ${
-                      Number(valor) === 1
-                        ? "venta"
-                        : "ventas"
-                    }`,
+                    `${valor} ${Number(valor) === 1 ? "venta" : "ventas"}`,
                     "🛒 Ventas",
                   ];
                 }
@@ -210,16 +184,12 @@ export default function VentaGrafica({
               }}
             />
 
-            {/* ================= LEYENDA ================= */}
-
             <Legend
               wrapperStyle={{
                 paddingTop: "12px",
                 color: "#e2e8f0",
               }}
             />
-
-            {/* ================= LINEA INGRESOS ================= */}
 
             <Line
               yAxisId="ingresos"
@@ -238,8 +208,6 @@ export default function VentaGrafica({
                 r: 7,
               }}
             />
-
-            {/* ================= LINEA VENTAS ================= */}
 
             <Line
               yAxisId="ventas"
@@ -262,11 +230,9 @@ export default function VentaGrafica({
         </ResponsiveContainer>
       </div>
 
-      {/* ================= PIE ================= */}
-
       <p style={styles.rankingFooter}>
-        La gráfica compara los ingresos generados con la
-        cantidad de transacciones realizadas en cada fecha.
+        La gráfica compara los ingresos generados con la cantidad de
+        transacciones realizadas en cada fecha.
       </p>
     </div>
   );

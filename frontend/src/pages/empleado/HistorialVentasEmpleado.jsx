@@ -41,7 +41,16 @@ function HistorialVentasEmpleado() {
       setError("");
 
       const response = await api.get("/empleado/ventas");
-      const data = Array.isArray(response.data) ? response.data : [];
+
+      let data = [];
+
+      if (Array.isArray(response.data)) {
+        data = response.data;
+      } else if (Array.isArray(response.data?.ventas)) {
+        data = response.data.ventas;
+      } else if (Array.isArray(response.data?.data)) {
+        data = response.data.data;
+      }
 
       setVentas(data);
     } catch (err) {
@@ -246,13 +255,28 @@ function HistorialVentasEmpleado() {
   };
 
   const construirImagen = (imagen) => {
-    if (!imagen) return null;
-
-    if (imagen.startsWith("http://") || imagen.startsWith("https://")) {
-      return imagen;
+    if (!imagen || typeof imagen !== "string") {
+      return null;
     }
 
-    return `http://localhost:5000/uploads/${imagen}`;
+    const imagenLimpia = imagen.trim();
+
+    if (!imagenLimpia) {
+      return null;
+    }
+
+    if (
+      imagenLimpia.startsWith("http://") ||
+      imagenLimpia.startsWith("https://")
+    ) {
+      return imagenLimpia;
+    }
+
+    if (imagenLimpia.startsWith("/")) {
+      return `http://localhost:5000${imagenLimpia}`;
+    }
+
+    return `http://localhost:5000/uploads/${imagenLimpia}`;
   };
 
   const obtenerCantidad = (detalle) => {
@@ -378,7 +402,15 @@ function HistorialVentasEmpleado() {
   }, [ventas, busqueda, estadoFiltro, orden]);
 
   const toggleDetalle = (idVenta) => {
-    setVentaAbierta((actual) => (actual === idVenta ? null : idVenta));
+    setVentaAbierta((actual) =>
+      String(actual) === String(idVenta) ? null : idVenta,
+    );
+  };
+
+  const limpiarFiltros = () => {
+    setBusqueda("");
+    setEstadoFiltro("todos");
+    setOrden("recientes");
   };
 
   if (loading) {
@@ -425,6 +457,7 @@ function HistorialVentasEmpleado() {
 
           <div>
             <strong>No se pudo cargar el historial</strong>
+
             <p>{error}</p>
           </div>
         </div>
@@ -571,18 +604,14 @@ function HistorialVentasEmpleado() {
                 <button
                   type="button"
                   style={styles.clearButton}
-                  onClick={() => {
-                    setBusqueda("");
-                    setEstadoFiltro("todos");
-                    setOrden("recientes");
-                  }}
+                  onClick={limpiarFiltros}
                 >
                   Limpiar filtros
                 </button>
               )}
             </div>
           ) : (
-            ventasFiltradas.map((venta) => {
+            ventasFiltradas.map((venta, ventaIndex) => {
               const idVenta = obtenerIdVenta(venta);
               const estado = obtenerEstadoVenta(venta);
               const total = obtenerTotalVenta(venta);
@@ -592,7 +621,7 @@ function HistorialVentasEmpleado() {
               const abierta = String(ventaAbierta) === String(idVenta);
 
               return (
-                <div key={idVenta} style={styles.saleCard}>
+                <div key={`${idVenta}-${ventaIndex}`} style={styles.saleCard}>
                   <div style={styles.saleHeader}>
                     <div style={styles.saleHeaderLeft}>
                       <div style={styles.saleIcon}>
@@ -612,6 +641,7 @@ function HistorialVentasEmpleado() {
 
                     <span style={estiloEstado(estado)}>
                       {iconoEstado(estado)}
+
                       {textoEstado(estado)}
                     </span>
                   </div>
@@ -676,6 +706,7 @@ function HistorialVentasEmpleado() {
                     <div style={styles.detailSection}>
                       <div style={styles.detailTitle}>
                         <FaBoxOpen />
+
                         <span>Productos de la venta</span>
                       </div>
 
@@ -692,9 +723,15 @@ function HistorialVentasEmpleado() {
 
                             const subtotal = obtenerSubtotal(detalle);
 
+                            const producto = obtenerProducto(detalle);
+
                             return (
                               <div
-                                key={detalle?.id || detalle?.idDetalle || index}
+                                key={
+                                  detalle?.id ||
+                                  detalle?.idDetalle ||
+                                  `detalle-${index}`
+                                }
                                 style={styles.productRow}
                               >
                                 <div style={styles.productImageWrapper}>
@@ -707,7 +744,7 @@ function HistorialVentasEmpleado() {
                                         e.currentTarget.style.display = "none";
 
                                         const placeholder =
-                                          e.currentTarget.nextSibling;
+                                          e.currentTarget.nextElementSibling;
 
                                         if (placeholder) {
                                           placeholder.style.display = "flex";
@@ -732,10 +769,8 @@ function HistorialVentasEmpleado() {
                                   </strong>
 
                                   <small style={styles.productNameSmall}>
-                                    {obtenerProducto(detalle)?.id
-                                      ? `Producto #${
-                                          obtenerProducto(detalle).id
-                                        }`
+                                    {producto?.id
+                                      ? `Producto #${producto.id}`
                                       : "Producto vendido"}
                                   </small>
                                 </div>
@@ -833,6 +868,61 @@ function HistorialVentasEmpleado() {
           )}
         </div>
       </div>
+
+      <style>
+        {`
+          @keyframes spin {
+            from {
+              transform: rotate(0deg);
+            }
+            to {
+              transform: rotate(360deg);
+            }
+          }
+
+          @media (max-width: 900px) {
+            .historial-filters {
+              grid-template-columns: 1fr !important;
+            }
+
+            .historial-summary {
+              grid-template-columns: repeat(2, 1fr) !important;
+            }
+
+            .historial-product-row {
+              grid-template-columns: 52px 1fr 1fr !important;
+            }
+          }
+
+          @media (max-width: 600px) {
+            .historial-container {
+              padding: 20px !important;
+            }
+
+            .historial-summary {
+              grid-template-columns: 1fr !important;
+            }
+
+            .historial-product-row {
+              grid-template-columns: 52px 1fr !important;
+            }
+
+            .historial-product-row > div:nth-child(n + 3) {
+              grid-column: span 1;
+            }
+
+            .historial-details-bottom {
+              grid-template-columns: 1fr 1fr !important;
+              gap: 15px 0;
+            }
+
+            .historial-sale-header {
+              align-items: flex-start !important;
+              flex-direction: column !important;
+            }
+          }
+        `}
+      </style>
     </div>
   );
 }

@@ -1,56 +1,101 @@
-import {
-  Link,
-  useNavigate,
-  useLocation
-} from "react-router-dom";
-
-import {
-  useEffect,
-  useState
-} from "react";
-
-import {
-  FaShoppingCart,
-  FaUser,
-  FaSearch
-} from "react-icons/fa";
-
-/* ================= LOGO ================= */
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { FaShoppingCart, FaUser } from "react-icons/fa";
 import logo from "../assets/Logo.png";
 
 export default function PublicNavbar() {
-
   const navigate = useNavigate();
   const location = useLocation();
 
   const [cantidad, setCantidad] = useState(0);
+  const [sesionActualizada, setSesionActualizada] = useState(0);
 
   const token = localStorage.getItem("token");
+  const rol = (localStorage.getItem("rol") || "").toLowerCase().trim();
 
   let usuario = null;
 
   try {
+    const usuarioGuardado = localStorage.getItem("usuario");
 
-    usuario = JSON.parse(
-      localStorage.getItem("usuario")
-    );
-
+    if (usuarioGuardado) {
+      usuario = JSON.parse(usuarioGuardado);
+    }
   } catch {
-
     usuario = null;
-
   }
 
   const nombre = usuario?.nombre || "";
 
-  const rol = usuario?.rol?.toLowerCase() || "";
+  const obtenerClienteId = () => {
+    if (rol !== "cliente") {
+      return null;
+    }
 
-  /* ================= RUTAS SEGUN ROL ================= */
+    const idUsuario =
+      usuario?.id ||
+      usuario?.usuarioId ||
+      usuario?.clienteId ||
+      usuario?.usuario?.id ||
+      usuario?.data?.id ||
+      null;
+
+    if (idUsuario) {
+      const id = Number(idUsuario);
+
+      if (Number.isInteger(id) && id > 0) {
+        return id;
+      }
+    }
+
+    if (!token) {
+      return null;
+    }
+
+    try {
+      const partes = token.split(".");
+
+      if (partes.length < 2) {
+        return null;
+      }
+
+      const base64 = partes[1].replace(/-/g, "+").replace(/_/g, "/");
+
+      const padding = base64.length % 4;
+      const base64Completo =
+        padding === 0 ? base64 : base64 + "=".repeat(4 - padding);
+
+      const payload = JSON.parse(atob(base64Completo));
+
+      const id =
+        payload.id ||
+        payload.usuarioId ||
+        payload.clienteId ||
+        payload.userId ||
+        payload.sub ||
+        null;
+
+      const clienteId = Number(id);
+
+      if (Number.isInteger(clienteId) && clienteId > 0) {
+        return clienteId;
+      }
+    } catch {
+      return null;
+    }
+
+    return null;
+  };
+
+  const clienteId = obtenerClienteId();
+
+  const claveCarrito =
+    rol === "cliente" && clienteId
+      ? `carrito_cliente_${clienteId}`
+      : "carrito_publico";
 
   const rutaInicio = () => {
-
     switch (rol) {
-
       case "administrador":
         return "/admin";
 
@@ -62,15 +107,11 @@ export default function PublicNavbar() {
 
       default:
         return "/";
-
     }
-
   };
 
   const rutaProductos = () => {
-
     switch (rol) {
-
       case "administrador":
         return "/admin/productos";
 
@@ -82,496 +123,354 @@ export default function PublicNavbar() {
 
       default:
         return "/#productos";
-
     }
-
   };
 
-  /* ================= ACTUALIZAR CARRITO ================= */
-
-  const actualizarCarrito = () => {
-
+  const obtenerCarrito = (clave) => {
     try {
+      const carrito = JSON.parse(localStorage.getItem(clave) || "[]");
 
-      const carrito =
-        JSON.parse(
-          localStorage.getItem("carrito")
-        ) || [];
-
-      const total = carrito.reduce(
-        (acc, p) =>
-          acc + (p.cantidad || 0),
-        0
-      );
-
-      setCantidad(total);
-
+      return Array.isArray(carrito) ? carrito : [];
     } catch {
+      return [];
+    }
+  };
 
+  const obtenerCantidadCarrito = (clave) => {
+    const carrito = obtenerCarrito(clave);
+
+    return carrito.reduce(
+      (total, producto) => total + Number(producto.cantidad || 0),
+      0,
+    );
+  };
+
+  const actualizarCantidad = () => {
+    if (!claveCarrito) {
       setCantidad(0);
-
+      return;
     }
 
+    setCantidad(obtenerCantidadCarrito(claveCarrito));
+  };
+
+  const migrarCarritoPublico = (idCliente) => {
+    if (!idCliente) {
+      return;
+    }
+
+    const carritoPublico = obtenerCarrito("carrito_publico");
+
+    if (carritoPublico.length === 0) {
+      return;
+    }
+
+    const claveCliente = `carrito_cliente_${idCliente}`;
+    const carritoCliente = obtenerCarrito(claveCliente);
+
+    const carritoFinal = [...carritoCliente];
+
+    carritoPublico.forEach((productoPublico) => {
+      const productoExistente = carritoFinal.find(
+        (producto) => Number(producto.id) === Number(productoPublico.id),
+      );
+
+      if (productoExistente) {
+        productoExistente.cantidad =
+          Number(productoExistente.cantidad || 0) +
+          Number(productoPublico.cantidad || 0);
+      } else {
+        carritoFinal.push(productoPublico);
+      }
+    });
+
+    localStorage.setItem(claveCliente, JSON.stringify(carritoFinal));
+    localStorage.removeItem("carrito_publico");
+
+    window.dispatchEvent(
+      new CustomEvent("carritoActualizado", {
+        detail: {
+          clave: claveCliente,
+          carrito: carritoFinal,
+        },
+      }),
+    );
   };
 
   useEffect(() => {
+    if (rol === "cliente" && clienteId) {
+      migrarCarritoPublico(clienteId);
+    }
 
-    actualizarCarrito();
+    actualizarCantidad();
+  }, [clienteId, rol, sesionActualizada]);
 
-    window.addEventListener(
-      "storage",
-      actualizarCarrito
-    );
+  useEffect(() => {
+    const manejarCarritoActualizado = (event) => {
+      const claveEvento = event?.detail?.clave;
 
-    window.addEventListener(
-      "carritoActualizado",
-      actualizarCarrito
-    );
+      if (claveEvento === claveCarrito) {
+        const carritoEvento = event?.detail?.carrito;
 
-    return () => {
+        if (Array.isArray(carritoEvento)) {
+          const total = carritoEvento.reduce(
+            (acumulado, producto) => acumulado + Number(producto.cantidad || 0),
+            0,
+          );
 
-      window.removeEventListener(
-        "storage",
-        actualizarCarrito
-      );
+          setCantidad(total);
+          return;
+        }
 
-      window.removeEventListener(
-        "carritoActualizado",
-        actualizarCarrito
-      );
+        actualizarCantidad();
+        return;
+      }
 
+      if (claveEvento === "carrito_publico" && rol === "cliente" && clienteId) {
+        return;
+      }
+
+      if (!claveEvento) {
+        actualizarCantidad();
+      }
     };
 
+    const manejarStorage = (event) => {
+      if (event.key === claveCarrito) {
+        actualizarCantidad();
+      }
+
+      if (event.key === "carrito_publico" && rol !== "cliente") {
+        actualizarCantidad();
+      }
+    };
+
+    window.addEventListener("carritoActualizado", manejarCarritoActualizado);
+
+    window.addEventListener("storage", manejarStorage);
+
+    return () => {
+      window.removeEventListener(
+        "carritoActualizado",
+        manejarCarritoActualizado,
+      );
+
+      window.removeEventListener("storage", manejarStorage);
+    };
+  }, [claveCarrito, clienteId, rol]);
+
+  useEffect(() => {
+    const manejarCambioSesion = () => {
+      setSesionActualizada((prev) => prev + 1);
+    };
+
+    window.addEventListener("usuarioActualizado", manejarCambioSesion);
+    window.addEventListener("storage", manejarCambioSesion);
+
+    return () => {
+      window.removeEventListener("usuarioActualizado", manejarCambioSesion);
+      window.removeEventListener("storage", manejarCambioSesion);
+    };
   }, []);
 
-  /* ================= LOGOUT ================= */
-
   const cerrarSesion = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
+    localStorage.removeItem("rol");
 
-    localStorage.clear();
+    const cantidadPublica = obtenerCantidadCarrito("carrito_publico");
+
+    setCantidad(cantidadPublica);
+
+    window.dispatchEvent(new CustomEvent("usuarioActualizado"));
 
     navigate("/", {
-      replace: true
+      replace: true,
     });
-
   };
 
-  /* ================= LINKS ================= */
+  const irAlCarrito = () => {
+    navigate("/cliente/carrito");
+  };
 
   const linkStyle = (path) => ({
-
-    color:
-      location.pathname === path
-        ? "#a855f7"
-        : "#ffffff",
-
+    color: location.pathname === path ? "#a855f7" : "#ffffff",
     textDecoration: "none",
-
-    fontWeight: "500",
-
+    fontWeight: "600",
     fontSize: "15px",
-
-    transition: "0.3s"
-
+    transition: "0.3s",
   });
 
   return (
-
     <nav style={styles.nav}>
+      <div style={styles.logoContainer} onClick={() => navigate(rutaInicio())}>
+        <img src={logo} alt="ModaGest Pro" style={styles.logoImage} />
 
-      {/* ================= LOGO ================= */}
-
-      <div
-        style={styles.logoContainer}
-        onClick={() =>
-          navigate(rutaInicio())
-        }
-      >
-
-        {/* LOGO */}
-        <img
-          src={logo}
-          alt="ModaGest Pro"
-          style={styles.logoImage}
-        />
-
-        <h2 style={styles.logoText}>
-          ModaGest Pro
-        </h2>
-
+        <h2 style={styles.logoText}>ModaGest Pro</h2>
       </div>
 
-      {/* ================= MENU ================= */}
-
       <div style={styles.menu}>
-
-        <Link
-          to={rutaInicio()}
-          style={linkStyle(rutaInicio())}
-        >
+        <Link to={rutaInicio()} style={linkStyle(rutaInicio())}>
           Inicio
         </Link>
 
-        <Link
-          to={rutaProductos()}
-          style={styles.link}
-        >
+        <Link to={rutaProductos()} style={linkStyle(rutaProductos())}>
           Productos
         </Link>
-
       </div>
-
-      {/* ================= DERECHA ================= */}
 
       <div style={styles.right}>
-
-        {/* ================= SEARCH ================= */}
-
-        <div style={styles.searchBox}>
-
-          <FaSearch
-            size={14}
-            color="#9ca3af"
-          />
-
-          <input
-            type="text"
-            placeholder="Buscar..."
-            style={styles.searchInput}
-          />
-
-        </div>
-
-        {/* ================= CARRITO ================= */}
-
-        <div
+        <button
+          type="button"
           style={styles.cart}
-          onClick={() =>
-            navigate("/carrito")
-          }
+          onClick={irAlCarrito}
+          aria-label="Ver carrito"
         >
-
           <FaShoppingCart size={20} />
 
-          {cantidad > 0 && (
-
-            <span style={styles.badge}>
-              {cantidad}
-            </span>
-
-          )}
-
-        </div>
-
-        {/* ================= USUARIO ================= */}
+          {cantidad > 0 && <span style={styles.badge}>{cantidad}</span>}
+        </button>
 
         {token && (
-
           <div style={styles.userBox}>
-
             <FaUser />
 
-            <span>
-              {nombre}
-            </span>
-
+            <span>{nombre}</span>
           </div>
-
         )}
-
-        {/* ================= LOGIN / LOGOUT ================= */}
 
         {!token ? (
-
           <button
-            onClick={() =>
-              navigate("/login")
-            }
+            type="button"
+            onClick={() => navigate("/login")}
             style={styles.loginBtn}
           >
-
             Iniciar sesión
-
           </button>
-
         ) : (
-
-          <button
-            onClick={cerrarSesion}
-            style={styles.logoutBtn}
-          >
-
+          <button type="button" onClick={cerrarSesion} style={styles.logoutBtn}>
             Cerrar sesión
-
           </button>
-
         )}
-
       </div>
-
     </nav>
-
   );
-
 }
 
-/* ================= ESTILOS ================= */
-
 const styles = {
-
   nav: {
-
     position: "sticky",
-
     top: 0,
-
     zIndex: 999,
-
     width: "100%",
-
+    boxSizing: "border-box",
     display: "flex",
-
     justifyContent: "space-between",
-
     alignItems: "center",
-
     padding: "16px 40px",
-
-    background:
-      "rgba(5, 5, 15, 0.92)",
-
+    background: "rgba(5, 5, 15, 0.92)",
     backdropFilter: "blur(12px)",
-
-    borderBottom:
-      "1px solid rgba(255,255,255,0.08)"
-
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
   },
 
-  /* ================= LOGO ================= */
-
   logoContainer: {
-
     display: "flex",
-
     alignItems: "center",
-
     gap: "16px",
-
-    cursor: "pointer"
-
+    cursor: "pointer",
   },
 
   logoImage: {
-
     width: "78px",
-
     height: "78px",
-
     objectFit: "cover",
-
     borderRadius: "18px",
-
     background: "transparent",
-
     transform: "scale(1.35)",
-
-    filter:
-      "drop-shadow(0 0 12px rgba(168,85,247,0.55))"
-
+    filter: "drop-shadow(0 0 12px rgba(168,85,247,0.55))",
   },
 
   logoText: {
-
     color: "#fff",
-
     margin: 0,
-
     fontSize: "36px",
-
     fontWeight: "700",
-
-    letterSpacing: "0.5px"
-
+    letterSpacing: "0.5px",
   },
-
-  /* ================= MENU ================= */
 
   menu: {
-
     display: "flex",
-
-    gap: "30px"
-
+    gap: "30px",
   },
-
-  link: {
-
-    textDecoration: "none",
-
-    color: "#e5e7eb",
-
-    fontWeight: "500",
-
-    transition: "0.3s"
-
-  },
-
-  /* ================= DERECHA ================= */
 
   right: {
-
     display: "flex",
-
     alignItems: "center",
-
-    gap: "18px"
-
+    gap: "18px",
   },
-
-  searchBox: {
-
-    display: "flex",
-
-    alignItems: "center",
-
-    gap: "10px",
-
-    background:
-      "rgba(255,255,255,0.06)",
-
-    padding: "10px 14px",
-
-    borderRadius: "14px",
-
-    border:
-      "1px solid rgba(255,255,255,0.08)"
-
-  },
-
-  searchInput: {
-
-    background: "transparent",
-
-    border: "none",
-
-    outline: "none",
-
-    color: "#fff",
-
-    width: "160px"
-
-  },
-
-  /* ================= CARRITO ================= */
 
   cart: {
-
     position: "relative",
-
-    cursor: "pointer",
-
+    width: "40px",
+    height: "40px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 0,
+    border: "none",
+    background: "transparent",
     color: "#fff",
-
-    transition: "0.3s"
-
+    cursor: "pointer",
   },
 
   badge: {
-
     position: "absolute",
-
-    top: "-10px",
-
-    right: "-10px",
-
-    background:
-      "linear-gradient(135deg, #a855f7, #7c3aed)",
-
+    top: "-5px",
+    right: "-5px",
+    background: "linear-gradient(135deg, #a855f7, #7c3aed)",
     color: "#fff",
-
     borderRadius: "50%",
-
     minWidth: "20px",
-
     height: "20px",
-
+    padding: "0 4px",
+    boxSizing: "border-box",
     display: "flex",
-
     alignItems: "center",
-
     justifyContent: "center",
-
     fontSize: "11px",
-
-    fontWeight: "bold"
-
+    fontWeight: "bold",
   },
-
-  /* ================= USER ================= */
 
   userBox: {
-
     display: "flex",
-
     alignItems: "center",
-
     gap: "8px",
-
     color: "#fff",
-
-    background:
-      "rgba(255,255,255,0.06)",
-
+    background: "rgba(255,255,255,0.06)",
     padding: "10px 14px",
-
-    borderRadius: "12px"
-
+    borderRadius: "12px",
+    fontSize: "13px",
+    fontWeight: "600",
   },
 
-  /* ================= BOTONES ================= */
-
   loginBtn: {
-
-    background:
-      "linear-gradient(135deg, #7c3aed, #9333ea)",
-
+    background: "linear-gradient(135deg, #7c3aed, #9333ea)",
     color: "#fff",
-
     border: "none",
-
     padding: "12px 18px",
-
     borderRadius: "12px",
-
     fontWeight: "600",
-
     cursor: "pointer",
-
-    transition: "0.3s",
-
-    boxShadow:
-      "0 0 20px rgba(168,85,247,0.3)"
-
+    boxShadow: "0 0 20px rgba(168,85,247,0.3)",
   },
 
   logoutBtn: {
-
-    background:
-      "rgba(239,68,68,0.15)",
-
+    background: "rgba(239,68,68,0.15)",
     color: "#ef4444",
-
-    border:
-      "1px solid rgba(239,68,68,0.4)",
-
+    border: "1px solid rgba(239,68,68,0.4)",
     padding: "12px 18px",
-
     borderRadius: "12px",
-
     fontWeight: "600",
-
-    cursor: "pointer"
-
-  }
-
+    cursor: "pointer",
+  },
 };

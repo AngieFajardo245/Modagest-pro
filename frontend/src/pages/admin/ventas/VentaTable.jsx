@@ -1,10 +1,12 @@
 import React from "react";
 
 export default function VentaTable({
-  ventasFiltradas,
+  ventasFiltradas = [],
   formatoMoneda,
   styles,
   abrirModal,
+  obtenerNombreCliente,
+  obtenerEmailCliente,
 }) {
   const obtenerEstadoColor = (estado) => {
     switch ((estado || "").toLowerCase()) {
@@ -22,6 +24,44 @@ export default function VentaTable({
     }
   };
 
+  const obtenerFecha = (fecha) => {
+    if (!fecha) {
+      return {
+        fecha: "Sin fecha",
+        hora: "",
+      };
+    }
+
+    const fechaObj = new Date(fecha);
+
+    if (Number.isNaN(fechaObj.getTime())) {
+      return {
+        fecha: "Sin fecha",
+        hora: "",
+      };
+    }
+
+    return {
+      fecha: fechaObj.toLocaleDateString("es-CO", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+      hora: fechaObj.toLocaleTimeString("es-CO", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+  };
+
+  const obtenerTotal = (total) => {
+    if (typeof formatoMoneda === "function") {
+      return formatoMoneda(total);
+    }
+
+    return `$${Number(total || 0).toLocaleString("es-CO")}`;
+  };
+
   return (
     <table style={styles.table}>
       <thead>
@@ -37,103 +77,112 @@ export default function VentaTable({
       </thead>
 
       <tbody>
-        {ventasFiltradas.map((venta) => (
-          <tr
-            key={venta.id}
-            style={styles.tr}
-            onClick={() => abrirModal(venta)}
-          >
-            <td style={styles.td}>#{String(venta.id).padStart(5, "0")}</td>
+        {ventasFiltradas.map((venta) => {
+          const nombreCliente = obtenerNombreCliente
+            ? obtenerNombreCliente(venta)
+            : venta.Cliente?.nombre || "Cliente General";
 
-            <td style={styles.td}>
-              <div style={styles.userInfo}>
-                <div style={styles.avatar}>
-                  {venta.Cliente?.nombre?.charAt(0)?.toUpperCase() || "C"}
+          const emailCliente = obtenerEmailCliente
+            ? obtenerEmailCliente(venta)
+            : venta.Cliente?.email || "Sin correo";
+
+          const detalles = Array.isArray(venta.Detalles) ? venta.Detalles : [];
+
+          const estado = venta.Pago?.estado || "Sin estado";
+          const metodoPago = venta.Pago?.metodoPago || "Sin pago";
+          const fecha = obtenerFecha(venta.createdAt);
+
+          return (
+            <tr
+              key={venta.id}
+              style={styles.tr}
+              onClick={() => abrirModal?.(venta)}
+            >
+              <td style={styles.td}>#{String(venta.id).padStart(5, "0")}</td>
+
+              <td style={styles.td}>
+                <div style={styles.userInfo}>
+                  <div style={styles.avatar}>
+                    {nombreCliente.charAt(0).toUpperCase()}
+                  </div>
+
+                  <div>
+                    <strong>{nombreCliente}</strong>
+
+                    <p style={styles.email}>{emailCliente}</p>
+                  </div>
                 </div>
+              </td>
 
-                <div>
-                  <strong>{venta.Cliente?.nombre || "Cliente General"}</strong>
+              <td style={styles.td}>
+                <div style={styles.productsBox}>
+                  {detalles.length > 0 ? (
+                    detalles.map((detalle, index) => {
+                      const nombreProducto =
+                        detalle.Producto?.nombre || "Producto eliminado";
 
-                  <p style={styles.email}>
-                    {venta.Cliente?.email || "Sin correo"}
-                  </p>
-                </div>
-              </div>
-            </td>
+                      const cantidad = Number(detalle.cantidad || 0);
 
-            <td style={styles.td}>
-              <div style={styles.productsBox}>
-                {venta.Detalles?.length > 0 ? (
-                  venta.Detalles.map((detalle, index) => (
-                    <div key={detalle.id || index} style={styles.productItem}>
-                      <span style={styles.productName}>
-                        📦 {detalle.Producto?.nombre || "Producto eliminado"}
-                      </span>
+                      return (
+                        <div
+                          key={
+                            detalle.id ||
+                            `${venta.id}-${detalle.Producto?.id || "producto"}-${index}`
+                          }
+                          style={styles.productItem}
+                        >
+                          <span style={styles.productName}>
+                            📦 {nombreProducto}
+                          </span>
 
-                      <span style={styles.productQty}>
-                        × {detalle.cantidad}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <span style={styles.email}>Sin productos</span>
-                )}
-              </div>
-            </td>
-
-            <td style={styles.td}>
-              <span
-                style={{
-                  ...styles.estadoBadge,
-                  ...obtenerEstadoColor(venta.Pago?.estado),
-                }}
-              >
-                {venta.Pago?.estado || "Sin estado"}
-              </span>
-
-              <div style={styles.metodoPago}>
-                💳 {venta.Pago?.metodoPago || "Sin pago"}
-              </div>
-            </td>
-
-            <td style={styles.total}>{formatoMoneda(venta.total)}</td>
-
-            <td style={styles.td}>
-              <div style={styles.fecha}>
-                {venta.createdAt
-                  ? new Date(venta.createdAt).toLocaleDateString("es-CO", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
+                          <span style={styles.productQty}>× {cantidad}</span>
+                        </div>
+                      );
                     })
-                  : "Sin fecha"}
-              </div>
-
-              {venta.createdAt && (
-                <div style={styles.hora}>
-                  {new Date(venta.createdAt).toLocaleTimeString("es-CO", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  ) : (
+                    <span style={styles.email}>Sin productos</span>
+                  )}
                 </div>
-              )}
-            </td>
+              </td>
 
-            <td style={styles.td}>
-              <button
-                type="button"
-                style={styles.viewBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  abrirModal(venta);
-                }}
-                title={`Ver detalle de la venta #${venta.id}`}
-              >
-                👁️ Ver detalle
-              </button>
-            </td>
-          </tr>
-        ))}
+              <td style={styles.td}>
+                <span
+                  style={{
+                    ...styles.estadoBadge,
+                    ...obtenerEstadoColor(estado),
+                  }}
+                >
+                  {estado}
+                </span>
+
+                <div style={styles.metodoPago}>💳 {metodoPago}</div>
+              </td>
+
+              <td style={styles.total}>{obtenerTotal(venta.total)}</td>
+
+              <td style={styles.td}>
+                <div style={styles.fecha}>{fecha.fecha}</div>
+
+                {fecha.hora && <div style={styles.hora}>{fecha.hora}</div>}
+              </td>
+
+              <td style={styles.td}>
+                <button
+                  type="button"
+                  style={styles.viewBtn}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    abrirModal?.(venta);
+                  }}
+                  title={`Ver detalle de la venta #${venta.id}`}
+                  aria-label={`Ver detalle de la venta #${venta.id}`}
+                >
+                  👁️ Ver detalle
+                </button>
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );

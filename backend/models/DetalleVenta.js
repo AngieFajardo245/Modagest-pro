@@ -13,6 +13,12 @@ const DetalleVenta = sequelize.define(
     ventaId: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      references: {
+        model: "ventas",
+        key: "id",
+      },
+      onUpdate: "CASCADE",
+      onDelete: "CASCADE",
       validate: {
         isInt: {
           msg: "ventaId debe ser numérico",
@@ -23,6 +29,12 @@ const DetalleVenta = sequelize.define(
     productoId: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      references: {
+        model: "productos",
+        key: "id",
+      },
+      onUpdate: "CASCADE",
+      onDelete: "RESTRICT",
       validate: {
         isInt: {
           msg: "productoId debe ser numérico",
@@ -34,12 +46,12 @@ const DetalleVenta = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false,
       validate: {
+        isInt: {
+          msg: "La cantidad debe ser un número entero",
+        },
         min: {
           args: [1],
           msg: "La cantidad mínima es 1",
-        },
-        isInt: {
-          msg: "La cantidad debe ser un número entero",
         },
       },
     },
@@ -48,6 +60,9 @@ const DetalleVenta = sequelize.define(
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
       validate: {
+        isDecimal: {
+          msg: "El precio debe ser un valor numérico válido",
+        },
         min: {
           args: [0],
           msg: "El precio no puede ser negativo",
@@ -55,6 +70,7 @@ const DetalleVenta = sequelize.define(
       },
       get() {
         const value = this.getDataValue("precio");
+
         return value !== null && value !== undefined ? Number(value) : 0;
       },
     },
@@ -63,6 +79,9 @@ const DetalleVenta = sequelize.define(
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
       validate: {
+        isDecimal: {
+          msg: "El subtotal debe ser un valor numérico válido",
+        },
         min: {
           args: [0],
           msg: "El subtotal no puede ser negativo",
@@ -70,6 +89,7 @@ const DetalleVenta = sequelize.define(
       },
       get() {
         const value = this.getDataValue("subtotal");
+
         return value !== null && value !== undefined ? Number(value) : 0;
       },
     },

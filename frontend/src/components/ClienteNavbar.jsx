@@ -24,25 +24,97 @@ export default function ClienteNavbar() {
 
       if (!usuarioStorage) {
         setUsuario(null);
-        return;
+        return null;
       }
 
       const usuarioParseado = JSON.parse(usuarioStorage);
 
       if (!usuarioParseado || typeof usuarioParseado !== "object") {
         setUsuario(null);
-        return;
+        return null;
       }
 
       setUsuario(usuarioParseado);
-    } catch {
+
+      return usuarioParseado;
+    } catch (error) {
+      console.error("Error leyendo usuario:", error);
       setUsuario(null);
+      return null;
     }
+  };
+
+  const obtenerClienteId = (usuarioActual = null) => {
+    try {
+      const usuarioStorage =
+        usuarioActual || JSON.parse(localStorage.getItem("usuario") || "null");
+
+      if (usuarioStorage && typeof usuarioStorage === "object") {
+        const id =
+          usuarioStorage?.id ||
+          usuarioStorage?.usuarioId ||
+          usuarioStorage?.clienteId ||
+          usuarioStorage?.usuario?.id ||
+          usuarioStorage?.data?.id;
+
+        if (id && Number.isInteger(Number(id)) && Number(id) > 0) {
+          return Number(id);
+        }
+      }
+    } catch (error) {
+      console.error("Error obteniendo cliente:", error);
+    }
+
+    const token = localStorage.getItem("token");
+
+    if (token) {
+      try {
+        const partes = token.split(".");
+
+        if (partes.length >= 2) {
+          const base64 = partes[1].replace(/-/g, "+").replace(/_/g, "/");
+
+          const payload = JSON.parse(atob(base64));
+
+          const id =
+            payload?.id ||
+            payload?.usuarioId ||
+            payload?.clienteId ||
+            payload?.userId ||
+            payload?.sub;
+
+          if (id && Number.isInteger(Number(id)) && Number(id) > 0) {
+            return Number(id);
+          }
+        }
+      } catch (error) {
+        console.error("Error obteniendo cliente desde token:", error);
+      }
+    }
+
+    return null;
+  };
+
+  const obtenerClaveCarrito = () => {
+    const clienteId = obtenerClienteId(usuario);
+
+    if (clienteId && Number.isInteger(clienteId) && clienteId > 0) {
+      return `carrito_cliente_${clienteId}`;
+    }
+
+    return null;
   };
 
   const actualizarCarrito = () => {
     try {
-      const carritoStorage = localStorage.getItem("carrito");
+      const claveCarrito = obtenerClaveCarrito();
+
+      if (!claveCarrito) {
+        setCantidad(0);
+        return;
+      }
+
+      const carritoStorage = localStorage.getItem(claveCarrito);
 
       if (!carritoStorage) {
         setCantidad(0);
@@ -59,42 +131,94 @@ export default function ClienteNavbar() {
       const total = carrito.reduce((acc, producto) => {
         const cantidadProducto = Number(producto?.cantidad || 0);
 
-        return acc + (Number.isFinite(cantidadProducto) ? cantidadProducto : 0);
+        return (
+          acc +
+          (Number.isFinite(cantidadProducto) && cantidadProducto > 0
+            ? cantidadProducto
+            : 0)
+        );
       }, 0);
 
       setCantidad(total);
-    } catch {
+    } catch (error) {
+      console.error("Error actualizando contador del carrito:", error);
       setCantidad(0);
     }
   };
 
   useEffect(() => {
-    obtenerUsuario();
-    actualizarCarrito();
+    const usuarioActual = obtenerUsuario();
 
-    const actualizarDatos = () => {
+    if (usuarioActual) {
+      actualizarCarrito();
+    } else {
+      setCantidad(0);
+    }
+
+    const actualizarDatos = (event) => {
+      const clienteIdActual = obtenerClienteId(usuario);
+
+      const claveActual =
+        clienteIdActual &&
+        Number.isInteger(clienteIdActual) &&
+        clienteIdActual > 0
+          ? `carrito_cliente_${clienteIdActual}`
+          : null;
+
+      if (event?.type === "carritoActualizado") {
+        const claveEvento =
+          event?.detail?.clave || event?.detail?.claveCarrito || null;
+
+        if (claveEvento && claveActual && claveEvento !== claveActual) {
+          return;
+        }
+
+        if (claveEvento && !claveActual) {
+          setCantidad(0);
+          return;
+        }
+      }
+
       obtenerUsuario();
       actualizarCarrito();
     };
 
+    const manejarStorage = (event) => {
+      const claveActual = obtenerClaveCarrito();
+
+      if (!claveActual) {
+        setCantidad(0);
+        return;
+      }
+
+      if (event.key !== claveActual) {
+        return;
+      }
+
+      actualizarCarrito();
+    };
+
     window.addEventListener("carritoActualizado", actualizarDatos);
-    window.addEventListener("storage", actualizarDatos);
+    window.addEventListener("storage", manejarStorage);
 
     return () => {
       window.removeEventListener("carritoActualizado", actualizarDatos);
-      window.removeEventListener("storage", actualizarDatos);
+      window.removeEventListener("storage", manejarStorage);
     };
-  }, []);
+  }, [location.pathname]);
 
   useEffect(() => {
     actualizarCarrito();
-  }, [location.pathname]);
+  }, [usuario]);
 
   const cerrarSesion = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("usuario");
     localStorage.removeItem("rol");
     localStorage.removeItem("redirectAfterLogin");
+
+    setUsuario(null);
+    setCantidad(0);
 
     navigate("/", { replace: true });
   };
@@ -157,7 +281,9 @@ export default function ClienteNavbar() {
             ...styles.cart,
             ...(carritoActivo ? styles.cartActive : {}),
           }}
-          aria-label={`Carrito de compras${cantidad > 0 ? `, ${cantidad} productos` : ""}`}
+          aria-label={`Carrito de compras${
+            cantidad > 0 ? `, ${cantidad} productos` : ""
+          }`}
         >
           <FaShoppingCart size={18} />
 

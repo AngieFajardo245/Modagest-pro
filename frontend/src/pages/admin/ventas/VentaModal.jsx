@@ -17,6 +17,28 @@ export default function VentaModal({
     0,
   );
 
+  const obtenerNombreCliente = () => {
+    if (
+      ventaSeleccionada.clienteId === null ||
+      ventaSeleccionada.clienteId === undefined
+    ) {
+      return "Cliente General";
+    }
+
+    return ventaSeleccionada.Cliente?.nombre || "Cliente eliminado";
+  };
+
+  const obtenerEmailCliente = () => {
+    if (
+      ventaSeleccionada.clienteId === null ||
+      ventaSeleccionada.clienteId === undefined
+    ) {
+      return "cliente@modagest.com";
+    }
+
+    return ventaSeleccionada.Cliente?.email || "Sin correo";
+  };
+
   const obtenerEstado = (estado) => {
     switch ((estado || "").toLowerCase()) {
       case "aprobado":
@@ -49,11 +71,43 @@ export default function VentaModal({
     }
   };
 
-  const estadoPago = obtenerEstado(ventaSeleccionada.Pago?.estado);
+  const obtenerFecha = (fecha) => {
+    if (!fecha) return "Sin fecha registrada";
 
-  const fechaVenta = ventaSeleccionada.createdAt
-    ? new Date(ventaSeleccionada.createdAt).toLocaleString("es-CO")
-    : "Sin fecha registrada";
+    const fechaObj = new Date(fecha);
+
+    if (Number.isNaN(fechaObj.getTime())) {
+      return "Sin fecha registrada";
+    }
+
+    return fechaObj.toLocaleString("es-CO");
+  };
+
+  const formatearMoneda = (valor) => {
+    if (typeof formatoMoneda === "function") {
+      return formatoMoneda(valor);
+    }
+
+    return `$${Number(valor || 0).toLocaleString("es-CO")}`;
+  };
+
+  const obtenerSubtotal = (detalle) => {
+    const subtotal = Number(detalle.subtotal);
+
+    if (Number.isFinite(subtotal) && subtotal > 0) {
+      return subtotal;
+    }
+
+    const precio = Number(detalle.precio || 0);
+    const cantidad = Number(detalle.cantidad || 0);
+
+    return precio * cantidad;
+  };
+
+  const estadoPago = obtenerEstado(ventaSeleccionada.Pago?.estado);
+  const nombreCliente = obtenerNombreCliente();
+  const emailCliente = obtenerEmailCliente();
+  const fechaVenta = obtenerFecha(ventaSeleccionada.createdAt);
 
   return (
     <div style={styles.modalOverlay} onClick={cerrarModal} role="presentation">
@@ -90,13 +144,11 @@ export default function VentaModal({
           <h3>👤 Cliente</h3>
 
           <p>
-            <strong>Nombre:</strong>{" "}
-            {ventaSeleccionada.Cliente?.nombre || "Cliente General"}
+            <strong>Nombre:</strong> {nombreCliente}
           </p>
 
           <p>
-            <strong>Email:</strong>{" "}
-            {ventaSeleccionada.Cliente?.email || "Sin correo"}
+            <strong>Email:</strong> {emailCliente}
           </p>
 
           <p>
@@ -118,29 +170,30 @@ export default function VentaModal({
           ) : (
             detalles.map((detalle, index) => {
               const precio = Number(detalle.precio || 0);
-              const subtotal = Number(detalle.subtotal || 0);
               const cantidad = Number(detalle.cantidad || 0);
+              const subtotal = obtenerSubtotal(detalle);
+
+              const nombreProducto =
+                detalle.Producto?.nombre || "Producto eliminado";
 
               return (
                 <div
                   key={
                     detalle.id ||
-                    `${detalle.Producto?.id || "producto"}-${index}`
+                    `${ventaSeleccionada.id}-${detalle.Producto?.id || "producto"}-${index}`
                   }
                   style={styles.modalProduct}
                 >
                   <div style={styles.productHeader}>
-                    <strong>
-                      {detalle.Producto?.nombre || "Producto eliminado"}
-                    </strong>
+                    <strong>{nombreProducto}</strong>
 
                     <span style={styles.productQuantity}>x{cantidad}</span>
                   </div>
 
                   <div style={styles.productInfo}>
-                    <span>Precio: {formatoMoneda(precio)}</span>
+                    <span>Precio: {formatearMoneda(precio)}</span>
 
-                    <span>Subtotal: {formatoMoneda(subtotal)}</span>
+                    <span>Subtotal: {formatearMoneda(subtotal)}</span>
                   </div>
                 </div>
               );
@@ -178,7 +231,7 @@ export default function VentaModal({
         <div style={styles.modalTotal}>
           <span>Total de la Venta</span>
 
-          <h2>{formatoMoneda(ventaSeleccionada.total)}</h2>
+          <h2>{formatearMoneda(ventaSeleccionada.total)}</h2>
         </div>
       </div>
     </div>

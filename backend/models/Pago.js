@@ -13,6 +13,12 @@ const Pago = sequelize.define(
     ventaId: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      references: {
+        model: "ventas",
+        key: "id",
+      },
+      onUpdate: "CASCADE",
+      onDelete: "CASCADE",
       validate: {
         isInt: {
           msg: "ventaId debe ser numérico",
@@ -27,6 +33,10 @@ const Pago = sequelize.define(
         notEmpty: {
           msg: "El método de pago es obligatorio",
         },
+        isIn: {
+          args: [["Tarjeta", "PSE", "Nequi", "Contra Entrega", "efectivo"]],
+          msg: "El método de pago no es válido",
+        },
       },
     },
 
@@ -37,6 +47,10 @@ const Pago = sequelize.define(
       validate: {
         notEmpty: {
           msg: "El estado del pago es obligatorio",
+        },
+        isIn: {
+          args: [["pendiente", "aprobado", "rechazado", "cancelado"]],
+          msg: "El estado del pago no es válido",
         },
       },
     },
@@ -50,6 +64,9 @@ const Pago = sequelize.define(
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
       validate: {
+        isDecimal: {
+          msg: "El monto debe ser un valor numérico válido",
+        },
         min: {
           args: [0],
           msg: "El monto no puede ser negativo",
@@ -57,6 +74,7 @@ const Pago = sequelize.define(
       },
       get() {
         const value = this.getDataValue("monto");
+
         return value !== null && value !== undefined ? Number(value) : 0;
       },
     },

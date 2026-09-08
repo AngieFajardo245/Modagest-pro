@@ -1,11 +1,8 @@
 const styles = {
-  /* ================= CONTENEDOR ========================= */
-
   container: {
     width: "100%",
+    boxSizing: "border-box",
   },
-
-  /* ================= HEADER ============================= */
 
   header: {
     marginBottom: "30px",
@@ -33,6 +30,7 @@ const styles = {
     fontWeight: "600",
     fontSize: "14px",
     transition: ".3s",
+    whiteSpace: "nowrap",
   },
 
   pdfBtn: {
@@ -45,6 +43,7 @@ const styles = {
     fontWeight: "600",
     fontSize: "14px",
     transition: ".3s",
+    whiteSpace: "nowrap",
   },
 
   refreshBtn: {
@@ -57,6 +56,7 @@ const styles = {
     fontWeight: "600",
     fontSize: "14px",
     transition: ".3s",
+    whiteSpace: "nowrap",
   },
 
   title: {
@@ -68,10 +68,10 @@ const styles = {
 
   subtitle: {
     marginTop: "8px",
+    marginBottom: 0,
     color: "#cbd5e1",
+    fontSize: "15px",
   },
-
-  /* ================= TARJETAS =========================== */
 
   statsGrid: {
     display: "grid",
@@ -88,6 +88,7 @@ const styles = {
     backdropFilter: "blur(12px)",
     boxShadow: "0 10px 25px rgba(0,0,0,.25)",
     transition: ".3s",
+    minWidth: 0,
   },
 
   statIcon: {
@@ -97,6 +98,7 @@ const styles = {
 
   statTitle: {
     marginTop: "14px",
+    marginBottom: 0,
     color: "#e2e8f0",
     fontSize: "15px",
     fontWeight: "600",
@@ -104,10 +106,12 @@ const styles = {
   },
 
   statValue: {
-    fontSize: "32px",
+    fontSize: "30px",
     fontWeight: "800",
     marginTop: "10px",
+    marginBottom: 0,
     color: "#ffffff",
+    overflowWrap: "anywhere",
   },
 
   statDescription: {
@@ -119,12 +123,11 @@ const styles = {
     opacity: 0.85,
   },
 
-  /* ================= FILTROS ============================ */
-
   filters: {
     display: "flex",
     gap: "15px",
     flexWrap: "wrap",
+    alignItems: "flex-end",
     marginBottom: "25px",
     background: "rgba(255,255,255,0.05)",
     border: "1px solid rgba(255,255,255,0.08)",
@@ -138,6 +141,7 @@ const styles = {
     flexDirection: "column",
     gap: "6px",
     minWidth: "180px",
+    flex: "1 1 180px",
   },
 
   filterLabel: {
@@ -149,29 +153,34 @@ const styles = {
 
   filterButtons: {
     display: "flex",
-    alignItems: "flex-end",
+    alignItems: "center",
     gap: "10px",
     flexWrap: "wrap",
+    flex: "0 0 auto",
   },
 
   searchInput: {
-    flex: 1,
-    minWidth: "260px",
+    width: "100%",
+    boxSizing: "border-box",
     padding: "14px",
     borderRadius: "14px",
     border: "1px solid rgba(255,255,255,.15)",
     background: "rgba(255,255,255,.08)",
     color: "#fff",
     outline: "none",
+    fontSize: "14px",
   },
 
   dateInput: {
+    width: "100%",
+    boxSizing: "border-box",
     padding: "14px",
     borderRadius: "14px",
     border: "1px solid rgba(255,255,255,.15)",
     background: "rgba(255,255,255,.08)",
     color: "#fff",
     outline: "none",
+    fontSize: "14px",
   },
 
   filterBtn: {
@@ -182,6 +191,8 @@ const styles = {
     borderRadius: "14px",
     cursor: "pointer",
     fontWeight: "600",
+    fontSize: "14px",
+    whiteSpace: "nowrap",
   },
 
   resetBtn: {
@@ -192,44 +203,8 @@ const styles = {
     borderRadius: "14px",
     cursor: "pointer",
     fontWeight: "600",
-  },
-
-  /* ================= TABLA ============================= */
-
-  tableContainer: {
-    background: "rgba(255,255,255,0.05)",
-    borderRadius: "24px",
-    overflowX: "auto",
-    border: "1px solid rgba(255,255,255,.08)",
-    backdropFilter: "blur(14px)",
-  },
-
-  pagination: {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: "18px",
-    padding: "20px",
-    borderTop: "1px solid rgba(255,255,255,.08)",
-    flexWrap: "wrap",
-  },
-
-  paginationBtn: {
-    background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
-    color: "#fff",
-    border: "none",
-    padding: "10px 16px",
-    borderRadius: "10px",
-    cursor: "pointer",
-    fontWeight: "600",
-    fontSize: "13px",
-    transition: ".25s",
-  },
-
-  paginationInfo: {
-    color: "#e2e8f0",
     fontSize: "14px",
-    fontWeight: "600",
+    whiteSpace: "nowrap",
   },
 
   paginationControls: {
@@ -259,17 +234,37 @@ const styles = {
     fontWeight: "600",
   },
 
+  tableContainer: {
+    width: "100%",
+    background: "rgba(255,255,255,0.05)",
+    borderRadius: "24px",
+    overflowX: "auto",
+    overflowY: "hidden",
+    border: "1px solid rgba(255,255,255,.08)",
+    backdropFilter: "blur(14px)",
+    WebkitOverflowScrolling: "touch",
+  },
+
   table: {
     width: "100%",
+    minWidth: "1050px",
     borderCollapse: "collapse",
+    borderSpacing: 0,
+  },
+
+  thead: {
+    background: "rgba(15,23,42,.95)",
   },
 
   th: {
-    background: "rgba(15,23,42,.9)",
-    color: "#fff",
-    padding: "18px",
+    background: "rgba(15,23,42,.95)",
+    color: "#ffffff",
+    padding: "16px 18px",
     textAlign: "left",
     fontWeight: "600",
+    fontSize: "13px",
+    whiteSpace: "nowrap",
+    borderBottom: "1px solid rgba(255,255,255,.10)",
   },
 
   tr: {
@@ -278,41 +273,48 @@ const styles = {
   },
 
   td: {
-    padding: "18px",
+    padding: "16px 18px",
     borderBottom: "1px solid rgba(255,255,255,.08)",
     color: "#e2e8f0",
     verticalAlign: "top",
+    fontSize: "14px",
   },
 
   total: {
-    padding: "18px",
+    padding: "16px 18px",
     borderBottom: "1px solid rgba(255,255,255,.08)",
     color: "#22c55e",
     fontWeight: "800",
+    fontSize: "15px",
+    whiteSpace: "nowrap",
   },
 
   userInfo: {
     display: "flex",
     alignItems: "center",
-    gap: "14px",
+    gap: "12px",
+    minWidth: "190px",
   },
 
   avatar: {
-    width: "48px",
-    height: "48px",
+    width: "44px",
+    height: "44px",
+    minWidth: "44px",
     borderRadius: "50%",
     background: "linear-gradient(135deg,#8b5cf6,#7c3aed)",
     color: "#fff",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    fontWeight: "bold",
+    fontWeight: "700",
+    fontSize: "16px",
   },
 
   email: {
-    margin: 0,
+    margin: "4px 0 0",
     color: "#94a3b8",
-    fontSize: "13px",
+    fontSize: "12px",
+    lineHeight: "16px",
   },
 
   badge: {
@@ -327,23 +329,30 @@ const styles = {
   productsBox: {
     display: "flex",
     flexDirection: "column",
-    gap: "10px",
+    gap: "7px",
+    minWidth: "210px",
+    maxWidth: "280px",
   },
 
   productItem: {
     background: "rgba(255,255,255,.06)",
-    padding: "12px",
-    borderRadius: "12px",
+    padding: "9px 11px",
+    borderRadius: "10px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "8px",
   },
 
   saleId: {
     fontWeight: "700",
     color: "#a78bfa",
+    whiteSpace: "nowrap",
   },
 
   empty: {
     textAlign: "center",
-    padding: "40px",
+    padding: "50px 30px",
     color: "#cbd5e1",
   },
 
@@ -365,7 +374,34 @@ const styles = {
     borderRadius: "50%",
   },
 
-  /* ================= RANKING ============================ */
+  pagination: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: "18px",
+    padding: "20px",
+    borderTop: "1px solid rgba(255,255,255,.08)",
+    flexWrap: "wrap",
+  },
+
+  paginationBtn: {
+    background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
+    color: "#fff",
+    border: "none",
+    padding: "10px 16px",
+    borderRadius: "10px",
+    cursor: "pointer",
+    fontWeight: "600",
+    fontSize: "13px",
+    transition: ".25s",
+  },
+
+  paginationInfo: {
+    color: "#e2e8f0",
+    fontSize: "14px",
+    fontWeight: "600",
+    whiteSpace: "nowrap",
+  },
 
   rankingCard: {
     background: "rgba(255,255,255,.05)",
@@ -375,6 +411,8 @@ const styles = {
     marginBottom: "25px",
     backdropFilter: "blur(12px)",
     boxShadow: "0 10px 25px rgba(0,0,0,.20)",
+    boxSizing: "border-box",
+    width: "100%",
   },
 
   rankingChartHeader: {
@@ -383,6 +421,7 @@ const styles = {
     alignItems: "flex-start",
     gap: "20px",
     marginBottom: "10px",
+    flexWrap: "wrap",
   },
 
   rankingTitle: {
@@ -415,10 +454,11 @@ const styles = {
     width: "100%",
     height: "320px",
     marginTop: "15px",
+    minWidth: 0,
   },
 
   rankingFooter: {
-    marginTop: "5px",
+    marginTop: "8px",
     marginBottom: 0,
     color: "#94a3b8",
     fontSize: "13px",
@@ -438,6 +478,7 @@ const styles = {
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: "8px",
+    gap: "10px",
   },
 
   rankingName: {
@@ -479,8 +520,6 @@ const styles = {
     margin: 0,
   },
 
-  /* ================= MODAL ============================= */
-
   modalOverlay: {
     position: "fixed",
     inset: 0,
@@ -505,7 +544,7 @@ const styles = {
     maxHeight: "90vh",
     overflow: "hidden auto",
     boxShadow: "0 25px 60px rgba(0,0,0,.55)",
-    animation: "fadeIn .25s ease",
+    boxSizing: "border-box",
   },
 
   modalHeader: {
@@ -564,6 +603,7 @@ const styles = {
     borderRadius: "16px",
     padding: "18px",
     marginTop: "18px",
+    boxSizing: "border-box",
   },
 
   modalEmpty: {
@@ -621,8 +661,6 @@ const styles = {
     fontSize: "17px",
   },
 
-  /* ================= ESTADOS DE PAGO =================== */
-
   estadoBadge: {
     display: "inline-block",
     padding: "7px 14px",
@@ -630,6 +668,7 @@ const styles = {
     fontWeight: "700",
     fontSize: "13px",
     marginBottom: "8px",
+    whiteSpace: "nowrap",
   },
 
   estadoAprobado: {
@@ -661,6 +700,7 @@ const styles = {
   productName: {
     fontWeight: "600",
     color: "#ffffff",
+    lineHeight: "18px",
   },
 
   productQty: {
@@ -671,11 +711,13 @@ const styles = {
 
   fecha: {
     fontWeight: "600",
+    whiteSpace: "nowrap",
   },
 
   hora: {
     color: "#94a3b8",
     fontSize: "13px",
+    marginTop: "4px",
   },
 };
 

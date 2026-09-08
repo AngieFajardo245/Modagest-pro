@@ -14,27 +14,14 @@ import {
 import { toast } from "react-toastify";
 
 export default function Categorias() {
-  /* ===================================================== */
-  /* ======================= STATES ====================== */
-  /* ===================================================== */
-
   const [categorias, setCategorias] = useState([]);
-
   const [busqueda, setBusqueda] = useState("");
-
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
-
   const [editando, setEditando] = useState(null);
-
   const [nombre, setNombre] = useState("");
-
   const [cargando, setCargando] = useState(false);
 
   const token = localStorage.getItem("token");
-
-  /* ===================================================== */
-  /* ================= OBTENER CATEGORIAS ================ */
-  /* ===================================================== */
 
   const obtenerCategorias = async () => {
     try {
@@ -42,39 +29,26 @@ export default function Categorias() {
 
       const res = await api.get("/categorias");
 
-      setCategorias(res.data);
+      setCategorias(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
       console.error("Error obteniendo categorías:", error);
-
       toast.error("No se pudieron cargar las categorías");
     } finally {
       setCargando(false);
     }
   };
 
-  /* ===================================================== */
-  /* ====================== USE EFFECT =================== */
-  /* ===================================================== */
-
   useEffect(() => {
     obtenerCategorias();
   }, []);
 
-  /* ===================================================== */
-  /* ======================= FILTRAR ===================== */
-  /* ===================================================== */
-
   const categoriasFiltradas = useMemo(() => {
-    return categorias.filter((categoria) =>
-      categoria.nombre
-        .toLowerCase()
-        .includes(busqueda.toLowerCase()),
-    );
+    return [...categorias]
+      .filter((categoria) =>
+        (categoria.nombre || "").toLowerCase().includes(busqueda.toLowerCase()),
+      )
+      .sort((a, b) => Number(a.id) - Number(b.id));
   }, [categorias, busqueda]);
-
-  /* ===================================================== */
-  /* ==================== ABRIR CREAR ==================== */
-  /* ===================================================== */
 
   const abrirCrear = () => {
     setEditando(null);
@@ -82,29 +56,17 @@ export default function Categorias() {
     setMostrarFormulario(true);
   };
 
-  /* ===================================================== */
-  /* ===================== ABRIR EDITAR ================== */
-  /* ===================================================== */
-
   const abrirEditar = (categoria) => {
     setEditando(categoria.id);
     setNombre(categoria.nombre);
     setMostrarFormulario(true);
   };
 
-  /* ===================================================== */
-  /* ===================== CERRAR FORM =================== */
-  /* ===================================================== */
-
   const cerrarFormulario = () => {
     setMostrarFormulario(false);
     setEditando(null);
     setNombre("");
   };
-
-  /* ===================================================== */
-  /* ====================== GUARDAR ====================== */
-  /* ===================================================== */
 
   const guardarCategoria = async (e) => {
     e.preventDefault();
@@ -116,8 +78,6 @@ export default function Categorias() {
 
     try {
       setCargando(true);
-
-      /* ================= EDITAR ================= */
 
       if (editando) {
         await api.put(
@@ -134,8 +94,6 @@ export default function Categorias() {
 
         toast.success("Categoría actualizada correctamente");
       } else {
-        /* ================= CREAR ================= */
-
         await api.post(
           "/categorias",
           {
@@ -152,14 +110,12 @@ export default function Categorias() {
       }
 
       cerrarFormulario();
-
       await obtenerCategorias();
     } catch (error) {
       console.error("Error guardando categoría:", error);
 
       const mensaje =
-        error.response?.data?.message ||
-        "No se pudo guardar la categoría";
+        error.response?.data?.message || "No se pudo guardar la categoría";
 
       toast.error(mensaje);
     } finally {
@@ -167,14 +123,8 @@ export default function Categorias() {
     }
   };
 
-  /* ===================================================== */
-  /* ===================== ELIMINAR ====================== */
-  /* ===================================================== */
-
   const eliminarCategoria = async (id) => {
-    const categoria = categorias.find(
-      (item) => item.id === id,
-    );
+    const categoria = categorias.find((item) => item.id === id);
 
     const confirmar = window.confirm(
       `¿Seguro que deseas eliminar la categoría "${categoria?.nombre}"?`,
@@ -198,8 +148,7 @@ export default function Categorias() {
       console.error("Error eliminando categoría:", error);
 
       const mensaje =
-        error.response?.data?.message ||
-        "No se pudo eliminar la categoría";
+        error.response?.data?.message || "No se pudo eliminar la categoría";
 
       toast.error(mensaje);
     } finally {
@@ -207,21 +156,12 @@ export default function Categorias() {
     }
   };
 
-  /* ===================================================== */
-  /* ========================= RETURN ==================== */
-  /* ===================================================== */
-
   return (
     <div style={styles.container}>
-      {/* ================================================= */}
-      {/* ====================== HEADER =================== */}
-      {/* ================================================= */}
-
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>
             <FaTags />
-
             Gestión de Categorías
           </h1>
 
@@ -230,20 +170,11 @@ export default function Categorias() {
           </p>
         </div>
 
-        <button
-          type="button"
-          style={styles.addButton}
-          onClick={abrirCrear}
-        >
+        <button type="button" style={styles.addButton} onClick={abrirCrear}>
           <FaPlus />
-
           Nueva categoría
         </button>
       </div>
-
-      {/* ================================================= */}
-      {/* ======================= STATS =================== */}
-      {/* ================================================= */}
 
       <div style={styles.statsContainer}>
         <div style={styles.statCard}>
@@ -252,13 +183,9 @@ export default function Categorias() {
           </div>
 
           <div>
-            <span style={styles.statLabel}>
-              Categorías registradas
-            </span>
+            <span style={styles.statLabel}>Categorías registradas</span>
 
-            <strong style={styles.statValue}>
-              {categorias.length}
-            </strong>
+            <strong style={styles.statValue}>{categorias.length}</strong>
           </div>
         </div>
 
@@ -268,9 +195,7 @@ export default function Categorias() {
           </div>
 
           <div>
-            <span style={styles.statLabel}>
-              Resultados
-            </span>
+            <span style={styles.statLabel}>Resultados</span>
 
             <strong style={styles.statValue}>
               {categoriasFiltradas.length}
@@ -278,10 +203,6 @@ export default function Categorias() {
           </div>
         </div>
       </div>
-
-      {/* ================================================= */}
-      {/* ====================== BUSCADOR ================= */}
-      {/* ================================================= */}
 
       <div style={styles.searchContainer}>
         <FaSearch style={styles.searchIcon} />
@@ -305,18 +226,12 @@ export default function Categorias() {
         )}
       </div>
 
-      {/* ================================================= */}
-      {/* ======================== TABLA ================== */}
-      {/* ================================================= */}
-
       <div style={styles.tableContainer}>
         <table style={styles.table}>
           <thead>
             <tr>
               <th style={styles.th}>ID</th>
-
               <th style={styles.th}>Categoría</th>
-
               <th style={styles.th}>Acciones</th>
             </tr>
           </thead>
@@ -324,22 +239,14 @@ export default function Categorias() {
           <tbody>
             {cargando && categorias.length === 0 ? (
               <tr>
-                <td
-                  colSpan="3"
-                  style={styles.loading}
-                >
+                <td colSpan="3" style={styles.loading}>
                   Cargando categorías...
                 </td>
               </tr>
             ) : categoriasFiltradas.length > 0 ? (
               categoriasFiltradas.map((categoria) => (
-                <tr
-                  key={categoria.id}
-                  style={styles.row}
-                >
-                  <td style={styles.idCell}>
-                    #{categoria.id}
-                  </td>
+                <tr key={categoria.id} style={styles.row}>
+                  <td style={styles.idCell}>#{categoria.id}</td>
 
                   <td style={styles.nameCell}>
                     <div style={styles.categoryName}>
@@ -347,9 +254,7 @@ export default function Categorias() {
                         <FaTags />
                       </div>
 
-                      <span>
-                        {categoria.nombre}
-                      </span>
+                      <span>{categoria.nombre}</span>
                     </div>
                   </td>
 
@@ -358,26 +263,20 @@ export default function Categorias() {
                       <button
                         type="button"
                         style={styles.editButton}
-                        onClick={() =>
-                          abrirEditar(categoria)
-                        }
+                        onClick={() => abrirEditar(categoria)}
                         disabled={cargando}
                       >
                         <FaEdit />
-
                         Editar
                       </button>
 
                       <button
                         type="button"
                         style={styles.deleteButton}
-                        onClick={() =>
-                          eliminarCategoria(categoria.id)
-                        }
+                        onClick={() => eliminarCategoria(categoria.id)}
                         disabled={cargando}
                       >
                         <FaTrash />
-
                         Eliminar
                       </button>
                     </div>
@@ -386,10 +285,7 @@ export default function Categorias() {
               ))
             ) : (
               <tr>
-                <td
-                  colSpan="3"
-                  style={styles.empty}
-                >
+                <td colSpan="3" style={styles.empty}>
                   <FaTags style={styles.emptyIcon} />
 
                   <div>
@@ -404,10 +300,6 @@ export default function Categorias() {
         </table>
       </div>
 
-      {/* ================================================= */}
-      {/* ======================= MODAL ================== */}
-      {/* ================================================= */}
-
       {mostrarFormulario && (
         <div
           style={styles.overlay}
@@ -418,14 +310,10 @@ export default function Categorias() {
           }}
         >
           <div style={styles.modal}>
-            {/* ================= HEADER MODAL ============= */}
-
             <div style={styles.modalHeader}>
               <div>
                 <h2 style={styles.modalTitle}>
-                  {editando
-                    ? "Editar Categoría"
-                    : "Nueva Categoría"}
+                  {editando ? "Editar Categoría" : "Nueva Categoría"}
                 </h2>
 
                 <p style={styles.modalSubtitle}>
@@ -444,28 +332,20 @@ export default function Categorias() {
               </button>
             </div>
 
-            {/* ================= FORMULARIO ================ */}
-
             <form onSubmit={guardarCategoria}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>
-                  Nombre de la categoría
-                </label>
+                <label style={styles.label}>Nombre de la categoría</label>
 
                 <input
                   type="text"
                   value={nombre}
-                  onChange={(e) =>
-                    setNombre(e.target.value)
-                  }
+                  onChange={(e) => setNombre(e.target.value)}
                   placeholder="Ej: Faldas"
                   style={styles.input}
                   autoFocus
                   disabled={cargando}
                 />
               </div>
-
-              {/* ================= BOTONES ================= */}
 
               <div style={styles.modalActions}>
                 <button
@@ -485,13 +365,11 @@ export default function Categorias() {
                   {editando ? (
                     <>
                       <FaSave />
-
                       Guardar cambios
                     </>
                   ) : (
                     <>
                       <FaPlus />
-
                       Crear categoría
                     </>
                   )}
@@ -505,10 +383,6 @@ export default function Categorias() {
   );
 }
 
-/* ===================================================== */
-/* ======================== ESTILOS ==================== */
-/* ===================================================== */
-
 const styles = {
   container: {
     minHeight: "100vh",
@@ -518,8 +392,6 @@ const styles = {
       "radial-gradient(circle at top left, #312e81 0%, #0f172a 35%, #020617 100%)",
     color: "#fff",
   },
-
-  /* ================= HEADER ================= */
 
   header: {
     display: "flex",
@@ -551,8 +423,7 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     gap: "9px",
-    background:
-      "linear-gradient(135deg, #7c3aed, #9333ea)",
+    background: "linear-gradient(135deg, #7c3aed, #9333ea)",
     color: "#fff",
     border: "none",
     padding: "14px 20px",
@@ -560,16 +431,12 @@ const styles = {
     cursor: "pointer",
     fontWeight: "700",
     fontSize: "15px",
-    boxShadow:
-      "0 8px 25px rgba(124,58,237,0.3)",
+    boxShadow: "0 8px 25px rgba(124,58,237,0.3)",
   },
-
-  /* ================= STATS ================= */
 
   statsContainer: {
     display: "grid",
-    gridTemplateColumns:
-      "repeat(auto-fit, minmax(220px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
     gap: "20px",
     marginBottom: "25px",
   },
@@ -580,8 +447,7 @@ const styles = {
     gap: "16px",
     background: "rgba(255,255,255,0.05)",
     backdropFilter: "blur(12px)",
-    border:
-      "1px solid rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.08)",
     borderRadius: "20px",
     padding: "20px",
   },
@@ -593,8 +459,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    background:
-      "rgba(124,58,237,0.18)",
+    background: "rgba(124,58,237,0.18)",
     color: "#a78bfa",
     fontSize: "20px",
   },
@@ -612,8 +477,6 @@ const styles = {
     fontSize: "25px",
     fontWeight: "800",
   },
-
-  /* ================= BUSCADOR ================= */
 
   searchContainer: {
     position: "relative",
@@ -634,8 +497,7 @@ const styles = {
     boxSizing: "border-box",
     padding: "16px 50px 16px 48px",
     borderRadius: "18px",
-    border:
-      "1px solid rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.08)",
     background: "rgba(255,255,255,0.08)",
     color: "#fff",
     fontSize: "15px",
@@ -659,18 +521,13 @@ const styles = {
     justifyContent: "center",
   },
 
-  /* ================= TABLA ================= */
-
   tableContainer: {
-    background:
-      "rgba(255,255,255,0.05)",
+    background: "rgba(255,255,255,0.05)",
     backdropFilter: "blur(12px)",
-    border:
-      "1px solid rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.08)",
     borderRadius: "28px",
     overflow: "hidden",
-    boxShadow:
-      "0 10px 40px rgba(0,0,0,0.25)",
+    boxShadow: "0 10px 40px rgba(0,0,0,0.25)",
   },
 
   table: {
@@ -680,8 +537,7 @@ const styles = {
   },
 
   th: {
-    background:
-      "rgba(255,255,255,0.06)",
+    background: "rgba(255,255,255,0.06)",
     padding: "20px",
     textAlign: "left",
     color: "#cbd5e1",
@@ -695,22 +551,19 @@ const styles = {
 
   td: {
     padding: "18px",
-    borderBottom:
-      "1px solid rgba(255,255,255,0.06)",
+    borderBottom: "1px solid rgba(255,255,255,0.06)",
   },
 
   idCell: {
     padding: "18px",
     color: "#e2e8f0",
     fontWeight: "700",
-    borderBottom:
-      "1px solid rgba(255,255,255,0.06)",
+    borderBottom: "1px solid rgba(255,255,255,0.06)",
   },
 
   nameCell: {
     padding: "18px",
-    borderBottom:
-      "1px solid rgba(255,255,255,0.06)",
+    borderBottom: "1px solid rgba(255,255,255,0.06)",
   },
 
   categoryName: {
@@ -725,8 +578,7 @@ const styles = {
     width: "42px",
     height: "42px",
     borderRadius: "12px",
-    background:
-      "rgba(124,58,237,0.15)",
+    background: "rgba(124,58,237,0.15)",
     color: "#a78bfa",
     display: "flex",
     alignItems: "center",
@@ -784,214 +636,131 @@ const styles = {
     color: "#64748b",
   },
 
-  /* ================= MODAL ================= */
-
-overlay: {
-  position: "fixed",
-  inset: 0,
-
-  background: "rgba(2,6,23,0.78)",
-
-  backdropFilter: "blur(10px)",
-  WebkitBackdropFilter: "blur(10px)",
-
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-
-  padding: "20px",
-
-  zIndex: 9999,
-
-  animation: "fadeIn 0.2s ease",
-},
-
-modal: {
-  width: "100%",
-  maxWidth: "520px",
-
-  background:
-    "linear-gradient(145deg, #1e293b 0%, #111827 100%)",
-
-  border:
-    "1px solid rgba(255,255,255,0.10)",
-
-  borderRadius: "26px",
-
-  padding: "30px",
-
-  boxSizing: "border-box",
-
-  boxShadow:
-    "0 30px 90px rgba(0,0,0,0.65)",
-
-  animation: "modalIn 0.25s ease",
-},
-
-modalHeader: {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-start",
-
-  gap: "20px",
-
-  marginBottom: "28px",
-},
-
-modalTitle: {
-  margin: 0,
-
-  color: "#fff",
-
-  fontSize: "28px",
-
-  fontWeight: "800",
-
-  letterSpacing: "-0.5px",
-},
-
-modalSubtitle: {
-  margin: "8px 0 0",
-
-  color: "#94a3b8",
-
-  fontSize: "14px",
-
-  lineHeight: "1.5",
-},
-
-closeButton: {
-  width: "44px",
-  height: "44px",
-
-  borderRadius: "50%",
-
-  border: "none",
-
-  background:
-    "linear-gradient(135deg, #ef4444, #dc2626)",
-
-  color: "#fff",
-
-  cursor: "pointer",
-
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-
-  fontSize: "16px",
-
-  flexShrink: 0,
-
-  boxShadow:
-    "0 8px 20px rgba(239,68,68,0.25)",
-
-  transition: "all 0.2s ease",
-},
-
- formGroup: {
-  marginBottom: "28px",
-},
-
-label: {
-  display: "block",
-
-  color: "#e2e8f0",
-
-  fontSize: "14px",
-
-  fontWeight: "700",
-
-  marginBottom: "10px",
-},
-
-input: {
-  width: "100%",
-
-  boxSizing: "border-box",
-
-  padding: "16px 18px",
-
-  borderRadius: "15px",
-
-  border:
-    "1px solid rgba(255,255,255,0.10)",
-
-  background:
-    "rgba(255,255,255,0.07)",
-
-  color: "#fff",
-
-  fontSize: "15px",
-
-  outline: "none",
-
-  transition: "all 0.2s ease",
-},
-
-modalActions: {
-  display: "flex",
-
-  gap: "14px",
-
-  marginTop: "10px",
-},
-
-cancelButton: {
-  flex: 1,
-
-  border:
-    "1px solid rgba(255,255,255,0.08)",
-
-  background: "#334155",
-
-  color: "#fff",
-
-  padding: "15px",
-
-  borderRadius: "14px",
-
-  cursor: "pointer",
-
-  fontWeight: "700",
-
-  fontSize: "15px",
-
-  transition: "all 0.2s ease",
-},
-
-saveButton: {
-  flex: 1,
-
-  border: "none",
-
-  background:
-    "linear-gradient(135deg, #7c3aed, #9333ea)",
-
-  color: "#fff",
-
-  padding: "15px",
-
-  borderRadius: "14px",
-
-  cursor: "pointer",
-
-  fontWeight: "700",
-
-  fontSize: "15px",
-
-  display: "flex",
-
-  alignItems: "center",
-
-  justifyContent: "center",
-
-  gap: "8px",
-
-  boxShadow:
-    "0 10px 28px rgba(124,58,237,0.28)",
-
-  transition: "all 0.2s ease",
-},
-
-}
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(2,6,23,0.78)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "20px",
+    zIndex: 9999,
+    animation: "fadeIn 0.2s ease",
+  },
+
+  modal: {
+    width: "100%",
+    maxWidth: "520px",
+    background: "linear-gradient(145deg, #1e293b 0%, #111827 100%)",
+    border: "1px solid rgba(255,255,255,0.10)",
+    borderRadius: "26px",
+    padding: "30px",
+    boxSizing: "border-box",
+    boxShadow: "0 30px 90px rgba(0,0,0,0.65)",
+    animation: "modalIn 0.25s ease",
+  },
+
+  modalHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: "20px",
+    marginBottom: "28px",
+  },
+
+  modalTitle: {
+    margin: 0,
+    color: "#fff",
+    fontSize: "28px",
+    fontWeight: "800",
+    letterSpacing: "-0.5px",
+  },
+
+  modalSubtitle: {
+    margin: "8px 0 0",
+    color: "#94a3b8",
+    fontSize: "14px",
+    lineHeight: "1.5",
+  },
+
+  closeButton: {
+    width: "44px",
+    height: "44px",
+    borderRadius: "50%",
+    border: "none",
+    background: "linear-gradient(135deg, #ef4444, #dc2626)",
+    color: "#fff",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "16px",
+    flexShrink: 0,
+    boxShadow: "0 8px 20px rgba(239,68,68,0.25)",
+    transition: "all 0.2s ease",
+  },
+
+  formGroup: {
+    marginBottom: "28px",
+  },
+
+  label: {
+    display: "block",
+    color: "#e2e8f0",
+    fontSize: "14px",
+    fontWeight: "700",
+    marginBottom: "10px",
+  },
+
+  input: {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "16px 18px",
+    borderRadius: "15px",
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.07)",
+    color: "#fff",
+    fontSize: "15px",
+    outline: "none",
+    transition: "all 0.2s ease",
+  },
+
+  modalActions: {
+    display: "flex",
+    gap: "14px",
+    marginTop: "10px",
+  },
+
+  cancelButton: {
+    flex: 1,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "#334155",
+    color: "#fff",
+    padding: "15px",
+    borderRadius: "14px",
+    cursor: "pointer",
+    fontWeight: "700",
+    fontSize: "15px",
+    transition: "all 0.2s ease",
+  },
+
+  saveButton: {
+    flex: 1,
+    border: "none",
+    background: "linear-gradient(135deg, #7c3aed, #9333ea)",
+    color: "#fff",
+    padding: "15px",
+    borderRadius: "14px",
+    cursor: "pointer",
+    fontWeight: "700",
+    fontSize: "15px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    boxShadow: "0 10px 28px rgba(124,58,237,0.28)",
+    transition: "all 0.2s ease",
+  },
+};

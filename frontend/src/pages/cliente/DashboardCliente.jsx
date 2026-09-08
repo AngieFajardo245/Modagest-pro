@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "../../services/api";
 
 function DashboardCliente() {
@@ -8,20 +8,21 @@ function DashboardCliente() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  const obtenerUsuario = () => {
     const usuarioGuardado = localStorage.getItem("usuario");
 
-    if (usuarioGuardado) {
-      try {
-        const usuario = JSON.parse(usuarioGuardado);
-        setNombre(usuario.nombre || "Cliente");
-      } catch {
-        setNombre("Cliente");
-      }
+    if (!usuarioGuardado) {
+      setNombre("Cliente");
+      return;
     }
 
-    obtenerCompras();
-  }, []);
+    try {
+      const usuario = JSON.parse(usuarioGuardado);
+      setNombre(usuario?.nombre?.trim() || "Cliente");
+    } catch {
+      setNombre("Cliente");
+    }
+  };
 
   const obtenerCompras = async () => {
     try {
@@ -29,51 +30,128 @@ function DashboardCliente() {
       setError("");
 
       const res = await api.get("/cliente/compras");
+      const data = Array.isArray(res.data) ? res.data : [];
 
-      setCompras(Array.isArray(res.data) ? res.data : []);
-    } catch (error) {
-      console.error("Error obteniendo compras:", error);
-      setError("No se pudieron cargar tus compras.");
+      setCompras(data);
+    } catch (err) {
+      console.error("Error obteniendo compras:", err);
+
+      setError(
+        err.response?.data?.message || "No se pudieron cargar tus compras.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const formatearDinero = (valor) => {
-    return new Intl.NumberFormat("es-CO", {
+  useEffect(() => {
+    obtenerUsuario();
+    obtenerCompras();
+  }, []);
+
+  const formatearDinero = (valor) =>
+    new Intl.NumberFormat("es-CO", {
       style: "currency",
       currency: "COP",
       maximumFractionDigits: 0,
     }).format(Number(valor) || 0);
-  };
 
   const formatearFecha = (fecha) => {
     if (!fecha) return "Fecha no disponible";
 
-    return new Date(fecha).toLocaleDateString("es-CO", {
+    const fechaObj = new Date(fecha);
+
+    if (Number.isNaN(fechaObj.getTime())) {
+      return "Fecha no disponible";
+    }
+
+    return fechaObj.toLocaleDateString("es-CO", {
       day: "2-digit",
       month: "short",
       year: "numeric",
     });
   };
 
+  const obtenerFechaCompra = (compra) => {
+    const fecha = new Date(
+      compra?.createdAt || compra?.fecha || compra?.updatedAt || 0,
+    ).getTime();
+
+    return Number.isNaN(fecha) ? 0 : fecha;
+  };
+
+  const obtenerEstadoPago = (compra) => {
+    const estado = String(
+      compra?.Pago?.estado ||
+        compra?.pago?.estado ||
+        compra?.estadoPago ||
+        compra?.estado ||
+        "",
+    ).toLowerCase();
+
+    if (
+      estado === "aprobado" ||
+      estado === "aprobada" ||
+      estado === "approved" ||
+      estado === "completado" ||
+      estado === "completada"
+    ) {
+      return "aprobado";
+    }
+
+    if (
+      estado === "pendiente" ||
+      estado === "pending" ||
+      estado === "en proceso"
+    ) {
+      return "pendiente";
+    }
+
+    if (
+      estado === "rechazado" ||
+      estado === "rechazada" ||
+      estado === "rejected" ||
+      estado === "cancelado" ||
+      estado === "cancelada"
+    ) {
+      return "rechazado";
+    }
+
+    return "desconocido";
+  };
+
+  const comprasOrdenadas = useMemo(() => {
+    return [...compras].sort(
+      (a, b) => obtenerFechaCompra(b) - obtenerFechaCompra(a),
+    );
+  }, [compras]);
+
+  const comprasAprobadas = useMemo(() => {
+    return comprasOrdenadas.filter(
+      (compra) => obtenerEstadoPago(compra) === "aprobado",
+    );
+  }, [comprasOrdenadas]);
+
   const totalCompras = compras.length;
 
-  const dineroGastado = compras.reduce(
-    (total, compra) => total + (Number(compra.total) || 0),
-    0,
-  );
+  const dineroGastado = useMemo(() => {
+    return comprasAprobadas.reduce(
+      (total, compra) => total + (Number(compra?.total) || 0),
+      0,
+    );
+  }, [comprasAprobadas]);
 
-  const comprasRecientes = compras.slice(0, 3);
-
-  const ultimaCompra = compras[0];
+  const comprasRecientes = comprasOrdenadas.slice(0, 3);
+  const ultimaCompra = comprasOrdenadas[0];
 
   if (loading) {
     return (
       <div style={styles.loadingPage}>
         <div style={styles.loadingBox}>
           <div style={styles.spinner}></div>
+
           <h2 style={styles.loadingTitle}>Cargando tu panel</h2>
+
           <p style={styles.loadingText}>Estamos preparando tu información...</p>
         </div>
       </div>
@@ -90,7 +168,11 @@ function DashboardCliente() {
 
           <p style={styles.errorText}>{error}</p>
 
-          <button style={styles.retryButton} onClick={obtenerCompras}>
+          <button
+            type="button"
+            style={styles.retryButton}
+            onClick={obtenerCompras}
+          >
             Intentar nuevamente
           </button>
         </div>
@@ -127,6 +209,7 @@ function DashboardCliente() {
 
           <div style={styles.heroDecoration}>
             <div style={styles.decorationCircle}></div>
+
             <div style={styles.decorationIcon}>🛍️</div>
           </div>
         </section>
@@ -137,7 +220,9 @@ function DashboardCliente() {
 
             <div>
               <p style={styles.statLabel}>Compras realizadas</p>
+
               <h2 style={styles.statNumber}>{totalCompras}</h2>
+
               <p style={styles.statDescription}>Pedidos registrados</p>
             </div>
           </div>
@@ -147,10 +232,12 @@ function DashboardCliente() {
 
             <div>
               <p style={styles.statLabel}>Total gastado</p>
+
               <h2 style={styles.statNumberSmall}>
                 {formatearDinero(dineroGastado)}
               </h2>
-              <p style={styles.statDescription}>Valor acumulado</p>
+
+              <p style={styles.statDescription}>Compras aprobadas</p>
             </div>
           </div>
 
@@ -159,11 +246,17 @@ function DashboardCliente() {
 
             <div>
               <p style={styles.statLabel}>Última compra</p>
+
               <h2 style={styles.statNumberSmall}>
                 {ultimaCompra
-                  ? formatearFecha(ultimaCompra.createdAt)
+                  ? formatearFecha(
+                      ultimaCompra.createdAt ||
+                        ultimaCompra.fecha ||
+                        ultimaCompra.updatedAt,
+                    )
                   : "Sin compras"}
               </h2>
+
               <p style={styles.statDescription}>Actividad más reciente</p>
             </div>
           </div>
@@ -199,27 +292,56 @@ function DashboardCliente() {
               </div>
             ) : (
               <div style={styles.purchaseList}>
-                {comprasRecientes.map((compra) => (
-                  <div key={compra.id} style={styles.purchaseItem}>
-                    <div style={styles.purchaseIcon}>📦</div>
+                {comprasRecientes.map((compra) => {
+                  const estado = obtenerEstadoPago(compra);
 
-                    <div style={styles.purchaseInfo}>
-                      <h3 style={styles.purchaseTitle}>Compra #{compra.id}</h3>
+                  return (
+                    <div key={compra.id} style={styles.purchaseItem}>
+                      <div style={styles.purchaseIcon}>📦</div>
 
-                      <p style={styles.purchaseDate}>
-                        {formatearFecha(compra.createdAt)}
-                      </p>
+                      <div style={styles.purchaseInfo}>
+                        <h3 style={styles.purchaseTitle}>
+                          Compra #{compra.id}
+                        </h3>
+
+                        <p style={styles.purchaseDate}>
+                          {formatearFecha(
+                            compra.createdAt ||
+                              compra.fecha ||
+                              compra.updatedAt,
+                          )}
+                        </p>
+                      </div>
+
+                      <div style={styles.purchaseRight}>
+                        <strong style={styles.purchaseTotal}>
+                          {formatearDinero(compra.total)}
+                        </strong>
+
+                        <span
+                          style={{
+                            ...styles.purchaseStatus,
+                            ...(estado === "aprobado"
+                              ? styles.statusApproved
+                              : estado === "pendiente"
+                                ? styles.statusPending
+                                : estado === "rechazado"
+                                  ? styles.statusRejected
+                                  : styles.statusUnknown),
+                          }}
+                        >
+                          {estado === "aprobado"
+                            ? "Compra aprobada"
+                            : estado === "pendiente"
+                              ? "Pendiente"
+                              : estado === "rechazado"
+                                ? "Rechazada"
+                                : "Estado no disponible"}
+                        </span>
+                      </div>
                     </div>
-
-                    <div style={styles.purchaseRight}>
-                      <strong style={styles.purchaseTotal}>
-                        {formatearDinero(compra.total)}
-                      </strong>
-
-                      <span style={styles.approved}>Compra realizada</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -288,6 +410,77 @@ function DashboardCliente() {
           </Link>
         </section>
       </div>
+
+      <style>
+        {`
+          @keyframes spin {
+            from {
+              transform: rotate(0deg);
+            }
+
+            to {
+              transform: rotate(360deg);
+            }
+          }
+
+          @media (max-width: 900px) {
+            .cliente-content-grid {
+              grid-template-columns: 1fr !important;
+            }
+
+            .cliente-hero-decoration {
+              display: none !important;
+            }
+          }
+
+          @media (max-width: 700px) {
+            .cliente-page {
+              padding: 20px 14px 35px !important;
+            }
+
+            .cliente-hero {
+              padding: 30px 24px !important;
+            }
+
+            .cliente-sale-item {
+              flex-wrap: wrap;
+            }
+
+            .cliente-sale-right {
+              width: 100%;
+              align-items: flex-start !important;
+            }
+
+            .cliente-banner {
+              flex-direction: column;
+              align-items: flex-start !important;
+            }
+
+            .cliente-banner-button {
+              width: 100%;
+              text-align: center;
+              box-sizing: border-box;
+            }
+          }
+
+          @media (max-width: 520px) {
+            .cliente-hero-actions {
+              flex-direction: column !important;
+            }
+
+            .cliente-hero-actions a {
+              width: 100%;
+              box-sizing: border-box;
+              text-align: center;
+            }
+
+            .cliente-section-card,
+            .cliente-quick-card {
+              padding: 22px !important;
+            }
+          }
+        `}
+      </style>
     </div>
   );
 }
@@ -359,7 +552,7 @@ const styles = {
 
   subtitle: {
     maxWidth: "680px",
-    margin: "0",
+    margin: 0,
     color: "#cbd5e1",
     fontSize: "16px",
     lineHeight: "1.7",
@@ -456,14 +649,14 @@ const styles = {
   },
 
   statNumber: {
-    margin: "0",
+    margin: 0,
     color: "#fff",
     fontSize: "32px",
     fontWeight: "800",
   },
 
   statNumberSmall: {
-    margin: "0",
+    margin: 0,
     color: "#fff",
     fontSize: "22px",
     fontWeight: "800",
@@ -571,7 +764,7 @@ const styles = {
   },
 
   purchaseDate: {
-    margin: "0",
+    margin: 0,
     color: "#64748b",
     fontSize: "12px",
   },
@@ -588,10 +781,25 @@ const styles = {
     fontSize: "15px",
   },
 
-  approved: {
-    color: "#34d399",
+  purchaseStatus: {
     fontSize: "11px",
     fontWeight: "700",
+  },
+
+  statusApproved: {
+    color: "#34d399",
+  },
+
+  statusPending: {
+    color: "#fbbf24",
+  },
+
+  statusRejected: {
+    color: "#f87171",
+  },
+
+  statusUnknown: {
+    color: "#94a3b8",
   },
 
   emptyPurchases: {
@@ -666,7 +874,7 @@ const styles = {
   },
 
   quickText: {
-    margin: "0",
+    margin: 0,
     color: "#64748b",
     fontSize: "11px",
   },
@@ -705,7 +913,7 @@ const styles = {
   },
 
   bannerText: {
-    margin: "0",
+    margin: 0,
     maxWidth: "650px",
     color: "#94a3b8",
     fontSize: "14px",
@@ -757,7 +965,7 @@ const styles = {
   },
 
   loadingText: {
-    margin: "0",
+    margin: 0,
     color: "#94a3b8",
     fontSize: "14px",
   },

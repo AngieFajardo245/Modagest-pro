@@ -1,69 +1,77 @@
 import styles from "./dashboardStyles";
 
 export default function DashboardStats({ stats, formatoMoneda }) {
+  const datos = stats || {};
+
+  const formatearMoneda = (valor) => {
+    if (typeof formatoMoneda === "function") {
+      return formatoMoneda(Number(valor || 0));
+    }
+
+    return Number(valor || 0).toLocaleString("es-CO", {
+      style: "currency",
+      currency: "COP",
+      maximumFractionDigits: 0,
+    });
+  };
+
   return (
     <>
-      {/* ================= ESTADISTICAS GENERALES ================= */}
-
       <div style={styles.grid}>
         <Card
           title="Usuarios"
-          value={stats?.totalUsuarios || 0}
+          value={Number(datos.totalUsuarios || 0)}
           icon="👥"
           description="Usuarios registrados"
         />
 
         <Card
           title="Productos"
-          value={stats?.totalProductos || 0}
+          value={Number(datos.totalProductos || 0)}
           icon="🛍️"
           description="Productos activos"
         />
 
         <Card
           title="Ventas"
-          value={stats?.totalVentas || 0}
+          value={Number(datos.totalVentas || 0)}
           icon="📦"
           description="Ventas realizadas"
         />
 
         <Card
           title="Ingresos"
-          value={formatoMoneda(stats?.ingresosTotales)}
+          value={formatearMoneda(datos.ingresosTotales)}
           icon="💸"
           description="Total acumulado"
         />
       </div>
 
-      {/* ================= ESTADISTICAS DE HOY ================= */}
-
       <div style={styles.periodGrid}>
         <PeriodCard
           title="Ventas de hoy"
-          value={stats?.ventasHoy || 0}
+          value={Number(datos.ventasHoy || 0)}
           icon="🛒"
           description="Transacciones realizadas hoy"
         />
 
         <PeriodCard
           title="Ingresos de hoy"
-          value={formatoMoneda(stats?.ingresosHoy)}
+          value={formatearMoneda(datos.ingresosHoy)}
           icon="💰"
           description="Ingresos generados hoy"
         />
 
-        {/* ================= ESTADISTICAS DEL MES ================= */}
-
         <PeriodCard
           title="Ventas del mes"
-          value={stats?.ventasMes || 0}
+          value={Number(datos.ventasMes || 0)}
           icon="📈"
           description="Transacciones realizadas este mes"
         />
 
         <PeriodCard
           title="Ingresos del mes"
-          value={formatoMoneda(stats?.ingresosMes)}
+          value={formatearMoneda(datos.ingresosMes)}
           icon="💵"
           description="Ingresos generados este mes"
         />
@@ -71,8 +79,6 @@ export default function DashboardStats({ stats, formatoMoneda }) {
     </>
   );
 }
-
-/* ================= TARJETA GENERAL ================= */
 
 function Card({ title, value, icon, description }) {
   return (
@@ -89,8 +95,6 @@ function Card({ title, value, icon, description }) {
     </div>
   );
 }
-
-/* ================= TARJETA POR PERIODO ================= */
 
 function PeriodCard({ title, value, icon, description }) {
   return (

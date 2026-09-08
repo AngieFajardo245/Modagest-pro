@@ -1,7 +1,7 @@
 import styles from "./dashboardStyles";
 
 export default function DashboardGrafica({ ventas, formatoMoneda }) {
-  const datos = ventas || [];
+  const datos = Array.isArray(ventas) ? ventas : [];
 
   if (datos.length === 0) {
     return (
@@ -15,9 +15,59 @@ export default function DashboardGrafica({ ventas, formatoMoneda }) {
     );
   }
 
+  const ventasValidas = datos.filter((venta) => {
+    const total = Number(venta?.total);
+
+    return Number.isFinite(total) && total >= 0;
+  });
+
+  if (ventasValidas.length === 0) {
+    return (
+      <div style={styles.chartCard}>
+        <div style={styles.sectionHeader}>
+          <h3 style={styles.sectionTitle}>Ventas</h3>
+        </div>
+
+        <p style={styles.chartEmpty}>
+          No hay datos válidos de ventas para mostrar.
+        </p>
+      </div>
+    );
+  }
+
   const ventasMaximas = Math.max(
-    ...datos.map((venta) => Number(venta.total || 0)),
+    ...ventasValidas.map((venta) => Number(venta.total)),
   );
+
+  const formatearMoneda = (valor) => {
+    if (typeof formatoMoneda === "function") {
+      return formatoMoneda(valor);
+    }
+
+    return Number(valor || 0).toLocaleString("es-CO", {
+      style: "currency",
+      currency: "COP",
+      maximumFractionDigits: 0,
+    });
+  };
+
+  const formatearFecha = (valor) => {
+    if (!valor) {
+      return "Fecha no disponible";
+    }
+
+    const fecha = new Date(valor);
+
+    if (Number.isNaN(fecha.getTime())) {
+      return "Fecha no disponible";
+    }
+
+    return fecha.toLocaleDateString("es-CO", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
 
   return (
     <div style={styles.chartCard}>
@@ -31,44 +81,42 @@ export default function DashboardGrafica({ ventas, formatoMoneda }) {
         </div>
 
         <span style={styles.sectionBadge}>
-          {datos.length} {datos.length === 1 ? "venta" : "ventas"}
+          {ventasValidas.length}{" "}
+          {ventasValidas.length === 1 ? "venta" : "ventas"}
         </span>
       </div>
 
       <div style={styles.chartList}>
-        {datos.map((venta) => {
-          const total = Number(venta.total || 0);
+        {ventasValidas.map((venta) => {
+          const total = Number(venta.total);
 
           const porcentaje =
             ventasMaximas > 0 ? (total / ventasMaximas) * 100 : 0;
 
-          const fecha = new Date(venta.createdAt).toLocaleDateString("es-CO", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          });
-
           return (
             <div key={venta.id} style={styles.chartItem}>
               <div style={styles.chartInfo}>
-                <span style={styles.chartDate}>{fecha}</span>
+                <span style={styles.chartDate}>
+                  {formatearFecha(venta.createdAt)}
+                </span>
 
                 <strong style={styles.chartValue}>
-                  {formatoMoneda
-                    ? formatoMoneda(total)
-                    : total.toLocaleString("es-CO", {
-                        style: "currency",
-                        currency: "COP",
-                        maximumFractionDigits: 0,
-                      })}
+                  {formatearMoneda(total)}
                 </strong>
               </div>
 
-              <div style={styles.chartBarBackground}>
+              <div
+                style={styles.chartBarBackground}
+                role="progressbar"
+                aria-valuenow={Math.round(porcentaje)}
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-label={`Venta de ${formatearMoneda(total)}`}
+              >
                 <div
                   style={{
                     ...styles.chartBar,
-                    width: `${porcentaje}%`,
+                    width: `${Math.min(Math.max(porcentaje, 0), 100)}%`,
                   }}
                 />
               </div>

@@ -13,18 +13,32 @@ const Venta = sequelize.define(
     clienteId: {
       type: DataTypes.INTEGER,
       allowNull: true,
+      references: {
+        model: "usuarios",
+        key: "id",
+      },
+      onUpdate: "CASCADE",
+      onDelete: "SET NULL",
     },
 
     empleadoId: {
       type: DataTypes.INTEGER,
       allowNull: true,
+      references: {
+        model: "usuarios",
+        key: "id",
+      },
+      onUpdate: "CASCADE",
+      onDelete: "SET NULL",
     },
 
     total: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
-
       validate: {
+        isDecimal: {
+          msg: "El total debe ser un valor numérico válido",
+        },
         min: {
           args: [0],
           msg: "El total no puede ser negativo",

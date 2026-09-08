@@ -11,43 +11,61 @@ import styles from "./dashboardStyles";
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
-
   const [loading, setLoading] = useState(true);
-
   const [error, setError] = useState("");
 
-  const formatoMoneda = (valor) => {
-    return Number(valor || 0).toLocaleString("es-CO", {
+  const formatoMoneda = (valor) =>
+    Number(valor || 0).toLocaleString("es-CO", {
       style: "currency",
       currency: "COP",
+      maximumFractionDigits: 0,
     });
-  };
 
   useEffect(() => {
+    let activo = true;
+
     const obtenerStats = async () => {
       try {
         setLoading(true);
+        setError("");
 
         const res = await api.get("/admin/estadisticas");
 
-        setStats(res.data);
-      } catch (error) {
-        console.error(error);
+        if (!activo) {
+          return;
+        }
 
-        setError("No se pudieron cargar las estadísticas");
+        setStats(res.data || {});
+      } catch (error) {
+        console.error("Error obteniendo estadísticas:", error);
+
+        if (!activo) {
+          return;
+        }
+
+        setStats(null);
+        setError(
+          error.response?.data?.message ||
+            "No se pudieron cargar las estadísticas.",
+        );
       } finally {
-        setLoading(false);
+        if (activo) {
+          setLoading(false);
+        }
       }
     };
 
     obtenerStats();
+
+    return () => {
+      activo = false;
+    };
   }, []);
 
   if (loading) {
     return (
       <div style={styles.loadingContainer}>
         <div style={styles.loader}></div>
-
         <p>Cargando dashboard...</p>
       </div>
     );
@@ -61,24 +79,26 @@ export default function Dashboard() {
     );
   }
 
+  const datos = stats || {};
+
   return (
     <div style={styles.container}>
       <DashboardHero
-        ingresos={stats?.ingresosTotales}
+        ingresos={datos.ingresosTotales || 0}
         formatoMoneda={formatoMoneda}
       />
 
-      <DashboardStats stats={stats} formatoMoneda={formatoMoneda} />
+      <DashboardStats stats={datos} formatoMoneda={formatoMoneda} />
 
       <DashboardGrafica
-        ventas={stats?.ventasGrafica || []}
+        ventas={Array.isArray(datos.ventasGrafica) ? datos.ventasGrafica : []}
         formatoMoneda={formatoMoneda}
       />
 
       <div style={styles.bottomGrid}>
         <DashboardActivity />
 
-        <DashboardSummary stats={stats} formatoMoneda={formatoMoneda} />
+        <DashboardSummary stats={datos} formatoMoneda={formatoMoneda} />
       </div>
     </div>
   );

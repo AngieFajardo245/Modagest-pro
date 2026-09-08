@@ -10,54 +10,43 @@ import {
 } from "recharts";
 
 export default function VentaRanking({ rankingProductos = [], styles }) {
-  /* ===================================================== */
-  /* =============== SIN PRODUCTOS ======================= */
-  /* ===================================================== */
+  const datosGrafica = rankingProductos
+    .slice(0, 8)
+    .map(([nombre, cantidad]) => {
+      const nombreProducto = String(nombre || "Producto");
 
-  if (rankingProductos.length === 0) {
+      return {
+        nombre:
+          nombreProducto.length > 18
+            ? `${nombreProducto.substring(0, 18)}...`
+            : nombreProducto,
+        nombreCompleto: nombreProducto,
+        cantidad: Number(cantidad || 0),
+      };
+    });
+
+  if (datosGrafica.length === 0) {
     return (
       <div style={styles.rankingCard}>
         <h3 style={styles.rankingTitle}>🏆 Productos más vendidos</h3>
 
-        <p style={styles.rankingEmpty}>
-          No hay productos vendidos todavía.
-        </p>
+        <p style={styles.rankingEmpty}>No hay productos vendidos todavía.</p>
       </div>
     );
   }
-
-  /* ===================================================== */
-  /* ============== PREPARAR DATOS ======================= */
-  /* ===================================================== */
-
-  const datosGrafica = rankingProductos.slice(0, 8).map(([nombre, cantidad]) => ({
-    nombre:
-      nombre.length > 18
-        ? `${nombre.substring(0, 18)}...`
-        : nombre,
-    cantidad: Number(cantidad || 0),
-  }));
-
-  /* ===================================================== */
-  /* ======================= UI =========================== */
-  /* ===================================================== */
 
   return (
     <div style={styles.rankingCard}>
       <div style={styles.rankingChartHeader}>
         <div>
-          <h3 style={styles.rankingTitle}>
-            🏆 Productos más vendidos
-          </h3>
+          <h3 style={styles.rankingTitle}>🏆 Productos más vendidos</h3>
 
           <p style={styles.rankingSubtitle}>
             Comparación de productos por unidades vendidas
           </p>
         </div>
 
-        <span style={styles.rankingBadge}>
-          Top {datosGrafica.length}
-        </span>
+        <span style={styles.rankingBadge}>Top {datosGrafica.length}</span>
       </div>
 
       <div style={styles.rankingChartContainer}>
@@ -118,9 +107,12 @@ export default function VentaRanking({ rankingProductos = [], styles }) {
                 marginBottom: "4px",
               }}
               formatter={(value) => [
-                `${value} unidades`,
+                `${value} ${Number(value) === 1 ? "unidad" : "unidades"}`,
                 "Vendidos",
               ]}
+              labelFormatter={(_, payload) => {
+                return payload?.[0]?.payload?.nombreCompleto || "";
+              }}
             />
 
             <Bar

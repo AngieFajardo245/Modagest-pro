@@ -1,11 +1,11 @@
 import React from "react";
 
 export default function VentaFilters({
-  busqueda,
+  busqueda = "",
   setBusqueda,
-  desde,
+  desde = "",
   setDesde,
-  hasta,
+  hasta = "",
   setHasta,
   filtrarVentas,
   obtenerVentas,
@@ -16,26 +16,27 @@ export default function VentaFilters({
     setDesde("");
     setHasta("");
 
-    if (obtenerVentas) {
+    if (typeof obtenerVentas === "function") {
       obtenerVentas();
     }
   };
 
   const aplicarFiltro = () => {
     if (!desde && !hasta) {
-      if (filtrarVentas) {
-        filtrarVentas();
+      if (typeof obtenerVentas === "function") {
+        obtenerVentas();
       }
+
       return;
     }
 
-    if (desde && !hasta) {
-      alert("Selecciona también la fecha final.");
+    if (!desde) {
+      alert("Selecciona la fecha inicial.");
       return;
     }
 
-    if (!desde && hasta) {
-      alert("Selecciona también la fecha inicial.");
+    if (!hasta) {
+      alert("Selecciona la fecha final.");
       return;
     }
 
@@ -44,19 +45,15 @@ export default function VentaFilters({
       return;
     }
 
-    if (filtrarVentas) {
+    if (typeof filtrarVentas === "function") {
       filtrarVentas();
     }
   };
 
   return (
     <div style={styles.filters}>
-      {/* ================= BUSCADOR ================= */}
-
       <div style={styles.filterGroup}>
-        <label style={styles.filterLabel}>
-          🔎 Buscar
-        </label>
+        <label style={styles.filterLabel}>🔎 Buscar</label>
 
         <input
           type="text"
@@ -68,12 +65,8 @@ export default function VentaFilters({
         />
       </div>
 
-      {/* ================= FECHA INICIAL ================= */}
-
       <div style={styles.filterGroup}>
-        <label style={styles.filterLabel}>
-          📅 Desde
-        </label>
+        <label style={styles.filterLabel}>📅 Desde</label>
 
         <input
           type="date"
@@ -84,12 +77,8 @@ export default function VentaFilters({
         />
       </div>
 
-      {/* ================= FECHA FINAL ================= */}
-
       <div style={styles.filterGroup}>
-        <label style={styles.filterLabel}>
-          📅 Hasta
-        </label>
+        <label style={styles.filterLabel}>📅 Hasta</label>
 
         <input
           type="date"
@@ -99,8 +88,6 @@ export default function VentaFilters({
           aria-label="Fecha final"
         />
       </div>
-
-      {/* ================= BOTONES ================= */}
 
       <div style={styles.filterButtons}>
         <button
