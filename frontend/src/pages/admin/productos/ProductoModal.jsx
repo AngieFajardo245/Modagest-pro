@@ -16,12 +16,10 @@ export default function ProductoModal({
 
   if (!mostrarModal) return null;
 
-  /* ================= VALIDAR FORMULARIO ================= */
-
   const validarFormulario = () => {
     setError("");
 
-    if (formulario.nombre.trim().length < 3) {
+    if (!formulario.nombre?.trim() || formulario.nombre.trim().length < 3) {
       setError("El nombre debe tener mínimo 3 caracteres.");
       return false;
     }
@@ -32,6 +30,7 @@ export default function ProductoModal({
       );
       return false;
     }
+
     if (
       !Number.isInteger(Number(formulario.stock)) ||
       Number(formulario.stock) < 0
@@ -45,7 +44,10 @@ export default function ProductoModal({
       return false;
     }
 
-    if (formulario.descripcion.trim().length < 10) {
+    if (
+      !formulario.descripcion?.trim() ||
+      formulario.descripcion.trim().length < 10
+    ) {
       setError("La descripción debe tener mínimo 10 caracteres.");
       return false;
     }
@@ -53,33 +55,23 @@ export default function ProductoModal({
     return true;
   };
 
-  /* ================= CERRAR EL MODAL ====================== */
-
   const cerrarModal = () => {
     setError("");
     setMostrarModal(false);
     limpiarFormulario();
   };
 
-  /* ================= GUARDAR CAMBIOS =================== */
-
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!validarFormulario()) {
-      return;
-    }
+    if (!validarFormulario()) return;
 
     guardarEdicion(e);
   };
 
-  /* ======================== RETURN ===================== */
-
   return (
     <div style={styles.modalOverlay}>
       <div style={styles.modal}>
-        {/* ================= HEADER ================= */}
-
         <div style={styles.modalHeader}>
           <h2 style={styles.modalTitle}>Editar Producto</h2>
 
@@ -93,15 +85,9 @@ export default function ProductoModal({
           </button>
         </div>
 
-        {/* ================= ERROR ================= */}
-
         {error && <div style={styles.errorBox}>{error}</div>}
 
-        {/* ================= FORM ================= */}
-
         <form onSubmit={handleSubmit} style={styles.modalForm}>
-          {/* ================= NOMBRE / PRECIO ================= */}
-
           <div style={styles.row}>
             <input
               type="text"
@@ -118,13 +104,11 @@ export default function ProductoModal({
               value={formulario.precio}
               onChange={handleChange}
               placeholder="Precio"
-              min="1"
+              min="1000"
               step="0.01"
               style={styles.input}
             />
           </div>
-
-          {/* ================= DESCRIPCIÓN ================= */}
 
           <textarea
             name="descripcion"
@@ -133,8 +117,6 @@ export default function ProductoModal({
             placeholder="Descripción"
             style={styles.textarea}
           />
-
-          {/* ================= STOCK / CATEGORÍA ================= */}
 
           <div style={styles.row}>
             <input
@@ -170,31 +152,23 @@ export default function ProductoModal({
             </select>
           </div>
 
-          {/* ================= IMAGEN ================= */}
-
           <input
             type="file"
-            accept="image/*"
+            accept=".jpg,.jpeg,.png,.webp"
             onChange={handleImagen}
-            style={styles.input}
+            style={styles.fileInput}
           />
-
-          {/* ================= PREVIEW ================= */}
 
           {previewImagen && (
             <div style={styles.previewContainer}>
               <img
+                key={previewImagen}
                 src={previewImagen}
                 alt="Vista previa del producto"
                 style={styles.previewImage}
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
               />
             </div>
           )}
-
-          {/* ================= BOTONES ================= */}
 
           <div style={styles.modalButtons}>
             <button
@@ -206,7 +180,7 @@ export default function ProductoModal({
             </button>
 
             <button type="submit" style={styles.saveBtn}>
-              Guardar Cambios
+              Guardar cambios
             </button>
           </div>
         </form>
@@ -215,12 +189,10 @@ export default function ProductoModal({
   );
 }
 
-/* ======================= ESTILOS ===================== */
 const styles = {
   modalOverlay: {
     position: "fixed",
-    top: 0,
-    left: 0,
+    inset: 0,
     width: "100%",
     height: "100%",
     background: "rgba(0,0,0,0.7)",
@@ -309,6 +281,18 @@ const styles = {
     fontSize: "15px",
   },
 
+  fileInput: {
+    width: "100%",
+    padding: "14px",
+    borderRadius: "16px",
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.08)",
+    color: "#fff",
+    boxSizing: "border-box",
+    fontSize: "15px",
+    cursor: "pointer",
+  },
+
   option: {
     background: "#1f2937",
     color: "#fff",
@@ -323,7 +307,7 @@ const styles = {
     border: "1px solid rgba(255,255,255,0.08)",
     background: "rgba(255,255,255,0.08)",
     color: "#fff",
-    outline: "none",
+    outline:"none",
     boxSizing: "border-box",
     fontFamily: "Arial",
     fontSize: "15px",
@@ -341,6 +325,7 @@ const styles = {
     objectFit: "cover",
     borderRadius: "22px",
     border: "3px solid #9333ea",
+    background: "#fff",
     boxShadow: "0 10px 30px rgba(147,51,234,0.4)",
   },
 

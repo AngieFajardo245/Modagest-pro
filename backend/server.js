@@ -7,7 +7,7 @@ const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
 const path = require("path");
 const fs = require("fs");
-const multer = require("multer");
+
 
 const sequelize = require("./config/database");
 
@@ -22,6 +22,7 @@ const DetalleVenta = require("./models/DetalleVenta");
 
 const verificarToken = require("./middlewares/authMiddleware");
 const verificarRol = require("./middlewares/rolMiddleware");
+const upload = require("./middlewares/upload");
 
 const app = express();
 
@@ -42,26 +43,7 @@ if (!fs.existsSync(uploadPath)) {
 }
 
 app.use("/uploads", express.static(uploadPath));
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadPath);
-  },
-
-  filename: (req, file, cb) => {
-    const extension = path.extname(file.originalname).toLowerCase();
-
-    const nombreLimpio = path
-      .basename(file.originalname, extension)
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "");
-
-    cb(null, `${nombreLimpio || "imagen"}-${Date.now()}${extension}`);
-  },
-});
-
-const upload = multer({ storage });
+;
 
 Categoria.hasMany(Producto, {
   foreignKey: "categoriaId",

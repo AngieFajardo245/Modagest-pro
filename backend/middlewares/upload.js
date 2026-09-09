@@ -3,11 +3,17 @@ const path = require("path");
 const fs = require("fs");
 const { randomUUID } = require("crypto");
 
-const productosPath = path.join(__dirname, "../uploads/productos");
+const uploadPath = path.join(__dirname, "../uploads");
 
-fs.mkdirSync(productosPath, { recursive: true });
+fs.mkdirSync(uploadPath, { recursive: true });
 
-const tiposPermitidos = {
+const extensionesPermitidas = {
+  "image/jpeg": [".jpg", ".jpeg"],
+  "image/png": [".png"],
+  "image/webp": [".webp"],
+};
+
+const extensionesFinales = {
   "image/jpeg": ".jpg",
   "image/png": ".png",
   "image/webp": ".webp",
@@ -15,21 +21,24 @@ const tiposPermitidos = {
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, productosPath);
+    cb(null, uploadPath);
   },
 
   filename: (req, file, cb) => {
-    const extension = tiposPermitidos[file.mimetype];
+    const extension = extensionesFinales[file.mimetype];
     cb(null, `${randomUUID()}${extension}`);
   },
 });
 
 const fileFilter = (req, file, cb) => {
   const extension = path.extname(file.originalname).toLowerCase();
-  const extensionEsperada = tiposPermitidos[file.mimetype];
+  const extensiones = extensionesPermitidas[file.mimetype];
 
-  if (!extensionEsperada || extension !== extensionEsperada) {
-    return cb(new Error("Solo se permiten imágenes JPG, PNG o WEBP"), false);
+  if (!extensiones?.includes(extension)) {
+    return cb(
+      new Error("Solo se permiten imágenes JPG, PNG o WEBP"),
+      false
+    );
   }
 
   return cb(null, true);
