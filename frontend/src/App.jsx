@@ -17,6 +17,7 @@ import Categorias from "./pages/admin/categorias/Categorias";
 import DashboardCliente from "./pages/cliente/DashboardCliente";
 import ProductosCliente from "./pages/cliente/ProductosCliente";
 import ComprasCliente from "./pages/cliente/ComprasCliente";
+import DireccionesCliente from "./pages/cliente/DireccionesCliente";
 import Carrito from "./pages/Carrito";
 
 import DashboardEmpleado from "./pages/empleado/DashboardEmpleado";
@@ -56,6 +57,7 @@ function App() {
         <Route index element={<DashboardCliente />} />
         <Route path="productos" element={<ProductosCliente />} />
         <Route path="compras" element={<ComprasCliente />} />
+        <Route path="direcciones" element={<DireccionesCliente />} />
         <Route path="carrito" element={<Carrito />} />
       </Route>
 

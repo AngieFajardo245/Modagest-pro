@@ -4,6 +4,7 @@ import {
   FaShoppingCart,
   FaUserCircle,
   FaHome,
+  FaMapMarkerAlt,
   FaBoxOpen,
   FaClipboardList,
   FaSignOutAlt,
@@ -273,6 +274,14 @@ export default function ClienteNavbar() {
         <Link to="/cliente/compras" style={linkStyle("/cliente/compras")}>
           <FaClipboardList />
           <span>Compras</span>
+        </Link>
+
+        <Link
+          to="/cliente/direcciones"
+          style={linkStyle("/cliente/direcciones")}
+        >
+          <FaMapMarkerAlt />
+          <span>Direcciones</span>
         </Link>
 
         <Link

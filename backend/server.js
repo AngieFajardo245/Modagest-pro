@@ -8,7 +8,6 @@ const { Op } = require("sequelize");
 const path = require("path");
 const fs = require("fs");
 
-
 const sequelize = require("./config/database");
 
 const Usuario = require("./models/Usuario");
@@ -43,8 +42,6 @@ if (!fs.existsSync(uploadPath)) {
 }
 
 app.use("/uploads", express.static(uploadPath));
-;
-
 Categoria.hasMany(Producto, {
   foreignKey: "categoriaId",
 });
@@ -228,6 +225,171 @@ app.post("/auth/login", async (req, res) => {
   }
 });
 
+app.get(
+  "/cliente/direcciones",
+  verificarToken,
+  verificarRol("cliente"),
+  async (req, res) => {
+    try {
+      const direcciones = await Direccion.findAll({
+        where: {
+          clienteId: req.usuario.id,
+        },
+        order: [["createdAt", "DESC"]],
+      });
+
+      res.json(direcciones);
+    } catch (error) {
+      console.error("Error obteniendo direcciones:", error);
+
+      res.status(500).json({
+        message: "Error obteniendo las direcciones",
+      });
+    }
+  },
+);
+
+app.post(
+  "/cliente/direcciones",
+  verificarToken,
+  verificarRol("cliente"),
+  async (req, res) => {
+    try {
+      const { direccion, ciudad, telefono } = req.body;
+
+      if (
+        typeof direccion !== "string" ||
+        typeof ciudad !== "string" ||
+        typeof telefono !== "string" ||
+        !direccion.trim() ||
+        !ciudad.trim() ||
+        !telefono.trim()
+      ) {
+        return res.status(400).json({
+          message: "La dirección, la ciudad y el teléfono son obligatorios",
+        });
+      }
+
+      const nuevaDireccion = await Direccion.create({
+        clienteId: req.usuario.id,
+        direccion: direccion.trim(),
+        ciudad: ciudad.trim(),
+        telefono: telefono.trim(),
+      });
+
+      res.status(201).json({
+        message: "Dirección creada correctamente",
+        direccion: nuevaDireccion,
+      });
+    } catch (error) {
+      console.error("Error creando dirección:", error);
+
+      if (error.name === "SequelizeValidationError") {
+        return res.status(400).json({
+          message: error.errors[0]?.message || "Datos de dirección inválidos",
+        });
+      }
+
+      res.status(500).json({
+        message: "Error creando la dirección",
+      });
+    }
+  },
+);
+
+app.put(
+  "/cliente/direcciones/:id",
+  verificarToken,
+  verificarRol("cliente"),
+  async (req, res) => {
+    try {
+      const { direccion, ciudad, telefono } = req.body;
+
+      if (
+        typeof direccion !== "string" ||
+        typeof ciudad !== "string" ||
+        typeof telefono !== "string" ||
+        !direccion.trim() ||
+        !ciudad.trim() ||
+        !telefono.trim()
+      ) {
+        return res.status(400).json({
+          message: "La dirección, la ciudad y el teléfono son obligatorios",
+        });
+      }
+
+      const direccionEncontrada = await Direccion.findOne({
+        where: {
+          id: req.params.id,
+          clienteId: req.usuario.id,
+        },
+      });
+
+      if (!direccionEncontrada) {
+        return res.status(404).json({
+          message: "Dirección no encontrada",
+        });
+      }
+
+      direccionEncontrada.direccion = direccion.trim();
+      direccionEncontrada.ciudad = ciudad.trim();
+      direccionEncontrada.telefono = telefono.trim();
+
+      await direccionEncontrada.save();
+
+      res.json({
+        message: "Dirección actualizada correctamente",
+        direccion: direccionEncontrada,
+      });
+    } catch (error) {
+      console.error("Error actualizando dirección:", error);
+
+      if (error.name === "SequelizeValidationError") {
+        return res.status(400).json({
+          message: error.errors[0]?.message || "Datos de dirección inválidos",
+        });
+      }
+
+      res.status(500).json({
+        message: "Error actualizando la dirección",
+      });
+    }
+  },
+);
+
+app.delete(
+  "/cliente/direcciones/:id",
+  verificarToken,
+  verificarRol("cliente"),
+  async (req, res) => {
+    try {
+      const direccion = await Direccion.findOne({
+        where: {
+          id: req.params.id,
+          clienteId: req.usuario.id,
+        },
+      });
+
+      if (!direccion) {
+        return res.status(404).json({
+          message: "Dirección no encontrada",
+        });
+      }
+
+      await direccion.destroy();
+
+      res.json({
+        message: "Dirección eliminada correctamente",
+      });
+    } catch (error) {
+      console.error("Error eliminando dirección:", error);
+
+      res.status(500).json({
+        message: "Error eliminando la dirección",
+      });
+    }
+  },
+);
 app.get("/categorias", async (req, res) => {
   try {
     const categorias = await Categoria.findAll({
