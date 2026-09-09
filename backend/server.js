@@ -183,7 +183,6 @@ app.post("/auth/register", async (req, res) => {
 
     res.status(500).json({
       message: "Error registrando usuario",
-      error: error.message,
     });
   }
 });
@@ -243,7 +242,6 @@ app.post("/auth/login", async (req, res) => {
 
     res.status(500).json({
       message: "Error iniciando sesión",
-      error: error.message,
     });
   }
 });
@@ -260,7 +258,6 @@ app.get("/categorias", async (req, res) => {
 
     res.status(500).json({
       message: "Error obteniendo las categorías",
-      error: error.message,
     });
   }
 });
@@ -306,7 +303,6 @@ app.post(
 
       res.status(500).json({
         message: "Error creando la categoría",
-        error: error.message,
       });
     }
   },
@@ -364,7 +360,6 @@ app.put(
 
       res.status(500).json({
         message: "Error actualizando la categoría",
-        error: error.message,
       });
     }
   },
@@ -408,7 +403,6 @@ app.delete(
 
       res.status(500).json({
         message: "Error eliminando la categoría",
-        error: error.message,
       });
     }
   },
@@ -431,7 +425,6 @@ app.get("/productos", async (req, res) => {
 
     res.status(500).json({
       message: "Error obteniendo productos",
-      error: error.message,
     });
   }
 });
@@ -492,7 +485,6 @@ app.post(
 
       res.status(500).json({
         message: "Error creando producto",
-        error: error.message,
       });
     }
   },
@@ -571,7 +563,6 @@ app.put(
 
       res.status(500).json({
         message: "Error actualizando producto",
-        error: error.message,
       });
     }
   },
@@ -623,7 +614,6 @@ app.delete(
 
       res.status(500).json({
         message: "Error eliminando producto",
-        error: error.message,
       });
     }
   },
@@ -781,7 +771,6 @@ app.post(
 
       res.status(500).json({
         message: "Error realizando la compra",
-        error: error.message,
       });
     }
   },
@@ -821,7 +810,6 @@ app.get(
 
       res.status(500).json({
         message: "Error obteniendo compras",
-        error: error.message,
       });
     }
   },
@@ -861,7 +849,6 @@ app.get(
 
       res.status(500).json({
         message: "Error al obtener las ventas del empleado",
-        error: error.message,
       });
     }
   },
@@ -984,7 +971,6 @@ app.post(
 
       res.status(500).json({
         message: "Error al registrar la venta",
-        error: error.message,
       });
     }
   },
@@ -1060,7 +1046,6 @@ app.get(
 
       res.status(500).json({
         message: "Error obteniendo ventas",
-        error: error.message,
       });
     }
   },
@@ -1083,7 +1068,6 @@ app.get(
 
       res.status(500).json({
         message: "Error obteniendo usuarios",
-        error: error.message,
       });
     }
   },
@@ -1143,7 +1127,6 @@ app.post(
 
       res.status(500).json({
         message: "Error creando usuario",
-        error: error.message,
       });
     }
   },
@@ -1172,6 +1155,13 @@ app.put(
           message: "Usuario no encontrado",
         });
       }
+      const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+
+      if (usuario.email === adminEmail && rol !== "administrador") {
+        return res.status(400).json({
+          message: "No puedes cambiar el rol del administrador principal",
+        });
+      }
 
       usuario.rol = rol;
 
@@ -1186,7 +1176,6 @@ app.put(
 
       res.status(500).json({
         message: "Error actualizando rol",
-        error: error.message,
       });
     }
   },
@@ -1206,7 +1195,9 @@ app.delete(
         });
       }
 
-      if (usuario.email === "admin@modagest.com") {
+      const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+
+      if (usuario.email === adminEmail) {
         return res.status(400).json({
           message: "No puedes eliminar el administrador principal",
         });
@@ -1222,7 +1213,6 @@ app.delete(
 
       res.status(500).json({
         message: "Error eliminando usuario",
-        error: error.message,
       });
     }
   },
@@ -1369,7 +1359,6 @@ app.get(
 
       res.status(500).json({
         message: "Error obteniendo estadísticas",
-        error: error.message,
       });
     }
   },
@@ -1459,7 +1448,6 @@ app.get(
 
       res.status(500).json({
         message: "Error obteniendo actividad reciente",
-        error: error.message,
       });
     }
   },
@@ -1467,32 +1455,41 @@ app.get(
 
 const crearAdmin = async () => {
   try {
-    const pass = await bcrypt.hash("Admin2026*", 10);
+    const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+    const password = process.env.ADMIN_PASSWORD;
+
+    if (!email || !password) {
+      throw new Error("ADMIN_EMAIL y ADMIN_PASSWORD deben estar definidos");
+    }
+
+    if (password.length < 12) {
+      throw new Error("ADMIN_PASSWORD debe tener al menos 12 caracteres");
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
 
     const admin = await Usuario.findOne({
-      where: {
-        email: "admin@modagest.com",
-      },
+      where: { email },
     });
 
     if (admin) {
-      admin.password = pass;
+      admin.password = passwordHash;
       admin.rol = "administrador";
-
       await admin.save();
-    } else {
-      await Usuario.create({
-        nombre: "Administrador",
-        email: "admin@modagest.com",
-        password: pass,
-        rol: "administrador",
-      });
+      return;
     }
+
+    await Usuario.create({
+      nombre: "Administrador",
+      email,
+      password: passwordHash,
+      rol: "administrador",
+    });
   } catch (error) {
-    console.error("Error creando administrador:", error);
+    console.error("Error configurando administrador:", error.message);
+    throw error;
   }
 };
-
 sequelize
   .sync({
     alter: false,
