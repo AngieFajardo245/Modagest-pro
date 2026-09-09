@@ -35,6 +35,9 @@ function Carrito() {
   const [datosPago, setDatosPago] = useState(DATOS_INICIALES);
   const [erroresPago, setErroresPago] = useState({});
   const [procesando, setProcesando] = useState(false);
+  const [direcciones, setDirecciones] = useState([]);
+  const [direccionSeleccionada, setDireccionSeleccionada] = useState("");
+  const [cargandoDirecciones, setCargandoDirecciones] = useState(false);
 
   const token = localStorage.getItem("token");
   const rol = (localStorage.getItem("rol") || "").toLowerCase().trim();
@@ -254,7 +257,7 @@ function Carrito() {
     }
   };
 
-  const abrirPago = () => {
+  const abrirPago = async () => {
     if (!token) {
       localStorage.setItem("redirectAfterLogin", "/cliente/carrito");
       alert("Debes iniciar sesión para realizar una compra.");
@@ -277,10 +280,36 @@ function Carrito() {
       return;
     }
 
-    setMetodoPago("");
-    setDatosPago(DATOS_INICIALES);
-    setErroresPago({});
-    setMostrarPago(true);
+    try {
+      setCargandoDirecciones(true);
+
+      const respuesta = await api.get("/cliente/direcciones");
+      const direccionesCliente = Array.isArray(respuesta.data)
+        ? respuesta.data
+        : [];
+
+      if (direccionesCliente.length === 0) {
+        alert("Debes agregar una dirección antes de realizar la compra.");
+        navigate("/cliente/direcciones");
+        return;
+      }
+
+      setDirecciones(direccionesCliente);
+      setDireccionSeleccionada(String(direccionesCliente[0].id));
+      setMetodoPago("");
+      setDatosPago(DATOS_INICIALES);
+      setErroresPago({});
+      setMostrarPago(true);
+    } catch (error) {
+      console.error("Error obteniendo direcciones:", error);
+
+      alert(
+        error.response?.data?.message ||
+          "No fue posible cargar tus direcciones de entrega.",
+      );
+    } finally {
+      setCargandoDirecciones(false);
+    }
   };
 
   const cerrarPago = () => {
@@ -319,6 +348,10 @@ function Carrito() {
 
   const validarPago = () => {
     const errores = {};
+
+    if (!direccionSeleccionada) {
+      errores.direccionSeleccionada = "Selecciona una dirección de entrega.";
+    }
 
     if (!metodoPago) {
       errores.metodoPago = "Selecciona un método de pago.";
@@ -364,6 +397,7 @@ function Carrito() {
             cantidad: Number(producto.cantidad),
           })),
           metodoPago,
+          direccionId: Number(direccionSeleccionada),
         },
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -619,6 +653,57 @@ function Carrito() {
             <div style={styles.totalBox}>
               <span>Total a pagar</span>
               <strong>{formatoMoneda(total)}</strong>
+            </div>
+            <div style={styles.formBox}>
+              <h3>Dirección de entrega</h3>
+
+              <label style={styles.field}>
+                <span>Selecciona una dirección</span>
+
+                <select
+                  value={direccionSeleccionada}
+                  onChange={(e) => {
+                    setDireccionSeleccionada(e.target.value);
+                    setErroresPago((actual) => ({
+                      ...actual,
+                      direccionSeleccionada: "",
+                    }));
+                  }}
+                  disabled={procesando || cargandoDirecciones}
+                >
+                  <option value="">Selecciona una dirección</option>
+
+                  {direcciones.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.direccion} - {item.ciudad} - {item.telefono}
+                    </option>
+                  ))}
+                </select>
+
+                {erroresPago.direccionSeleccionada && (
+                  <small>{erroresPago.direccionSeleccionada}</small>
+                )}
+              </label>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMostrarPago(false);
+                  navigate("/cliente/direcciones");
+                }}
+                disabled={procesando}
+                style={{
+                  alignSelf: "flex-start",
+                  border: "none",
+                  padding: 0,
+                  background: "transparent",
+                  color: "#a78bfa",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                }}
+              >
+                Administrar mis direcciones
+              </button>
             </div>
 
             <div style={styles.methods}>

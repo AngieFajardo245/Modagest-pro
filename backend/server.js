@@ -771,7 +771,7 @@ app.post(
     const transaction = await sequelize.transaction();
 
     try {
-      const { productos, metodoPago } = req.body;
+      const { productos, metodoPago, direccionId } = req.body;
 
       if (!Array.isArray(productos) || productos.length === 0) {
         await transaction.rollback();
@@ -788,6 +788,32 @@ app.post(
 
         return res.status(400).json({
           message: "El método de pago no es válido",
+        });
+      }
+      const idDireccion = Number(direccionId);
+
+      if (!Number.isInteger(idDireccion) || idDireccion < 1) {
+        await transaction.rollback();
+
+        return res.status(400).json({
+          message: "Debes seleccionar una dirección de entrega",
+        });
+      }
+
+      const direccionSeleccionada = await Direccion.findOne({
+        where: {
+          id: idDireccion,
+          clienteId: req.usuario.id,
+        },
+        transaction,
+      });
+
+      if (!direccionSeleccionada) {
+        await transaction.rollback();
+
+        return res.status(404).json({
+          message:
+            "La dirección de entrega no existe o no pertenece al cliente",
         });
       }
 
@@ -865,6 +891,9 @@ app.post(
           clienteId: req.usuario.id,
           empleadoId: null,
           total: totalVenta,
+          direccionEntrega: direccionSeleccionada.direccion,
+          ciudadEntrega: direccionSeleccionada.ciudad,
+          telefonoEntrega: direccionSeleccionada.telefono,
         },
         {
           transaction,

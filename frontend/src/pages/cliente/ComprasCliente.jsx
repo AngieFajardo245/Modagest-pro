@@ -228,6 +228,27 @@ function ComprasCliente() {
                 )}
               </div>
 
+              {compra.direccionEntrega && (
+                <div style={styles.deliveryInfo}>
+                  <div style={styles.deliveryIcon}>📍</div>
+
+                  <div>
+                    <p style={styles.deliveryLabel}>Dirección de entrega</p>
+
+                    <strong style={styles.deliveryAddress}>
+                      {compra.direccionEntrega}
+                    </strong>
+
+                    <p style={styles.deliveryDetails}>
+                      {compra.ciudadEntrega}
+                      {compra.telefonoEntrega
+                        ? ` · Teléfono: ${compra.telefonoEntrega}`
+                        : ""}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div style={styles.productsHeader}>
                 <h3 style={styles.productsTitle}>Productos del pedido</h3>
 
@@ -525,6 +546,50 @@ const styles = {
     marginTop: "3px",
     color: "#dbeafe",
     fontSize: "14px",
+  },
+
+  deliveryInfo: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "13px",
+    marginBottom: "22px",
+    padding: "16px",
+    borderRadius: "16px",
+    background: "rgba(124,58,237,0.179)",
+    border: "1px solid rgba(167,139,250,0.2)",
+  },
+
+  deliveryIcon: {
+    width: "42px",
+    height: "42px",
+    flexShrink: 0,
+    display: "grid",
+    placeItems: "center",
+    borderRadius: "13px",
+    background: "linear-gradient(135deg, #7c3aed, #9333ea)",
+    fontSize: "19px",
+  },
+
+  deliveryLabel: {
+    margin: "0 0 5px",
+    color: "#a78bfa",
+    fontSize: "12px",
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: "0.6px",
+  },
+
+  deliveryAddress: {
+    display: "block",
+    color: "#f8fafc",
+    fontSize: "15px",
+    lineHeight: 1.4,
+  },
+
+  deliveryDetails: {
+    margin: "5px 0 0",
+    color: "#94a3b8",
+    fontSize: "13px",
   },
 
   productsHeader: {
