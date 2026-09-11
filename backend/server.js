@@ -1360,16 +1360,22 @@ app.delete(
   verificarRol("administrador"),
   async (req, res) => {
     try {
-      const usuario = await Usuario.findByPk(req.params.id);
-
       if (!usuario) {
         return res.status(404).json({
           message: "Usuario no encontrado",
         });
       }
 
-      const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+      if (
+        Number(usuario.id) === Number(req.usuario.id) &&
+        rol !== usuario.rol
+      ) {
+        return res.status(400).json({
+          message: "No puedes cambiar tu propio rol",
+        });
+      }
 
+      const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
       if (usuario.email === adminEmail) {
         return res.status(400).json({
           message: "No puedes eliminar el administrador principal",
