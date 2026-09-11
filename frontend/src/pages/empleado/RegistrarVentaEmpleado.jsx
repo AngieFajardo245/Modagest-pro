@@ -4,12 +4,14 @@ import {
   FaCashRegister,
   FaCheckCircle,
   FaCubes,
+  FaSearch,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import api from "../../services/api";
 
 export default function RegistrarVentaEmpleado() {
   const [productos, setProductos] = useState([]);
+  const [busqueda, setBusqueda] = useState("");
   const [productoId, setProductoId] = useState("");
   const [cantidad, setCantidad] = useState(1);
   const [cargando, setCargando] = useState(true);
@@ -21,14 +23,13 @@ export default function RegistrarVentaEmpleado() {
       setCargando(true);
 
       const respuesta = await api.get("/productos");
+      const productosDisponibles = Array.isArray(respuesta.data)
+        ? respuesta.data.filter((producto) => Number(producto.stock) > 0)
+        : [];
 
-      setProductos(
-        Array.isArray(respuesta.data)
-          ? respuesta.data.filter((producto) => Number(producto.stock) > 0)
-          : [],
-      );
-    } catch (error) {
-      console.error("Error cargando productos:", error);
+      setProductos(productosDisponibles);
+    } catch (err) {
+      console.error("Error cargando productos:", err);
       toast.error("No se pudieron cargar los productos");
     } finally {
       setCargando(false);
@@ -38,6 +39,20 @@ export default function RegistrarVentaEmpleado() {
   useEffect(() => {
     cargarProductos();
   }, []);
+
+  const productosFiltrados = useMemo(() => {
+    const texto = busqueda.trim().toLowerCase();
+
+    if (!texto) {
+      return productos;
+    }
+
+    return productos.filter((producto) =>
+      String(producto.nombre || "")
+        .toLowerCase()
+        .includes(texto),
+    );
+  }, [productos, busqueda]);
 
   const productoSeleccionado = useMemo(
     () =>
@@ -58,8 +73,15 @@ export default function RegistrarVentaEmpleado() {
       maximumFractionDigits: 0,
     });
 
-  const registrarVenta = async (e) => {
-    e.preventDefault();
+  const actualizarBusqueda = (valor) => {
+    setBusqueda(valor);
+    setProductoId("");
+    setCantidad(1);
+    setError("");
+  };
+
+  const registrarVenta = async (event) => {
+    event.preventDefault();
     setError("");
 
     const id = Number(productoId);
@@ -89,14 +111,15 @@ export default function RegistrarVentaEmpleado() {
       });
 
       toast.success("Venta registrada correctamente");
+      setBusqueda("");
       setProductoId("");
       setCantidad(1);
       await cargarProductos();
-    } catch (error) {
-      console.error("Error registrando venta:", error);
+    } catch (err) {
+      console.error("Error registrando venta:", err);
 
       const mensaje =
-        error.response?.data?.message || "No se pudo registrar la venta";
+        err.response?.data?.message || "No se pudo registrar la venta";
 
       setError(mensaje);
       toast.error(mensaje);
@@ -112,7 +135,7 @@ export default function RegistrarVentaEmpleado() {
           <p style={styles.eyebrow}>PUNTO DE VENTA</p>
           <h1 style={styles.title}>Registrar venta</h1>
           <p style={styles.subtitle}>
-            Selecciona un producto, indica la cantidad y confirma la venta.
+            Busca un producto, indica la cantidad y confirma la venta.
           </p>
         </div>
 
@@ -130,27 +153,55 @@ export default function RegistrarVentaEmpleado() {
           <form onSubmit={registrarVenta} style={styles.form}>
             {error && <div style={styles.error}>{error}</div>}
 
+            <label style={styles.searchField}>
+              <span style={styles.label}>Buscar producto</span>
+
+              <div style={styles.searchWrapper}>
+                <FaSearch style={styles.searchIcon} />
+
+                <input
+                  type="search"
+                  value={busqueda}
+                  onChange={(event) => actualizarBusqueda(event.target.value)}
+                  placeholder="Escribe el nombre del producto..."
+                  style={styles.searchInput}
+                  disabled={procesando}
+                />
+              </div>
+            </label>
+
             <label style={styles.field}>
               <span style={styles.label}>Producto</span>
 
               <select
                 value={productoId}
-                onChange={(e) => {
-                  setProductoId(e.target.value);
+                onChange={(event) => {
+                  setProductoId(event.target.value);
                   setCantidad(1);
                   setError("");
                 }}
                 style={styles.input}
-                disabled={procesando}
+                disabled={procesando || productosFiltrados.length === 0}
               >
-                <option value="">Selecciona un producto</option>
+                <option value="">
+                  {productosFiltrados.length > 0
+                    ? "Selecciona un producto"
+                    : "No se encontraron productos"}
+                </option>
 
-                {productos.map((producto) => (
+                {productosFiltrados.map((producto) => (
                   <option key={producto.id} value={producto.id}>
                     {producto.nombre} — {formatoMoneda(producto.precio)}
                   </option>
                 ))}
               </select>
+
+              <small style={styles.resultText}>
+                {productosFiltrados.length}{" "}
+                {productosFiltrados.length === 1
+                  ? "producto encontrado"
+                  : "productos encontrados"}
+              </small>
             </label>
 
             <label style={styles.field}>
@@ -159,8 +210,8 @@ export default function RegistrarVentaEmpleado() {
               <input
                 type="number"
                 value={cantidad}
-                onChange={(e) => {
-                  setCantidad(e.target.value);
+                onChange={(event) => {
+                  setCantidad(event.target.value);
                   setError("");
                 }}
                 min="1"
@@ -179,9 +230,11 @@ export default function RegistrarVentaEmpleado() {
 
                 <div style={styles.productData}>
                   <span style={styles.summaryLabel}>Producto seleccionado</span>
+
                   <strong style={styles.productName}>
                     {productoSeleccionado.nombre}
                   </strong>
+
                   <span style={styles.stock}>
                     <FaCubes />
                     {productoSeleccionado.stock} unidades disponibles
@@ -229,7 +282,7 @@ const styles = {
   container: {
     width: "100%",
     minHeight: "100%",
-    padding: "36px",
+    padding: "clamp(20px, 4vw, 36px)",
     boxSizing: "border-box",
     color: "#f8fafc",
   },
@@ -237,6 +290,7 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: "20px",
     marginBottom: "28px",
   },
@@ -249,7 +303,7 @@ const styles = {
   },
   title: {
     margin: 0,
-    fontSize: "34px",
+    fontSize: "clamp(30px, 4vw, 34px)",
     fontWeight: "900",
   },
   subtitle: {
@@ -258,28 +312,56 @@ const styles = {
     fontSize: "15px",
   },
   headerIcon: {
-    width: "64px",
-    height: "64px",
     display: "grid",
     placeItems: "center",
+    width: "64px",
+    height: "64px",
     flexShrink: 0,
     borderRadius: "20px",
     background: "linear-gradient(135deg, #7c3aed, #ec4899)",
-    fontSize: "27px",
     boxShadow: "0 12px 30px rgba(124,58,237,0.35)",
+    fontSize: "27px",
   },
   panel: {
     maxWidth: "900px",
-    padding: "28px",
+    padding: "clamp(20px, 4vw, 28px)",
+    border: "1px solid rgba(167,139,250,0.18)",
     borderRadius: "24px",
     background: "linear-gradient(145deg, #172033, #111827)",
-    border: "1px solid rgba(167,139,250,0.18)",
     boxShadow: "0 18px 45px rgba(0,0,0,0.28)",
   },
   form: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
     gap: "20px",
+  },
+  searchField: {
+    gridColumn: "1 / -1",
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+  },
+  searchWrapper: {
+    position: "relative",
+  },
+  searchIcon: {
+    position: "absolute",
+    top: "50%",
+    left: "15px",
+    transform: "translateY(-50%)",
+    color: "#94a3b8",
+    pointerEvents: "none",
+  },
+  searchInput: {
+    width: "100%",
+    padding: "14px 15px 14px 44px",
+    boxSizing: "border-box",
+    border: "1px solid rgba(255,255,255,0.1)",
+    borderRadius: "13px",
+    outline: "none",
+    background: "#252f42",
+    color: "#ffffff",
+    fontSize: "15px",
   },
   field: {
     display: "flex",
@@ -295,37 +377,42 @@ const styles = {
     width: "100%",
     padding: "14px 15px",
     boxSizing: "border-box",
-    borderRadius: "13px",
     border: "1px solid rgba(255,255,255,0.1)",
+    borderRadius: "13px",
     outline: "none",
     background: "#252f42",
-    color: "#fff",
+    color: "#ffffff",
     fontSize: "15px",
+  },
+  resultText: {
+    color: "#94a3b8",
+    fontSize: "12px",
   },
   error: {
     gridColumn: "1 / -1",
     padding: "13px 15px",
+    border: "1px solid rgba(248,113,113,0.3)",
     borderRadius: "12px",
     background: "rgba(127,29,29,0.8)",
-    border: "1px solid rgba(248,113,113,0.3)",
-    color: "#fff",
+    color: "#ffffff",
     fontWeight: "600",
   },
   summary: {
     gridColumn: "1 / -1",
     display: "flex",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: "16px",
     padding: "20px",
+    border: "1px solid rgba(167,139,250,0.2)",
     borderRadius: "18px",
     background: "rgba(124,58,237,0.1)",
-    border: "1px solid rgba(167,139,250,0.2)",
   },
   productIcon: {
-    width: "52px",
-    height: "52px",
     display: "grid",
     placeItems: "center",
+    width: "52px",
+    height: "52px",
     flexShrink: 0,
     borderRadius: "15px",
     background: "linear-gradient(135deg, #7c3aed, #9333ea)",
@@ -333,8 +420,8 @@ const styles = {
   },
   productData: {
     display: "flex",
+    flex: "1 1 220px",
     flexDirection: "column",
-    flex: 1,
     gap: "4px",
   },
   summaryLabel: {
@@ -342,7 +429,7 @@ const styles = {
     fontSize: "12px",
   },
   productName: {
-    color: "#fff",
+    color: "#ffffff",
     fontSize: "17px",
   },
   stock: {
@@ -365,18 +452,16 @@ const styles = {
     alignItems: "center",
     gap: "12px",
     padding: "16px",
+    border: "1px solid rgba(52,211,153,0.18)",
     borderRadius: "15px",
     background: "rgba(16,185,129,0.09)",
-    border: "1px solid rgba(52,211,153,0.18)",
     color: "#34d399",
   },
-
   paymentContent: {
     display: "flex",
     flexDirection: "column",
     gap: "4px",
   },
-
   submit: {
     gridColumn: "1 / -1",
     display: "flex",
@@ -387,11 +472,11 @@ const styles = {
     border: "none",
     borderRadius: "14px",
     background: "linear-gradient(135deg, #7c3aed, #9333ea)",
-    color: "#fff",
-    fontWeight: "800",
-    fontSize: "15px",
-    cursor: "pointer",
     boxShadow: "0 10px 25px rgba(124,58,237,0.3)",
+    color: "#ffffff",
+    cursor: "pointer",
+    fontSize: "15px",
+    fontWeight: "800",
   },
   state: {
     padding: "60px 20px",
