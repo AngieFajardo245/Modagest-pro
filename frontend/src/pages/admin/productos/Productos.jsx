@@ -1,78 +1,81 @@
 import { useEffect, useMemo, useState } from "react";
-import api from "../../../services/api";
-
-import ProductoStats from "./ProductoStats";
-import ProductoForm from "./ProductoForm";
-import ProductoTable from "./ProductoTable";
-import ProductoModal from "./ProductoModal";
-
 import { FaBoxOpen } from "react-icons/fa";
 import { toast } from "react-toastify";
+import api from "../../../services/api";
+import ProductoForm from "./ProductoForm";
+import ProductoModal from "./ProductoModal";
+import ProductoStats from "./ProductoStats";
+import ProductoTable from "./ProductoTable";
+
+const formularioInicial = {
+  nombre: "",
+  descripcion: "",
+  precio: "",
+  stock: "",
+  categoriaId: "",
+  imagen: null,
+};
 
 export default function Productos() {
-  /* ===================================================== */
-  /* ======================= STATES ====================== */
-  /* ===================================================== */
-
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
-
   const [busqueda, setBusqueda] = useState("");
-
   const [editando, setEditando] = useState(null);
   const [mostrarModal, setMostrarModal] = useState(false);
-
   const [previewImagen, setPreviewImagen] = useState(null);
-
-  const [formulario, setFormulario] = useState({
-    nombre: "",
-    descripcion: "",
-    precio: "",
-    stock: "",
-    categoriaId: "",
-    imagen: null,
-  });
-
-  /* ================= CONFIGURACIÓN ===================== */
+  const [formulario, setFormulario] = useState(formularioInicial);
 
   const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-  /* ================= OBTENER PRODUCTOS ================= */
-
   const obtenerProductos = async () => {
     try {
-      const res = await api.get("/productos");
+      const respuesta = await api.get("/productos");
 
-      setProductos(Array.isArray(res.data) ? res.data : []);
+      setProductos(Array.isArray(respuesta.data) ? respuesta.data : []);
     } catch (error) {
       console.error("Error obteniendo productos:", error);
-
       toast.error("No se pudieron cargar los productos");
     }
   };
 
-  /* ================= OBTENER CATEGORIAS ================ */
-
-  const obtenerCategorias = async () => {
-    try {
-      const res = await api.get("/categorias");
-
-      setCategorias(Array.isArray(res.data) ? res.data : []);
-    } catch (error) {
-      console.error("Error obteniendo categorías:", error);
-
-      toast.error("No se pudieron cargar las categorías");
-    }
-  };
-
-  /* ====================== USE EFFECT =================== */
-
   useEffect(() => {
-    obtenerProductos();
-    obtenerCategorias();
-  }, []);
+    let componenteActivo = true;
 
-  /* ==================== FILTRAR ======================== */
+    const cargarDatosIniciales = async () => {
+      try {
+        const [respuestaProductos, respuestaCategorias] = await Promise.all([
+          api.get("/productos"),
+          api.get("/categorias"),
+        ]);
+
+        if (!componenteActivo) {
+          return;
+        }
+
+        setProductos(
+          Array.isArray(respuestaProductos.data) ? respuestaProductos.data : [],
+        );
+
+        setCategorias(
+          Array.isArray(respuestaCategorias.data)
+            ? respuestaCategorias.data
+            : [],
+        );
+      } catch (error) {
+        console.error("Error cargando productos y categorías:", error);
+
+        if (componenteActivo) {
+          toast.error("No se pudieron cargar los productos y las categorías");
+        }
+      }
+    };
+
+    cargarDatosIniciales();
+
+    return () => {
+      componenteActivo = false;
+    };
+  }, []);
 
   const productosFiltrados = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
@@ -81,90 +84,92 @@ export default function Productos() {
       return productos;
     }
 
-    return productos.filter((producto) =>
-      String(producto.nombre || "")
-        .toLowerCase()
-        .includes(texto),
-    );
+    return productos.filter((producto) => {
+      const nombre = String(producto?.nombre || "").toLowerCase();
+      const descripcion = String(producto?.descripcion || "").toLowerCase();
+      const categoria = String(producto?.Categoria?.nombre || "").toLowerCase();
+
+      return (
+        nombre.includes(texto) ||
+        descripcion.includes(texto) ||
+        categoria.includes(texto)
+      );
+    });
   }, [productos, busqueda]);
 
-  /* ==================== FORMULARIO ===================== */
+  const liberarVistaPrevia = () => {
+    if (previewImagen?.startsWith("blob:")) {
+      URL.revokeObjectURL(previewImagen);
+    }
+  };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  const limpiarFormulario = () => {
+    liberarVistaPrevia();
+    setFormulario(formularioInicial);
+    setPreviewImagen(null);
+  };
 
-    setFormulario((prev) => ({
-      ...prev,
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+
+    setFormulario((actual) => ({
+      ...actual,
       [name]: value,
     }));
   };
 
-  /* ===================== IMAGEN ======================== */
+  const handleImagen = (event) => {
+    const archivo = event.target.files?.[0] || null;
 
-  const handleImagen = (e) => {
-    const file = e.target.files?.[0];
+    liberarVistaPrevia();
 
-    setFormulario((prev) => ({
-      ...prev,
-      imagen: file || null,
+    setFormulario((actual) => ({
+      ...actual,
+      imagen: archivo,
     }));
 
-    if (previewImagen?.startsWith("blob:")) {
-      URL.revokeObjectURL(previewImagen);
-    }
-
-    if (file) {
-      const nuevaPreview = URL.createObjectURL(file);
-
-      setPreviewImagen(nuevaPreview);
-    } else {
-      setPreviewImagen(null);
-    }
+    setPreviewImagen(archivo ? URL.createObjectURL(archivo) : null);
   };
 
-  /* ================= CREAR PRODUCTO ==================== */
+  const crearFormData = () => {
+    const datos = new FormData();
 
-  const crearProducto = async (e) => {
-    e.preventDefault();
+    datos.append("nombre", formulario.nombre.trim());
+    datos.append("descripcion", formulario.descripcion.trim());
+    datos.append("precio", formulario.precio);
+    datos.append("stock", formulario.stock);
+    datos.append("categoriaId", formulario.categoriaId);
+
+    if (formulario.imagen) {
+      datos.append("imagen", formulario.imagen);
+    }
+
+    return datos;
+  };
+
+  const crearProducto = async (event) => {
+    event.preventDefault();
 
     try {
-      const formData = new FormData();
-
-      formData.append("nombre", formulario.nombre.trim());
-
-      formData.append("descripcion", formulario.descripcion.trim());
-
-      formData.append("precio", formulario.precio);
-
-      formData.append("stock", formulario.stock);
-
-      formData.append("categoriaId", formulario.categoriaId);
-
-      if (formulario.imagen) {
-        formData.append("imagen", formulario.imagen);
-      }
-
-      await api.post("/productos", formData);
+      await api.post("/productos", crearFormData());
 
       toast.success("Producto creado correctamente");
-
       limpiarFormulario();
-
       await obtenerProductos();
     } catch (error) {
       console.error("Error creando producto:", error);
 
-      const mensaje =
+      toast.error(
         error.response?.data?.message ||
-        error.response?.data?.error ||
-        "No se pudo crear el producto";
-
-      toast.error(mensaje);
+          error.response?.data?.error ||
+          "No se pudo crear el producto",
+      );
     }
   };
 
-  /* ================= EDITAR PRODUCTO =================== */
   const editarProducto = (producto) => {
+    liberarVistaPrevia();
+
     setEditando(producto.id);
 
     setFormulario({
@@ -189,10 +194,8 @@ export default function Productos() {
     setMostrarModal(true);
   };
 
-  /* ================= GUARDAR EDICION =================== */
-
-  const guardarEdicion = async (e) => {
-    e.preventDefault();
+  const guardarEdicion = async (event) => {
+    event.preventDefault();
 
     if (!editando) {
       toast.error("No se encontró el producto que deseas editar");
@@ -200,45 +203,23 @@ export default function Productos() {
     }
 
     try {
-      const formData = new FormData();
-
-      formData.append("nombre", formulario.nombre.trim());
-
-      formData.append("descripcion", formulario.descripcion.trim());
-
-      formData.append("precio", formulario.precio);
-
-      formData.append("stock", formulario.stock);
-
-      formData.append("categoriaId", formulario.categoriaId);
-
-      if (formulario.imagen) {
-        formData.append("imagen", formulario.imagen);
-      }
-
-      await api.put(`/productos/${editando}`, formData);
+      await api.put(`/productos/${editando}`, crearFormData());
 
       toast.success("Producto actualizado correctamente");
-
       setEditando(null);
       setMostrarModal(false);
-
       limpiarFormulario();
-
       await obtenerProductos();
     } catch (error) {
       console.error("Error actualizando producto:", error);
 
-      const mensaje =
+      toast.error(
         error.response?.data?.message ||
-        error.response?.data?.error ||
-        "No se pudo actualizar el producto";
-
-      toast.error(mensaje);
+          error.response?.data?.error ||
+          "No se pudo actualizar el producto",
+      );
     }
   };
-
-  /* ================= ELIMINAR PRODUCTO ================= */
 
   const eliminarProducto = async (id) => {
     const confirmar = window.confirm(
@@ -253,57 +234,28 @@ export default function Productos() {
       await api.delete(`/productos/${id}`);
 
       toast.success("Producto eliminado correctamente");
-
       await obtenerProductos();
     } catch (error) {
       console.error("Error eliminando producto:", error);
 
-      const mensaje =
+      toast.error(
         error.response?.data?.message ||
-        error.response?.data?.error ||
-        "Error al eliminar el producto";
-
-      toast.error(mensaje);
+          error.response?.data?.error ||
+          "Error al eliminar el producto",
+      );
     }
   };
-
-  /* ================= LIMPIAR FORM ====================== */
-
-  const limpiarFormulario = () => {
-    if (previewImagen?.startsWith("blob:")) {
-      URL.revokeObjectURL(previewImagen);
-    }
-
-    setFormulario({
-      nombre: "",
-      descripcion: "",
-      precio: "",
-      stock: "",
-      categoriaId: "",
-      imagen: null,
-    });
-
-    setPreviewImagen(null);
-  };
-
-  /* ======================== RETURN ===================== */
 
   return (
-    <div style={styles.container}>
-      {/* ================= HEADER ================= */}
-
-      <div style={styles.header}>
+    <main style={styles.container}>
+      <header style={styles.header}>
         <h1 style={styles.title}>
           <FaBoxOpen />
           Gestión de Productos
         </h1>
-      </div>
-
-      {/* ================= STATS ================= */}
+      </header>
 
       <ProductoStats productos={productos} categorias={categorias} />
-
-      {/* ================= FORM ================= */}
 
       <ProductoForm
         formulario={formulario}
@@ -314,25 +266,20 @@ export default function Productos() {
         previewImagen={previewImagen}
       />
 
-      {/* ================= BUSCADOR ================= */}
-
       <input
-        type="text"
+        type="search"
         placeholder="Buscar producto..."
         value={busqueda}
-        onChange={(e) => setBusqueda(e.target.value)}
+        onChange={(event) => setBusqueda(event.target.value)}
         style={styles.search}
+        aria-label="Buscar producto"
       />
-
-      {/* ================= TABLA ================= */}
 
       <ProductoTable
         productos={productosFiltrados}
         editarProducto={editarProducto}
         eliminarProducto={eliminarProducto}
       />
-
-      {/* ================= MODAL ================= */}
 
       <ProductoModal
         mostrarModal={mostrarModal}
@@ -345,65 +292,41 @@ export default function Productos() {
         previewImagen={previewImagen}
         limpiarFormulario={limpiarFormulario}
       />
-    </div>
+    </main>
   );
 }
-
-/* ======================= ESTILOS ===================== */
 
 const styles = {
   container: {
     minHeight: "100vh",
-
     padding: "40px",
-
     fontFamily: "Arial",
-
     background:
       "radial-gradient(circle at top left, #312e81 0%, #0f172a 35%, #020617 100%)",
   },
-
   header: {
     display: "flex",
-
-    justifyContent: "space-between",
-
     alignItems: "center",
-
+    justifyContent: "space-between",
     marginBottom: "30px",
   },
-
   title: {
-    color: "#fff",
-
-    fontSize: "38px",
-
-    fontWeight: "800",
-
     display: "flex",
-
     alignItems: "center",
-
     gap: "12px",
-
     margin: 0,
+    color: "#ffffff",
+    fontSize: "38px",
+    fontWeight: "800",
   },
-
   search: {
     width: "100%",
-
-    padding: "16px",
-
-    borderRadius: "18px",
-
-    border: "none",
-
-    marginBottom: "30px",
-
-    fontSize: "15px",
-
-    outline: "none",
-
     boxSizing: "border-box",
+    marginBottom: "30px",
+    padding: "16px",
+    border: "none",
+    borderRadius: "18px",
+    outline: "none",
+    fontSize: "15px",
   },
 };

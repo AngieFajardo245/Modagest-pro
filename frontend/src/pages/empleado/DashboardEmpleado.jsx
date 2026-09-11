@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 
@@ -19,10 +19,68 @@ import {
   FaSyncAlt,
 } from "react-icons/fa";
 
+const obtenerNombreUsuario = () => {
+  try {
+    const usuario = JSON.parse(localStorage.getItem("usuario") || "null");
+    return usuario?.nombre || "Empleado";
+  } catch (error) {
+    console.error("Error leyendo usuario:", error);
+    return "Empleado";
+  }
+};
+
+const obtenerPago = (venta) => {
+  if (!venta) return null;
+  if (venta.Pago) return venta.Pago;
+  if (Array.isArray(venta.Pagos) && venta.Pagos.length > 0) {
+    return venta.Pagos[0];
+  }
+  return null;
+};
+
+const ventaAprobada = (venta) => {
+  const pago = obtenerPago(venta);
+
+  if (!pago) return true;
+
+  const estado = String(pago.estado || "")
+    .toLowerCase()
+    .trim();
+
+  return ["aprobado", "aprobada", "approved"].includes(estado);
+};
+
+const esMismoDia = (fecha, referencia) => {
+  if (!fecha) return false;
+
+  const fechaVenta = new Date(fecha);
+
+  if (Number.isNaN(fechaVenta.getTime())) return false;
+
+  return (
+    fechaVenta.getDate() === referencia.getDate() &&
+    fechaVenta.getMonth() === referencia.getMonth() &&
+    fechaVenta.getFullYear() === referencia.getFullYear()
+  );
+};
+
+const esMismoMes = (fecha, referencia) => {
+  if (!fecha) return false;
+
+  const fechaVenta = new Date(fecha);
+
+  if (Number.isNaN(fechaVenta.getTime())) return false;
+
+  return (
+    fechaVenta.getMonth() === referencia.getMonth() &&
+    fechaVenta.getFullYear() === referencia.getFullYear()
+  );
+};
+
 function DashboardEmpleado() {
   const navigate = useNavigate();
 
-  const [nombre, setNombre] = useState("Empleado");
+  const [nombre] = useState(obtenerNombreUsuario);
 
   const [stats, setStats] = useState({
     productos: 0,
@@ -40,84 +98,7 @@ function DashboardEmpleado() {
   const [loading, setLoading] = useState(true);
   const [actualizando, setActualizando] = useState(false);
 
-  const obtenerUsuario = () => {
-    try {
-      const usuarioGuardado = localStorage.getItem("usuario");
-
-      if (!usuarioGuardado) {
-        setNombre("Empleado");
-        return;
-      }
-
-      const usuario = JSON.parse(usuarioGuardado);
-
-      setNombre(usuario?.nombre || "Empleado");
-    } catch (error) {
-      console.error("Error leyendo usuario:", error);
-      setNombre("Empleado");
-    }
-  };
-
-  const obtenerPago = (venta) => {
-    if (!venta) return null;
-
-    if (venta.Pago) {
-      return venta.Pago;
-    }
-
-    if (Array.isArray(venta.Pagos) && venta.Pagos.length > 0) {
-      return venta.Pagos[0];
-    }
-
-    return null;
-  };
-
-  const ventaAprobada = (venta) => {
-    const pago = obtenerPago(venta);
-
-    if (!pago) {
-      return true;
-    }
-
-    const estado = String(pago.estado || "")
-      .toLowerCase()
-      .trim();
-
-    return ["aprobado", "aprobada", "approved"].includes(estado);
-  };
-
-  const esMismoDia = (fecha, referencia) => {
-    if (!fecha) return false;
-
-    const fechaVenta = new Date(fecha);
-
-    if (Number.isNaN(fechaVenta.getTime())) {
-      return false;
-    }
-
-    return (
-      fechaVenta.getDate() === referencia.getDate() &&
-      fechaVenta.getMonth() === referencia.getMonth() &&
-      fechaVenta.getFullYear() === referencia.getFullYear()
-    );
-  };
-
-  const esMismoMes = (fecha, referencia) => {
-    if (!fecha) return false;
-
-    const fechaVenta = new Date(fecha);
-
-    if (Number.isNaN(fechaVenta.getTime())) {
-      return false;
-    }
-
-    return (
-      fechaVenta.getMonth() === referencia.getMonth() &&
-      fechaVenta.getFullYear() === referencia.getFullYear()
-    );
-  };
-
-  const obtenerDatos = async () => {
+  const obtenerDatos = useCallback(async () => {
     try {
       setActualizando(true);
 
@@ -261,12 +242,15 @@ function DashboardEmpleado() {
         setActualizando(false);
       }, 400);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    obtenerUsuario();
-    obtenerDatos();
-  }, []);
+    const temporizador = window.setTimeout(() => {
+      obtenerDatos();
+    }, 0);
+
+    return () => window.clearTimeout(temporizador);
+  }, [obtenerDatos]);
 
   const formatoMoneda = (valor) => {
     return new Intl.NumberFormat("es-CO", {

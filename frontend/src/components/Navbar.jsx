@@ -1,165 +1,165 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  FaHome,
-  FaUsers,
   FaBoxOpen,
   FaChartLine,
-  FaShoppingBag,
   FaClipboardList,
+  FaHome,
+  FaShoppingBag,
+  FaShoppingCart,
   FaSignOutAlt,
   FaUserCircle,
-  FaShoppingCart,
+  FaUsers,
 } from "react-icons/fa";
+
+const leerUsuario = () => {
+  try {
+    const datos = JSON.parse(localStorage.getItem("usuario") || "null");
+
+    return datos && typeof datos === "object" ? datos : null;
+  } catch (error) {
+    console.error("Error leyendo el usuario:", error);
+    return null;
+  }
+};
+
+const obtenerClienteId = () => {
+  const usuarioActual = leerUsuario();
+
+  const idUsuario =
+    usuarioActual?.id ||
+    usuarioActual?.usuarioId ||
+    usuarioActual?.clienteId ||
+    usuarioActual?.usuario?.id;
+
+  if (Number.isInteger(Number(idUsuario)) && Number(idUsuario) > 0) {
+    return Number(idUsuario);
+  }
+
+  const tokenActual = localStorage.getItem("token");
+
+  if (!tokenActual) {
+    return null;
+  }
+
+  try {
+    const partes = tokenActual.split(".");
+
+    if (partes.length < 2) {
+      return null;
+    }
+
+    const base64 = partes[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(atob(base64));
+
+    const idToken =
+      payload?.id ||
+      payload?.usuarioId ||
+      payload?.clienteId ||
+      payload?.userId ||
+      payload?.sub;
+
+    if (Number.isInteger(Number(idToken)) && Number(idToken) > 0) {
+      return Number(idToken);
+    }
+  } catch (error) {
+    console.error("Error leyendo el token:", error);
+  }
+
+  return null;
+};
+
+const obtenerCantidadCarrito = () => {
+  const tokenActual = localStorage.getItem("token");
+  const rolActual = localStorage.getItem("rol")?.trim().toLowerCase();
+
+  if (!tokenActual || rolActual !== "cliente") {
+    return 0;
+  }
+
+  const clienteId = obtenerClienteId();
+
+  if (!clienteId) {
+    return 0;
+  }
+
+  try {
+    const carrito = JSON.parse(
+      localStorage.getItem(`carrito_cliente_${clienteId}`) || "[]",
+    );
+
+    if (!Array.isArray(carrito)) {
+      return 0;
+    }
+
+    return carrito.reduce((total, producto) => {
+      const cantidad = Number(producto?.cantidad || 0);
+
+      return total + (cantidad > 0 ? cantidad : 0);
+    }, 0);
+  } catch (error) {
+    console.error("Error cargando contador del carrito:", error);
+    return 0;
+  }
+};
 
 function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
 
   const [token, setToken] = useState(() => localStorage.getItem("token"));
+  const [rol, setRol] = useState(() =>
+    localStorage.getItem("rol")?.trim().toLowerCase(),
+  );
+  const [usuario, setUsuario] = useState(leerUsuario);
+  const [cantidadCarrito, setCantidadCarrito] = useState(
+    obtenerCantidadCarrito,
+  );
 
-  const [rol, setRol] = useState(() => localStorage.getItem("rol"));
+  useEffect(() => {
+    const actualizarSesion = () => {
+      setToken(localStorage.getItem("token"));
+      setRol(localStorage.getItem("rol")?.trim().toLowerCase());
+      setUsuario(leerUsuario());
+      setCantidadCarrito(obtenerCantidadCarrito());
+    };
 
-  const [usuario, setUsuario] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("usuario") || "null");
-    } catch {
-      return null;
-    }
-  });
+    const actualizarCarrito = () => {
+      setCantidadCarrito(obtenerCantidadCarrito());
+    };
 
-  const [cantidadCarrito, setCantidadCarrito] = useState(0);
-
-  const nombre = usuario?.nombre || "Usuario";
-
-  const obtenerClienteId = () => {
-    try {
-      const usuarioGuardado = localStorage.getItem("usuario");
-
-      if (usuarioGuardado) {
-        const usuarioActual = JSON.parse(usuarioGuardado);
-
-        const id =
-          usuarioActual?.id ||
-          usuarioActual?.usuarioId ||
-          usuarioActual?.clienteId ||
-          usuarioActual?.usuario?.id;
-
-        if (id) {
-          return Number(id);
-        }
-      }
-    } catch (error) {
-      console.error("Error obteniendo el usuario:", error);
-    }
-
-    const tokenActual = localStorage.getItem("token");
-
-    if (tokenActual) {
-      try {
-        const partes = tokenActual.split(".");
-
-        if (partes.length >= 2) {
-          const base64 = partes[1].replace(/-/g, "+").replace(/_/g, "/");
-
-          const payload = JSON.parse(atob(base64));
-
-          const id =
-            payload?.id ||
-            payload?.usuarioId ||
-            payload?.clienteId ||
-            payload?.userId;
-
-          if (id) {
-            return Number(id);
-          }
-        }
-      } catch (error) {
-        console.error("Error leyendo el token:", error);
-      }
-    }
-
-    return null;
-  };
-
-  const cargarCantidadCarrito = () => {
-    const tokenActual = localStorage.getItem("token");
-    const rolActual = localStorage.getItem("rol");
-
-    if (!tokenActual || rolActual?.toLowerCase() !== "cliente") {
-      setCantidadCarrito(0);
-      return;
-    }
-
-    const clienteId = obtenerClienteId();
-
-    if (!clienteId) {
-      setCantidadCarrito(0);
-      return;
-    }
-
-    const claveCarrito = `carrito_cliente_${clienteId}`;
-
-    try {
-      const carritoGuardado = JSON.parse(
-        localStorage.getItem(claveCarrito) || "[]",
-      );
-
-      if (!Array.isArray(carritoGuardado)) {
-        setCantidadCarrito(0);
+    const manejarStorage = (event) => {
+      if (
+        event.key === "token" ||
+        event.key === "rol" ||
+        event.key === "usuario"
+      ) {
+        actualizarSesion();
         return;
       }
 
-      const totalUnidades = carritoGuardado.reduce(
-        (total, producto) => total + Number(producto?.cantidad || 0),
-        0,
-      );
+      const clienteId = obtenerClienteId();
+      const claveCarrito = clienteId ? `carrito_cliente_${clienteId}` : null;
 
-      setCantidadCarrito(totalUnidades);
-    } catch (error) {
-      console.error("Error cargando contador del carrito:", error);
-      setCantidadCarrito(0);
-    }
-  };
-
-  useEffect(() => {
-    const actualizarUsuario = () => {
-      const tokenActual = localStorage.getItem("token");
-      const rolActual = localStorage.getItem("rol");
-
-      let usuarioActual = null;
-
-      try {
-        usuarioActual = JSON.parse(localStorage.getItem("usuario") || "null");
-      } catch {
-        usuarioActual = null;
+      if (event.key === claveCarrito) {
+        actualizarCarrito();
       }
-
-      setToken(tokenActual);
-      setRol(rolActual);
-      setUsuario(usuarioActual);
-
-      cargarCantidadCarrito();
     };
 
-    cargarCantidadCarrito();
-
-    window.addEventListener("carritoActualizado", cargarCantidadCarrito);
-
-    window.addEventListener("storage", actualizarUsuario);
+    window.addEventListener("carritoActualizado", actualizarCarrito);
+    window.addEventListener("authActualizado", actualizarSesion);
+    window.addEventListener("storage", manejarStorage);
 
     return () => {
-      window.removeEventListener("carritoActualizado", cargarCantidadCarrito);
-
-      window.removeEventListener("storage", actualizarUsuario);
+      window.removeEventListener("carritoActualizado", actualizarCarrito);
+      window.removeEventListener("authActualizado", actualizarSesion);
+      window.removeEventListener("storage", manejarStorage);
     };
-  }, [location.pathname]);
+  }, []);
 
-  useEffect(() => {
-    cargarCantidadCarrito();
-  }, [token, rol, usuario]);
+  const nombre = usuario?.nombre || "Usuario";
 
-  const logout = () => {
+  const cerrarSesion = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("rol");
     localStorage.removeItem("usuario");
@@ -173,35 +173,37 @@ function Navbar() {
     window.dispatchEvent(new Event("carritoActualizado"));
     window.dispatchEvent(new Event("authActualizado"));
 
-    navigate("/");
+    navigate("/", { replace: true });
   };
 
-  const linkStyle = (path) => ({
-    ...styles.link,
-    background:
-      location.pathname === path ? "rgba(124,58,237,0.25)" : "transparent",
-    border:
-      location.pathname === path
+  const linkStyle = (ruta) => {
+    const activo = location.pathname === ruta;
+
+    return {
+      ...styles.link,
+      background: activo ? "rgba(124,58,237,0.25)" : "transparent",
+      border: activo
         ? "1px solid rgba(168,85,247,0.35)"
         : "1px solid transparent",
-    color: location.pathname === path ? "#ffffff" : "#cbd5e1",
-  });
-
-  const irAlCarrito = () => {
-    navigate("/cliente/carrito");
+      color: activo ? "#ffffff" : "#cbd5e1",
+    };
   };
 
   return (
     <nav style={styles.navbar}>
-      <div style={styles.logoContainer} onClick={() => navigate("/")}>
+      <button
+        type="button"
+        style={styles.logoContainer}
+        onClick={() => navigate("/")}
+        aria-label="Ir al inicio"
+      >
         <div style={styles.logoIcon}>M</div>
 
         <div>
           <h2 style={styles.logoText}>ModaGest Pro</h2>
-
           <p style={styles.logoSub}>Dashboard Premium</p>
         </div>
-      </div>
+      </button>
 
       <div style={styles.menu}>
         {!token && (
@@ -252,12 +254,12 @@ function Navbar() {
 
             <Link to="/cliente/compras" style={linkStyle("/cliente/compras")}>
               <FaClipboardList />
-              Mis Compras
+              Mis compras
             </Link>
 
             <button
               type="button"
-              onClick={irAlCarrito}
+              onClick={() => navigate("/cliente/carrito")}
               style={{
                 ...styles.cartBtn,
                 ...(location.pathname === "/cliente/carrito"
@@ -285,12 +287,16 @@ function Navbar() {
 
             <div>
               <p style={styles.userName}>{nombre}</p>
-
               <p style={styles.userRole}>{rol}</p>
             </div>
           </div>
 
-          <button type="button" onClick={logout} style={styles.logoutBtn}>
+          <button
+            type="button"
+            onClick={cerrarSesion}
+            style={styles.logoutBtn}
+            aria-label="Cerrar sesión"
+          >
             <FaSignOutAlt />
             Salir
           </button>
@@ -317,28 +323,29 @@ const styles = {
     borderBottom: "1px solid rgba(255,255,255,0.08)",
     boxSizing: "border-box",
   },
-
   logoContainer: {
     display: "flex",
     alignItems: "center",
     gap: "14px",
+    padding: 0,
+    border: "none",
+    background: "transparent",
     cursor: "pointer",
+    textAlign: "left",
   },
-
   logoIcon: {
     width: "46px",
     height: "46px",
-    borderRadius: "14px",
-    background: "linear-gradient(135deg, #7c3aed, #2563eb)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: "14px",
+    background: "linear-gradient(135deg, #7c3aed, #2563eb)",
     color: "#fff",
     fontWeight: "bold",
     fontSize: "24px",
     boxShadow: "0 0 25px rgba(124,58,237,0.5)",
   },
-
   logoText: {
     margin: 0,
     color: "#fff",
@@ -346,21 +353,17 @@ const styles = {
     fontWeight: "700",
     letterSpacing: "0.5px",
   },
-
   logoSub: {
-    margin: 0,
+    margin: "2px 0 0",
     color: "#94a3b8",
     fontSize: "12px",
-    marginTop: "2px",
   },
-
   menu: {
     display: "flex",
     alignItems: "center",
     gap: "12px",
     flexWrap: "wrap",
   },
-
   link: {
     display: "flex",
     alignItems: "center",
@@ -372,7 +375,6 @@ const styles = {
     transition: "0.3s",
     fontSize: "14px",
   },
-
   cartBtn: {
     position: "relative",
     width: "46px",
@@ -388,13 +390,11 @@ const styles = {
     fontSize: "17px",
     transition: "0.3s",
   },
-
   cartBtnActive: {
     background: "rgba(124,58,237,0.25)",
     border: "1px solid rgba(168,85,247,0.35)",
     color: "#fff",
   },
-
   cartBadge: {
     position: "absolute",
     top: "-5px",
@@ -412,37 +412,32 @@ const styles = {
     fontWeight: "800",
     border: "2px solid #0a0a14",
   },
-
   rightSection: {
     display: "flex",
     alignItems: "center",
     gap: "16px",
   },
-
   userBox: {
     display: "flex",
     alignItems: "center",
     gap: "10px",
-    background: "rgba(255,255,255,0.06)",
     padding: "10px 14px",
     borderRadius: "16px",
+    background: "rgba(255,255,255,0.06)",
     color: "#fff",
     border: "1px solid rgba(255,255,255,0.08)",
   },
-
   userName: {
     margin: 0,
     fontSize: "14px",
     fontWeight: "600",
   },
-
   userRole: {
     margin: 0,
-    fontSize: "12px",
     color: "#94a3b8",
+    fontSize: "12px",
     textTransform: "capitalize",
   },
-
   logoutBtn: {
     display: "flex",
     alignItems: "center",

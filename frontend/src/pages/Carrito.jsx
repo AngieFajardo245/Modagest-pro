@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
@@ -90,38 +90,46 @@ function Carrito() {
       maximumFractionDigits: 0,
     });
 
-  const obtenerCarritoGuardado = () => {
+  const obtenerCarritoGuardado = useCallback(() => {
     try {
       const guardado = JSON.parse(localStorage.getItem(claveCarrito) || "[]");
+
       return Array.isArray(guardado) ? guardado : [];
     } catch {
       return [];
     }
-  };
+  }, [claveCarrito]);
 
-  const notificarCarrito = (nuevoCarrito) => {
-    window.dispatchEvent(
-      new CustomEvent("carritoActualizado", {
-        detail: {
-          clave: claveCarrito,
-          claveCarrito,
-          clienteId,
-          carrito: nuevoCarrito,
-        },
-      }),
-    );
-  };
+  const notificarCarrito = useCallback(
+    (nuevoCarrito) => {
+      window.dispatchEvent(
+        new CustomEvent("carritoActualizado", {
+          detail: {
+            clave: claveCarrito,
+            claveCarrito,
+            clienteId,
+            carrito: nuevoCarrito,
+          },
+        }),
+      );
+    },
+    [claveCarrito, clienteId],
+  );
 
-  const guardarCarrito = (nuevoCarrito) => {
-    localStorage.setItem(claveCarrito, JSON.stringify(nuevoCarrito));
-    setCarrito(nuevoCarrito);
-    notificarCarrito(nuevoCarrito);
-  };
+  const guardarCarrito = useCallback(
+    (nuevoCarrito) => {
+      localStorage.setItem(claveCarrito, JSON.stringify(nuevoCarrito));
+      setCarrito(nuevoCarrito);
+      notificarCarrito(nuevoCarrito);
+    },
+    [claveCarrito, notificarCarrito],
+  );
 
-  const cargarCarrito = async () => {
+  const cargarCarrito = useCallback(async () => {
     try {
       setCargando(true);
       setError("");
+
       const guardado = obtenerCarritoGuardado();
 
       if (!guardado.length) {
@@ -131,18 +139,23 @@ function Carrito() {
 
       const response = await api.get("/productos");
       const productos = Array.isArray(response.data) ? response.data : [];
+
       const actualizado = guardado
         .map((producto) => {
           const actual = productos.find(
             (item) => Number(item.id) === Number(producto.id),
           );
+
           if (!actual) {
             return null;
           }
+
           const stock = Number(actual.stock || 0);
-          const guardada = Number(producto.cantidad);
+          const cantidadGuardada = Number(producto.cantidad);
           const cantidadValida =
-            Number.isInteger(guardada) && guardada > 0 ? guardada : 1;
+            Number.isInteger(cantidadGuardada) && cantidadGuardada > 0
+              ? cantidadGuardada
+              : 1;
 
           return {
             ...producto,
@@ -164,16 +177,17 @@ function Carrito() {
     } finally {
       setCargando(false);
     }
-  };
-
+  }, [guardarCarrito, obtenerCarritoGuardado]);
   useEffect(() => {
     cargarCarrito();
 
     const actualizar = (event) => {
       const claveEvento = event?.detail?.claveCarrito || event?.detail?.clave;
+
       if (claveEvento && claveEvento !== claveCarrito) {
         return;
       }
+
       setCarrito(obtenerCarritoGuardado());
     };
 
@@ -190,7 +204,7 @@ function Carrito() {
       window.removeEventListener("carritoActualizado", actualizar);
       window.removeEventListener("storage", manejarStorage);
     };
-  }, [claveCarrito]);
+  }, [cargarCarrito, claveCarrito, obtenerCarritoGuardado]);
 
   const total = useMemo(
     () =>

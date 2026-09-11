@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 
@@ -18,13 +18,13 @@ function ProductosCliente() {
   const [mostrarOrden, setMostrarOrden] = useState(false);
   const [mensajeCarrito, setMensajeCarrito] = useState("");
 
-  const obtenerUsuario = () => {
+  const obtenerUsuario = useCallback(() => {
     try {
       return JSON.parse(localStorage.getItem("usuario")) || null;
     } catch {
       return null;
     }
-  };
+  }, []);
 
   const obtenerClaveCarrito = () => {
     const token = localStorage.getItem("token");
@@ -89,7 +89,7 @@ function ProductosCliente() {
     );
   };
 
-  const migrarCarritoInvitado = () => {
+  const migrarCarritoInvitado = useCallback(() => {
     const token = localStorage.getItem("token");
 
     if (!token) {
@@ -162,7 +162,7 @@ function ProductosCliente() {
     } catch (err) {
       console.error("Error migrando el carrito:", err);
     }
-  };
+  }, [obtenerUsuario]);
 
   const limpiarCarritoAntiguo = () => {
     localStorage.removeItem("carrito");
@@ -210,7 +210,7 @@ function ProductosCliente() {
     limpiarCarritoAntiguo();
     migrarCarritoInvitado();
     obtenerProductos();
-  }, []);
+  }, [migrarCarritoInvitado]);
 
   useEffect(() => {
     if (!mensajeCarrito) {

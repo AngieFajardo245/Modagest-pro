@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import api from "../../services/api";
 
 import {
@@ -325,23 +325,21 @@ function HistorialVentasEmpleado() {
     );
   };
 
-  const totalUnidades = useMemo(() => {
-    return ventas.reduce(
-      (total, venta) => total + obtenerUnidadesVenta(venta),
-      0,
-    );
-  }, [ventas]);
+  const totalUnidades = ventas.reduce(
+    (total, venta) => total + obtenerUnidadesVenta(venta),
+    0,
+  );
 
-  const totalVendido = useMemo(() => {
-    return ventas.reduce((total, venta) => total + obtenerTotalVenta(venta), 0);
-  }, [ventas]);
+  const totalVendido = ventas.reduce(
+    (total, venta) => total + obtenerTotalVenta(venta),
+    0,
+  );
 
-  const ventasAprobadas = useMemo(() => {
-    return ventas.filter((venta) => obtenerEstadoVenta(venta) === "aprobada")
-      .length;
-  }, [ventas]);
+  const ventasAprobadas = ventas.filter(
+    (venta) => obtenerEstadoVenta(venta) === "aprobada",
+  ).length;
 
-  const ventasFiltradas = useMemo(() => {
+  const ventasFiltradas = (() => {
     let resultado = [...ventas];
 
     if (estadoFiltro !== "todos") {
@@ -399,7 +397,7 @@ function HistorialVentasEmpleado() {
     });
 
     return resultado;
-  }, [ventas, busqueda, estadoFiltro, orden]);
+  })();
 
   const toggleDetalle = (idVenta) => {
     setVentaAbierta((actual) =>

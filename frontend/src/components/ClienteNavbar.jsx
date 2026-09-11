@@ -1,5 +1,5 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   FaBars,
   FaBoxOpen,
@@ -13,117 +13,133 @@ import {
 } from "react-icons/fa";
 import logo from "../assets/Logo.png";
 
+const leerUsuario = () => {
+  try {
+    const datos = JSON.parse(localStorage.getItem("usuario") || "null");
+
+    return datos && typeof datos === "object" ? datos : null;
+  } catch (error) {
+    console.error("Error leyendo usuario:", error);
+    return null;
+  }
+};
+
+const obtenerClienteId = (usuarioActual = null) => {
+  const datos = usuarioActual || leerUsuario();
+
+  const idUsuario =
+    datos?.id ||
+    datos?.usuarioId ||
+    datos?.clienteId ||
+    datos?.usuario?.id ||
+    datos?.data?.id;
+
+  if (Number.isInteger(Number(idUsuario)) && Number(idUsuario) > 0) {
+    return Number(idUsuario);
+  }
+
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const partes = token.split(".");
+
+    if (partes.length < 2) {
+      return null;
+    }
+
+    const base64 = partes[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(atob(base64));
+
+    const idToken =
+      payload?.id ||
+      payload?.usuarioId ||
+      payload?.clienteId ||
+      payload?.userId ||
+      payload?.sub;
+
+    if (Number.isInteger(Number(idToken)) && Number(idToken) > 0) {
+      return Number(idToken);
+    }
+  } catch (error) {
+    console.error("Error obteniendo cliente desde token:", error);
+  }
+
+  return null;
+};
+
+const obtenerClaveCarrito = (usuarioActual = null) => {
+  const clienteId = obtenerClienteId(usuarioActual);
+
+  return clienteId ? `carrito_cliente_${clienteId}` : null;
+};
+
+const obtenerCantidadCarrito = (usuarioActual = null) => {
+  try {
+    const clave = obtenerClaveCarrito(usuarioActual);
+
+    if (!clave) {
+      return 0;
+    }
+
+    const carrito = JSON.parse(localStorage.getItem(clave) || "[]");
+
+    if (!Array.isArray(carrito)) {
+      return 0;
+    }
+
+    return carrito.reduce((acumulado, producto) => {
+      const unidades = Number(producto?.cantidad || 0);
+
+      return acumulado + (unidades > 0 ? unidades : 0);
+    }, 0);
+  } catch (error) {
+    console.error("Error actualizando contador del carrito:", error);
+    return 0;
+  }
+};
+
+const enlaces = [
+  {
+    ruta: "/cliente",
+    nombre: "Inicio",
+    icono: <FaHome />,
+  },
+  {
+    ruta: "/cliente/productos",
+    nombre: "Productos",
+    icono: <FaBoxOpen />,
+  },
+  {
+    ruta: "/cliente/compras",
+    nombre: "Compras",
+    icono: <FaClipboardList />,
+  },
+  {
+    ruta: "/cliente/direcciones",
+    nombre: "Direcciones",
+    icono: <FaMapMarkerAlt />,
+  },
+];
+
 export default function ClienteNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [cantidad, setCantidad] = useState(0);
-  const [usuario, setUsuario] = useState(null);
-  const [esMovil, setEsMovil] = useState(window.innerWidth <= 900);
+  const [usuario, setUsuario] = useState(leerUsuario);
+  const [cantidad, setCantidad] = useState(() =>
+    obtenerCantidadCarrito(leerUsuario()),
+  );
+  const [esMovil, setEsMovil] = useState(() => window.innerWidth <= 900);
   const [menuAbierto, setMenuAbierto] = useState(false);
-
-  const obtenerUsuario = () => {
-    try {
-      const datos = JSON.parse(localStorage.getItem("usuario") || "null");
-
-      if (!datos || typeof datos !== "object") {
-        setUsuario(null);
-        return null;
-      }
-
-      setUsuario(datos);
-      return datos;
-    } catch (error) {
-      console.error("Error leyendo usuario:", error);
-      setUsuario(null);
-      return null;
-    }
-  };
-
-  const obtenerClienteId = (usuarioActual = null) => {
-    try {
-      const datos =
-        usuarioActual || JSON.parse(localStorage.getItem("usuario") || "null");
-
-      const id =
-        datos?.id ||
-        datos?.usuarioId ||
-        datos?.clienteId ||
-        datos?.usuario?.id ||
-        datos?.data?.id;
-
-      if (Number.isInteger(Number(id)) && Number(id) > 0) {
-        return Number(id);
-      }
-    } catch (error) {
-      console.error("Error obteniendo cliente:", error);
-    }
-
-    const token = localStorage.getItem("token");
-
-    if (!token) return null;
-
-    try {
-      const partes = token.split(".");
-
-      if (partes.length < 2) return null;
-
-      const base64 = partes[1].replace(/-/g, "+").replace(/_/g, "/");
-      const payload = JSON.parse(atob(base64));
-
-      const id =
-        payload?.id ||
-        payload?.usuarioId ||
-        payload?.clienteId ||
-        payload?.userId ||
-        payload?.sub;
-
-      if (Number.isInteger(Number(id)) && Number(id) > 0) {
-        return Number(id);
-      }
-    } catch (error) {
-      console.error("Error obteniendo cliente desde token:", error);
-    }
-
-    return null;
-  };
-
-  const obtenerClaveCarrito = () => {
-    const clienteId = obtenerClienteId(usuario);
-    return clienteId ? `carrito_cliente_${clienteId}` : null;
-  };
-
-  const actualizarCarrito = () => {
-    try {
-      const clave = obtenerClaveCarrito();
-
-      if (!clave) {
-        setCantidad(0);
-        return;
-      }
-
-      const carrito = JSON.parse(localStorage.getItem(clave) || "[]");
-
-      if (!Array.isArray(carrito)) {
-        setCantidad(0);
-        return;
-      }
-
-      const total = carrito.reduce((acumulado, producto) => {
-        const unidades = Number(producto?.cantidad || 0);
-        return acumulado + (unidades > 0 ? unidades : 0);
-      }, 0);
-
-      setCantidad(total);
-    } catch (error) {
-      console.error("Error actualizando contador del carrito:", error);
-      setCantidad(0);
-    }
-  };
 
   useEffect(() => {
     const manejarTamano = () => {
       const movil = window.innerWidth <= 900;
+
       setEsMovil(movil);
 
       if (!movil) {
@@ -139,21 +155,9 @@ export default function ClienteNavbar() {
   }, []);
 
   useEffect(() => {
-    setMenuAbierto(false);
-  }, [location.pathname]);
-
-  useEffect(() => {
-    const usuarioActual = obtenerUsuario();
-
-    if (usuarioActual) {
-      actualizarCarrito();
-    } else {
-      setCantidad(0);
-    }
-
     const actualizarDatos = (event) => {
-      const clienteId = obtenerClienteId();
-      const claveActual = clienteId ? `carrito_cliente_${clienteId}` : null;
+      const usuarioActual = leerUsuario();
+      const claveActual = obtenerClaveCarrito(usuarioActual);
 
       if (event?.type === "carritoActualizado") {
         const claveEvento =
@@ -164,15 +168,21 @@ export default function ClienteNavbar() {
         }
       }
 
-      obtenerUsuario();
-      actualizarCarrito();
+      setUsuario(usuarioActual);
+      setCantidad(obtenerCantidadCarrito(usuarioActual));
     };
 
     const manejarStorage = (event) => {
-      const claveActual = obtenerClaveCarrito();
+      const usuarioActual = leerUsuario();
+      const claveActual = obtenerClaveCarrito(usuarioActual);
 
-      if (event.key === claveActual) {
-        actualizarCarrito();
+      if (
+        event.key === claveActual ||
+        event.key === "usuario" ||
+        event.key === "token"
+      ) {
+        setUsuario(usuarioActual);
+        setCantidad(obtenerCantidadCarrito(usuarioActual));
       }
     };
 
@@ -183,11 +193,11 @@ export default function ClienteNavbar() {
       window.removeEventListener("carritoActualizado", actualizarDatos);
       window.removeEventListener("storage", manejarStorage);
     };
-  }, [location.pathname]);
+  }, []);
 
-  useEffect(() => {
-    actualizarCarrito();
-  }, [usuario]);
+  const cerrarMenu = () => {
+    setMenuAbierto(false);
+  };
 
   const cerrarSesion = () => {
     localStorage.removeItem("token");
@@ -223,33 +233,10 @@ export default function ClienteNavbar() {
   const carritoActivo = location.pathname.startsWith("/cliente/carrito");
   const nombre = usuario?.nombre || "Cliente";
 
-  const enlaces = [
-    {
-      ruta: "/cliente",
-      nombre: "Inicio",
-      icono: <FaHome />,
-    },
-    {
-      ruta: "/cliente/productos",
-      nombre: "Productos",
-      icono: <FaBoxOpen />,
-    },
-    {
-      ruta: "/cliente/compras",
-      nombre: "Compras",
-      icono: <FaClipboardList />,
-    },
-    {
-      ruta: "/cliente/direcciones",
-      nombre: "Direcciones",
-      icono: <FaMapMarkerAlt />,
-    },
-  ];
-
   return (
     <nav style={{ ...styles.nav, ...(esMovil ? styles.navMovil : {}) }}>
       <div style={styles.barraPrincipal}>
-        <Link to="/cliente" style={styles.logoContainer}>
+        <Link to="/cliente" style={styles.logoContainer} onClick={cerrarMenu}>
           <img
             src={logo}
             alt="ModaGest Pro"
@@ -276,6 +263,7 @@ export default function ClienteNavbar() {
           <div style={styles.controlesMoviles}>
             <Link
               to="/cliente/carrito"
+              onClick={cerrarMenu}
               style={{
                 ...styles.cart,
                 ...(carritoActivo ? styles.cartActive : {}),
@@ -296,6 +284,8 @@ export default function ClienteNavbar() {
               style={styles.botonMenu}
               onClick={() => setMenuAbierto((abierto) => !abierto)}
               aria-label={menuAbierto ? "Cerrar menú" : "Abrir menú"}
+              aria-expanded={menuAbierto}
+              aria-controls="menu-cliente-movil"
             >
               {menuAbierto ? <FaTimes /> : <FaBars />}
             </button>
@@ -357,7 +347,7 @@ export default function ClienteNavbar() {
       </div>
 
       {esMovil && menuAbierto && (
-        <div style={styles.menuMovil}>
+        <div id="menu-cliente-movil" style={styles.menuMovil}>
           <div style={styles.usuarioMovil}>
             <div style={styles.avatar}>
               <FaUserCircle />
@@ -373,6 +363,7 @@ export default function ClienteNavbar() {
             <Link
               key={enlace.ruta}
               to={enlace.ruta}
+              onClick={cerrarMenu}
               style={estiloEnlace(enlace.ruta)}
             >
               {enlace.icono}
@@ -384,6 +375,7 @@ export default function ClienteNavbar() {
             type="button"
             onClick={cerrarSesion}
             style={{ ...styles.logoutBtn, ...styles.logoutMovil }}
+            aria-label="Cerrar sesión"
           >
             <FaSignOutAlt />
             <span>Salir</span>
