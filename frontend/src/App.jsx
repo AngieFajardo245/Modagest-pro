@@ -23,6 +23,7 @@ import Carrito from "./pages/Carrito";
 import DashboardEmpleado from "./pages/empleado/DashboardEmpleado";
 import ProductosEmpleado from "./pages/empleado/ProductosEmpleado";
 import HistorialVentasEmpleado from "./pages/empleado/HistorialVentasEmpleado";
+import RegistrarVentaEmpleado from "./pages/empleado/RegistrarVentaEmpleado";
 
 function App() {
   return (
@@ -72,6 +73,7 @@ function App() {
         <Route index element={<DashboardEmpleado />} />
         <Route path="productos" element={<ProductosEmpleado />} />
         <Route path="ventas" element={<HistorialVentasEmpleado />} />
+        <Route path="registrar-venta" element={<RegistrarVentaEmpleado />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
