@@ -230,6 +230,10 @@ export default function AdminVentas() {
         Venta: `#${String(venta?.id || 0).padStart(5, "0")}`,
         Cliente: obtenerNombreCliente(venta),
         Email: obtenerEmailCliente(venta),
+        "Dirección de entrega":
+          venta?.direccionEntrega || "Sin dirección registrada",
+        Ciudad: venta?.ciudadEntrega || "Sin registrar",
+        Teléfono: venta?.telefonoEntrega || "Sin registrar",
         Productos:
           detalles
             .map((detalle) => detalle?.Producto?.nombre || "Producto eliminado")
@@ -252,6 +256,9 @@ export default function AdminVentas() {
       { wch: 24 },
       { wch: 32 },
       { wch: 42 },
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 42 },
       { wch: 12 },
       { wch: 20 },
       { wch: 16 },
@@ -260,18 +267,18 @@ export default function AdminVentas() {
     ];
 
     hojaVentas["!autofilter"] = {
-      ref: `A1:I${datos.length + 1}`,
+      ref: `A1:L${datos.length + 1}`,
     };
 
     for (let fila = 2; fila <= datos.length + 1; fila++) {
-      const celdaTotal = hojaVentas[`H${fila}`];
+      const celdaTotal = hojaVentas[`K${fila}`];
 
       if (celdaTotal) {
         celdaTotal.t = "n";
         celdaTotal.z = '"$"#,##0';
       }
 
-      const celdaFecha = hojaVentas[`I${fila}`];
+      const celdaFecha = hojaVentas[`L${fila}`];
 
       if (
         celdaFecha &&
@@ -337,7 +344,7 @@ export default function AdminVentas() {
     }
 
     const doc = new jsPDF({
-      orientation: "portrait",
+      orientation: "landscape",
       unit: "mm",
       format: "a4",
     });
@@ -414,16 +421,31 @@ export default function AdminVentas() {
         left: 14,
       },
       head: [
-        ["Venta", "Cliente", "Método de pago", "Estado", "Total", "Fecha"],
+        [
+          "Venta",
+          "Cliente",
+          "Dirección de entrega",
+          "Ciudad",
+          "Teléfono",
+          "Método de pago",
+          "Estado",
+          "Total",
+          "Fecha",
+        ],
       ],
+
       body: ventasFiltradas.map((venta) => [
         `#${String(venta?.id || 0).padStart(5, "0")}`,
         obtenerNombreCliente(venta),
+        venta?.direccionEntrega || "Sin registrar",
+        venta?.ciudadEntrega || "Sin registrar",
+        venta?.telefonoEntrega || "Sin registrar",
         venta?.Pago?.metodoPago || "Sin pago",
         venta?.Pago?.estado || "Sin estado",
         formatoMoneda(venta?.total),
         formatearFecha(venta?.createdAt),
       ]),
+
       theme: "grid",
       styles: {
         font: "helvetica",
@@ -446,29 +468,15 @@ export default function AdminVentas() {
         fillColor: [248, 248, 252],
       },
       columnStyles: {
-        0: {
-          cellWidth: 18,
-          halign: "center",
-        },
-        1: {
-          cellWidth: 48,
-        },
-        2: {
-          cellWidth: 38,
-          halign: "center",
-        },
-        3: {
-          cellWidth: 28,
-          halign: "center",
-        },
-        4: {
-          cellWidth: 30,
-          halign: "right",
-        },
-        5: {
-          cellWidth: 28,
-          halign: "center",
-        },
+        0: { cellWidth: 16, halign: "center" },
+        1: { cellWidth: 34 },
+        2: { cellWidth: 52 },
+        3: { cellWidth: 25 },
+        4: { cellWidth: 28 },
+        5: { cellWidth: 30, halign: "center" },
+        6: { cellWidth: 23, halign: "center" },
+        7: { cellWidth: 25, halign: "right" },
+        8: { cellWidth: 32, halign: "center" },
       },
       willDrawPage: () => {
         dibujarEncabezado();

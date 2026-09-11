@@ -201,6 +201,26 @@ export default function VentaModal({
           )}
         </div>
 
+        {ventaSeleccionada.direccionEntrega && (
+          <div style={styles.modalCard}>
+            <h3>📍 Información de Entrega</h3>
+
+            <p>
+              <strong>Dirección:</strong> {ventaSeleccionada.direccionEntrega}
+            </p>
+
+            <p>
+              <strong>Ciudad:</strong>{" "}
+              {ventaSeleccionada.ciudadEntrega || "Sin registrar"}
+            </p>
+
+            <p>
+              <strong>Teléfono:</strong>{" "}
+              {ventaSeleccionada.telefonoEntrega || "Sin registrar"}
+            </p>
+          </div>
+        )}
+
         <div style={styles.modalCard}>
           <h3>💳 Información del Pago</h3>
 
