@@ -1311,7 +1311,9 @@ app.put(
   verificarRol("administrador"),
   async (req, res) => {
     try {
-      const { rol } = req.body;
+      const rol = String(req.body.rol || "")
+        .trim()
+        .toLowerCase();
 
       const rolesPermitidos = ["administrador", "empleado", "cliente"];
 
@@ -1328,26 +1330,40 @@ app.put(
           message: "Usuario no encontrado",
         });
       }
+
+      if (
+        Number(usuario.id) === Number(req.usuario.id) &&
+        rol !== usuario.rol
+      ) {
+        return res.status(400).json({
+          message: "No puedes cambiar tu propio rol",
+        });
+      }
+
       const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
 
-      if (usuario.email === adminEmail && rol !== "administrador") {
+      if (
+        String(usuario.email || "")
+          .trim()
+          .toLowerCase() === adminEmail &&
+        rol !== "administrador"
+      ) {
         return res.status(400).json({
           message: "No puedes cambiar el rol del administrador principal",
         });
       }
 
       usuario.rol = rol;
-
       await usuario.save();
 
-      res.json({
-        message: "Rol actualizado",
+      return res.json({
+        message: "Rol actualizado correctamente",
         usuario,
       });
     } catch (error) {
       console.error("Error actualizando rol:", error);
 
-      res.status(500).json({
+      return res.status(500).json({
         message: "Error actualizando rol",
       });
     }
@@ -1360,37 +1376,55 @@ app.delete(
   verificarRol("administrador"),
   async (req, res) => {
     try {
+      const usuario = await Usuario.findByPk(req.params.id);
+
       if (!usuario) {
         return res.status(404).json({
           message: "Usuario no encontrado",
         });
       }
 
-      if (
-        Number(usuario.id) === Number(req.usuario.id) &&
-        rol !== usuario.rol
-      ) {
+      if (Number(usuario.id) === Number(req.usuario.id)) {
         return res.status(400).json({
-          message: "No puedes cambiar tu propio rol",
+          message: "No puedes eliminar tu propia cuenta",
         });
       }
 
       const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-      if (usuario.email === adminEmail) {
+
+      if (
+        String(usuario.email || "")
+          .trim()
+          .toLowerCase() === adminEmail
+      ) {
         return res.status(400).json({
           message: "No puedes eliminar el administrador principal",
         });
       }
 
+      const ventasAsociadas = await Venta.count({
+        where: {
+          [Op.or]: [{ clienteId: usuario.id }, { empleadoId: usuario.id }],
+        },
+      });
+
+      if (ventasAsociadas > 0) {
+        return res.status(400).json({
+          message:
+            "No puedes eliminar este usuario porque tiene ventas registradas en el historial",
+          ventasAsociadas,
+        });
+      }
+
       await usuario.destroy();
 
-      res.json({
+      return res.json({
         message: "Usuario eliminado correctamente",
       });
     } catch (error) {
       console.error("Error eliminando usuario:", error);
 
-      res.status(500).json({
+      return res.status(500).json({
         message: "Error eliminando usuario",
       });
     }
