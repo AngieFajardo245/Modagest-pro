@@ -11,10 +11,6 @@ export default function ProductoForm({
 }) {
   const [error, setError] = useState("");
 
-  /* ===================================================== */
-  /* ================= VALIDAR FORMULARIO ================= */
-  /* ===================================================== */
-
   const validarFormulario = () => {
     setError("");
 
@@ -51,10 +47,6 @@ export default function ProductoForm({
     return true;
   };
 
-  /* ===================================================== */
-  /* ================= QUITAR IMAGEN ===================== */
-  /* ===================================================== */
-
   const quitarImagen = () => {
     const input = document.getElementById("producto-imagen");
 
@@ -69,14 +61,8 @@ export default function ProductoForm({
     });
   };
 
-  /* ===================================================== */
-  /* ======================== RETURN ===================== */
-  /* ===================================================== */
-
   return (
     <div style={styles.formContainer}>
-      {/* ================= TITULO ================= */}
-
       <div style={styles.formHeader}>
         <div>
           <h2 style={styles.formTitle}>Crear nuevo producto</h2>
@@ -91,11 +77,11 @@ export default function ProductoForm({
         </div>
       </div>
 
-      {/* ================= ERROR ================= */}
-
-      {error && <div style={styles.errorBox}>{error}</div>}
-
-      {/* ================= FORMULARIO ================= */}
+      {error && (
+        <div style={styles.errorBox} role="alert">
+          {error}
+        </div>
+      )}
 
       <form
         onSubmit={(e) => {
@@ -108,44 +94,50 @@ export default function ProductoForm({
         }}
         style={styles.form}
       >
-        {/* ================= NOMBRE ================= */}
-
         <div style={styles.fieldGroup}>
-          <label style={styles.label}>Nombre del producto</label>
+          <label htmlFor="producto-nombre" style={styles.label}>
+            Nombre del producto
+          </label>
 
           <input
+            id="producto-nombre"
             type="text"
             name="nombre"
             placeholder="Ej: Blusa Elegante Satinada"
             value={formulario.nombre}
             onChange={handleChange}
             style={styles.input}
+            minLength={3}
+            required
           />
         </div>
 
-        {/* ================= PRECIO ================= */}
-
         <div style={styles.fieldGroup}>
-          <label style={styles.label}>Precio</label>
+          <label htmlFor="producto-precio" style={styles.label}>
+            Precio
+          </label>
 
           <input
+            id="producto-precio"
             type="number"
             name="precio"
             placeholder="Ej: 85000"
             value={formulario.precio}
             onChange={handleChange}
-            min="1"
+            min="1000"
             step="0.01"
             style={styles.input}
+            required
           />
         </div>
 
-        {/* ================= STOCK ================= */}
-
         <div style={styles.fieldGroup}>
-          <label style={styles.label}>Stock disponible</label>
+          <label htmlFor="producto-stock" style={styles.label}>
+            Stock disponible
+          </label>
 
           <input
+            id="producto-stock"
             type="number"
             name="stock"
             placeholder="Ej: 15"
@@ -154,19 +146,22 @@ export default function ProductoForm({
             min="0"
             step="1"
             style={styles.input}
+            required
           />
         </div>
 
-        {/* ================= CATEGORIA ================= */}
-
         <div style={styles.fieldGroup}>
-          <label style={styles.label}>Categoría</label>
+          <label htmlFor="producto-categoria" style={styles.label}>
+            Categoría
+          </label>
 
           <select
+            id="producto-categoria"
             name="categoriaId"
             value={formulario.categoriaId}
             onChange={handleChange}
             style={styles.input}
+            required
           >
             <option value="">Seleccionar categoría</option>
 
@@ -178,21 +173,22 @@ export default function ProductoForm({
           </select>
         </div>
 
-        {/* ================= DESCRIPCION ================= */}
-
         <div style={styles.fieldGroupFull}>
-          <label style={styles.label}>Descripción</label>
+          <label htmlFor="producto-descripcion" style={styles.label}>
+            Descripción
+          </label>
 
           <textarea
+            id="producto-descripcion"
             name="descripcion"
             placeholder="Describe las características del producto..."
             value={formulario.descripcion}
             onChange={handleChange}
             style={styles.textarea}
+            minLength={10}
+            required
           />
         </div>
-
-        {/* ================= IMAGEN ================= */}
 
         <div style={styles.fieldGroupFull}>
           <label style={styles.label}>Imagen del producto</label>
@@ -208,7 +204,6 @@ export default function ProductoForm({
 
             <label htmlFor="producto-imagen" style={styles.fileLabel}>
               <FaImage />
-
               <span>Seleccionar imagen</span>
             </label>
 
@@ -219,14 +214,11 @@ export default function ProductoForm({
           </div>
         </div>
 
-        {/* ================= VISTA PREVIA ================= */}
-
         {previewImagen && (
           <div style={styles.previewSection}>
             <div style={styles.previewHeader}>
               <div>
                 <h3 style={styles.previewTitle}>Vista previa</h3>
-
                 <p style={styles.previewSubtitle}>
                   Así se verá la imagen del producto.
                 </p>
@@ -247,28 +239,22 @@ export default function ProductoForm({
                 src={previewImagen}
                 alt="Vista previa del producto"
                 style={styles.previewImage}
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
                 }}
               />
             </div>
           </div>
         )}
 
-        {/* ================= BOTON ================= */}
-
         <button type="submit" style={styles.button}>
           <FaPlus />
-          Crear Producto
+          Crear producto
         </button>
       </form>
     </div>
   );
 }
-
-/* ===================================================== */
-/* ======================= ESTILOS ===================== */
-/* ===================================================== */
 
 const styles = {
   formContainer: {
@@ -286,8 +272,6 @@ const styles = {
 
     boxShadow: "0 10px 40px rgba(0,0,0,0.25)",
   },
-
-  /* ================= HEADER ================= */
 
   formHeader: {
     display: "flex",
@@ -342,8 +326,6 @@ const styles = {
 
     flexShrink: 0,
   },
-
-  /* ================= FORM ================= */
 
   form: {
     display: "grid",
@@ -425,8 +407,6 @@ const styles = {
     boxSizing: "border-box",
   },
 
-  /* ================= ERROR ================= */
-
   errorBox: {
     background: "rgba(127,29,29,0.90)",
 
@@ -444,8 +424,6 @@ const styles = {
 
     border: "1px solid rgba(248,113,113,0.30)",
   },
-
-  /* ================= IMAGEN ================= */
 
   imageUploadContainer: {
     padding: "20px",
@@ -494,8 +472,6 @@ const styles = {
 
     fontSize: "13px",
   },
-
-  /* ================= PREVIEW ================= */
 
   previewSection: {
     gridColumn: "1 / -1",
@@ -592,8 +568,6 @@ const styles = {
 
     boxShadow: "0 10px 30px rgba(147,51,234,0.35)",
   },
-
-  /* ================= BUTTON ================= */
 
   button: {
     gridColumn: "1 / -1",

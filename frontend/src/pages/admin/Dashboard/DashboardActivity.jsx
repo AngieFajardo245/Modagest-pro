@@ -4,6 +4,55 @@ import api from "../../../services/api";
 import styles from "./dashboardStyles";
 import ActivityItem from "./ActivityItem";
 
+const obtenerTiempo = (fecha) => {
+  if (!fecha) {
+    return "";
+  }
+
+  const ahora = new Date();
+  const fechaActividad = new Date(fecha);
+
+  if (Number.isNaN(fechaActividad.getTime())) {
+    return "";
+  }
+
+  const segundos = Math.floor(
+    (ahora.getTime() - fechaActividad.getTime()) / 1000,
+  );
+
+  if (segundos < 60) {
+    return "Hace unos segundos";
+  }
+
+  const minutos = Math.floor(segundos / 60);
+
+  if (minutos < 60) {
+    return minutos === 1 ? "Hace 1 minuto" : `Hace ${minutos} minutos`;
+  }
+
+  const horas = Math.floor(minutos / 60);
+
+  if (horas < 24) {
+    return horas === 1 ? "Hace 1 hora" : `Hace ${horas} horas`;
+  }
+
+  const dias = Math.floor(horas / 24);
+
+  if (dias === 1) {
+    return "Ayer";
+  }
+
+  if (dias < 7) {
+    return `Hace ${dias} días`;
+  }
+
+  return fechaActividad.toLocaleDateString("es-CO", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
 export default function DashboardActivity() {
   const [actividades, setActividades] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,53 +76,6 @@ export default function DashboardActivity() {
 
     obtenerActividad();
   }, []);
-
-  /* ================= TIEMPO RELATIVO ================= */
-
-  const obtenerTiempo = (fecha) => {
-    if (!fecha) {
-      return "";
-    }
-
-    const ahora = new Date();
-    const fechaActividad = new Date(fecha);
-
-    const diferencia = ahora.getTime() - fechaActividad.getTime();
-
-    const segundos = Math.floor(diferencia / 1000);
-
-    if (segundos < 60) {
-      return "Hace unos segundos";
-    }
-
-    const minutos = Math.floor(segundos / 60);
-
-    if (minutos < 60) {
-      return minutos === 1 ? "Hace 1 minuto" : `Hace ${minutos} minutos`;
-    }
-
-    const horas = Math.floor(minutos / 60);
-
-    if (horas < 24) {
-      return horas === 1 ? "Hace 1 hora" : `Hace ${horas} horas`;
-    }
-
-    const dias = Math.floor(horas / 24);
-
-    if (dias === 1) {
-      return "Ayer";
-    }
-
-    if (dias < 7) {
-      return `Hace ${dias} días`;
-    }
-
-    return fechaActividad.toLocaleDateString("es-CO", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
 
   return (
     <div style={styles.activityCard}>

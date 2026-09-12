@@ -1,71 +1,64 @@
 import { FaEdit, FaTrash, FaBoxOpen, FaTag } from "react-icons/fa";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+const obtenerImagen = (imagen) => {
+  if (!imagen || typeof imagen !== "string") {
+    return "https://placehold.co/120x120?text=Sin+Imagen";
+  }
+
+  if (imagen.startsWith("http")) {
+    return imagen;
+  }
+
+  if (imagen.startsWith("/uploads")) {
+    return `${API_BASE_URL}${imagen}`;
+  }
+
+  return `${API_BASE_URL}/uploads/${imagen}`;
+};
+
+const obtenerEstadoStock = (valor) => {
+  const stock = Number(valor) || 0;
+
+  if (stock <= 0) {
+    return {
+      texto: "Agotado",
+      detalle: "Sin unidades",
+      color: "#ef4444",
+      background: "rgba(239,68,68,0.12)",
+      border: "rgba(239,68,68,0.25)",
+    };
+  }
+
+  if (stock <= 5) {
+    return {
+      texto: "Stock bajo",
+      detalle: `${stock} ${stock === 1 ? "unidad" : "unidades"}`,
+      color: "#f59e0b",
+      background: "rgba(245,158,11,0.12)",
+      border: "rgba(245,158,11,0.25)",
+    };
+  }
+
+  return {
+    texto: "Disponible",
+    detalle: `${stock} unidades`,
+    color: "#10b981",
+    background: "rgba(16,185,129,0.12)",
+    border: "rgba(16,185,129,0.25)",
+  };
+};
+
 export default function ProductoTable({
   productos,
   editarProducto,
   eliminarProducto,
 }) {
-
-  /* ================ GENERAR URL IMAGEN ================= */
-
-  const obtenerImagen = (imagen) => {
-    if (!imagen) {
-      return "https://placehold.co/120x120?text=Sin+Imagen";
-    }
-
-    if (imagen.startsWith("http")) {
-      return imagen;
-    }
-
-    if (imagen.startsWith("/uploads")) {
-      return `http://localhost:5000${imagen}`;
-    }
-
-    return `http://localhost:5000/uploads/${imagen}`;
-  };
-
-
-  /* ================= INFORMACION STOCK ================= */
-
-  const obtenerEstadoStock = (stock) => {
-    if (stock === 0) {
-      return {
-        texto: "Agotado",
-        detalle: "Sin unidades",
-        color: "#ef4444",
-        background: "rgba(239,68,68,0.12)",
-        border: "rgba(239,68,68,0.25)",
-      };
-    }
-
-    if (stock <= 5) {
-      return {
-        texto: "Stock bajo",
-        detalle: `${stock} ${stock === 1 ? "unidad" : "unidades"}`,
-        color: "#f59e0b",
-        background: "rgba(245,158,11,0.12)",
-        border: "rgba(245,158,11,0.25)",
-      };
-    }
-
-    return {
-      texto: "Disponible",
-      detalle: `${stock} unidades`,
-      color: "#10b981",
-      background: "rgba(16,185,129,0.12)",
-      border: "rgba(16,185,129,0.25)",
-    };
-  };
-
-  /* ======================= RETURN ====================== */
-
   return (
     <div style={styles.tableWrapper}>
       <div style={styles.tableContainer}>
         <table style={styles.table}>
-      
-          {/* ==================== ENCABEZADO ================= */}
-
           <thead>
             <tr>
               <th style={styles.th}>ID</th>
@@ -77,15 +70,11 @@ export default function ProductoTable({
             </tr>
           </thead>
 
-
-          {/* ====================== CUERPO =================== */}
-
           <tbody>
             {productos.length > 0 ? (
               productos.map((producto) => {
                 const stock = Number(producto.stock);
                 const estadoStock = obtenerEstadoStock(stock);
-
 
                 const nombreCategoria =
                   producto.Categorium?.nombre ||
@@ -105,13 +94,9 @@ export default function ProductoTable({
                       e.currentTarget.style.background = "transparent";
                     }}
                   >
-                    {/* ================= ID ================= */}
-
                     <td style={styles.idCell}>
                       <span style={styles.idBadge}>#{producto.id}</span>
                     </td>
-
-                    {/* ================= PRODUCTO ============= */}
 
                     <td style={styles.productCell}>
                       <div style={styles.productInfo}>
@@ -144,16 +129,12 @@ export default function ProductoTable({
                       </div>
                     </td>
 
-                    {/* ================= CATEGORIA ============= */}
-
                     <td style={styles.categoryCell}>
                       <span style={styles.categoryBadge}>
                         <FaTag />
                         {nombreCategoria}
                       </span>
                     </td>
-
-                    {/* ================= PRECIO ================= */}
 
                     <td style={styles.priceCell}>
                       <span style={styles.price}>
@@ -162,8 +143,6 @@ export default function ProductoTable({
 
                       <span style={styles.currency}>COP</span>
                     </td>
-
-                    {/* ================= STOCK ================= */}
 
                     <td style={styles.stockCell}>
                       <div
@@ -193,12 +172,8 @@ export default function ProductoTable({
                       </div>
                     </td>
 
-                    {/* ================= ACCIONES ============= */}
-
                     <td style={styles.actionsCell}>
                       <div style={styles.actions}>
-                        {/* EDITAR */}
-
                         <button
                           type="button"
                           style={styles.editBtn}
@@ -208,8 +183,6 @@ export default function ProductoTable({
                           <FaEdit />
                           <span>Editar</span>
                         </button>
-
-                        {/* ELIMINAR */}
 
                         <button
                           type="button"
@@ -226,10 +199,6 @@ export default function ProductoTable({
                 );
               })
             ) : (
-            
-              /* ================= SIN PRODUCTOS ================= */
-        
-
               <tr>
                 <td colSpan="6" style={styles.empty}>
                   <div style={styles.emptyContent}>
@@ -255,11 +224,7 @@ export default function ProductoTable({
   );
 }
 
-/* ======================= ESTILOS ===================== */
-
 const styles = {
-  /* ================= CONTENEDOR ================= */
-
   tableWrapper: {
     width: "100%",
     overflowX: "auto",
@@ -267,35 +232,30 @@ const styles = {
   },
 
   tableContainer: {
+    width: "100%",
 
-  width: "100%",
+    overflowX: "auto",
 
-  overflowX: "auto",
-  
-  background: "rgba(255,255,255,0.05)",
-  
-  backdropFilter: "blur(12px)",
-  
-  border: "1px solid rgba(255,255,255,0.08)",
-  
-  borderRadius: "28px",
-  
-  boxShadow: "0 10px 40px rgba(0,0,0,0.25)",
-},
+    background: "rgba(255,255,255,0.05)",
 
- 
-table: {
-  
-  width: "100%",
-  
-  minWidth: "1100px",
-  
-  borderCollapse: "collapse",
-  
-  color: "#fff",
-},
+    backdropFilter: "blur(12px)",
 
-  /* ================= ENCABEZADO ================= */
+    border: "1px solid rgba(255,255,255,0.08)",
+
+    borderRadius: "28px",
+
+    boxShadow: "0 10px 40px rgba(0,0,0,0.25)",
+  },
+
+  table: {
+    width: "100%",
+
+    minWidth: "1100px",
+
+    borderCollapse: "collapse",
+
+    color: "#fff",
+  },
 
   th: {
     background: "rgba(255,255,255,0.065)",
@@ -319,15 +279,11 @@ table: {
     whiteSpace: "nowrap",
   },
 
-  /* ================= FILAS ================= */
-
   row: {
     transition: "background 0.25s ease",
 
     borderBottom: "1px solid rgba(255,255,255,0.055)",
   },
-
-  /* ================= ID ================= */
 
   idCell: {
     padding: "18px 20px",
@@ -358,8 +314,6 @@ table: {
 
     fontWeight: "700",
   },
-
-  /* ================= PRODUCTO ================= */
 
   productCell: {
     padding: "16px 20px",
@@ -438,8 +392,6 @@ table: {
     maxWidth: "280px",
   },
 
-  /* ================= CATEGORIA ================= */
-
   categoryCell: {
     padding: "18px 20px",
 
@@ -469,8 +421,6 @@ table: {
 
     whiteSpace: "nowrap",
   },
-
-  /* ================= PRECIO ================= */
 
   priceCell: {
     padding: "18px 20px",
@@ -503,8 +453,6 @@ table: {
 
     letterSpacing: "0.7px",
   },
-
-  /* ================= STOCK ================= */
 
   stockCell: {
     padding: "18px 20px",
@@ -562,8 +510,6 @@ table: {
     fontWeight: "600",
   },
 
-  /* ================= ACCIONES ================= */
-
   actionsCell: {
     padding: "18px 20px",
 
@@ -571,77 +517,74 @@ table: {
   },
 
   actions: {
+    display: "flex",
 
-  display: "flex",
+    alignItems: "center",
 
-  alignItems: "center",
+    justifyContent: "flex-start",
 
-  justifyContent: "flex-start",
+    gap: "10px",
 
-  gap: "10px",
+    flexWrap: "nowrap",
 
-  flexWrap: "nowrap",
+    whiteSpace: "nowrap",
+  },
 
-  whiteSpace: "nowrap",
-},
+  editBtn: {
+    display: "inline-flex",
 
- editBtn: {
-  
-  display: "inline-flex",
-  
-  alignItems: "center",
+    alignItems: "center",
 
-  justifyContent: "center",
+    justifyContent: "center",
 
-  gap: "8px",
+    gap: "8px",
 
-  background: "#d97706",
+    background: "#d97706",
 
-  color: "#fff",
+    color: "#fff",
 
-  border: "none",
+    border: "none",
 
-  padding: "10px 14px",
+    padding: "10px 14px",
 
-  borderRadius: "12px",
+    borderRadius: "12px",
 
-  cursor: "pointer",
+    cursor: "pointer",
 
-  fontWeight: "600",
+    fontWeight: "600",
 
-  whiteSpace: "nowrap",
+    whiteSpace: "nowrap",
 
-  flexShrink: 0,
-},
+    flexShrink: 0,
+  },
 
-deleteBtn: {
-  display: "inline-flex",
+  deleteBtn: {
+    display: "inline-flex",
 
-  alignItems: "center",
+    alignItems: "center",
 
-  justifyContent: "center",
+    justifyContent: "center",
 
-  gap: "8px",
+    gap: "8px",
 
-  background: "#dc2626",
+    background: "#dc2626",
 
-  color: "#fff",
+    color: "#fff",
 
-  border: "none",
+    border: "none",
 
-  padding: "10px 14px",
+    padding: "10px 14px",
 
-  borderRadius: "12px",
+    borderRadius: "12px",
 
-  cursor: "pointer",
+    cursor: "pointer",
 
-  fontWeight: "600",
+    fontWeight: "600",
 
-  whiteSpace: "nowrap",
+    whiteSpace: "nowrap",
 
-  flexShrink: 0,
-},
-   /* ================= VACIO ================= */
+    flexShrink: 0,
+  },
 
   empty: {
     padding: "70px 30px",

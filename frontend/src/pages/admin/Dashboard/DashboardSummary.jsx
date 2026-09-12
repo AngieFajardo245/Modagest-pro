@@ -1,24 +1,24 @@
 import styles from "./dashboardStyles";
 import SummaryRow from "./SummaryRow";
 
+const NOMBRES_METODOS = {
+  tarjeta: "Tarjeta",
+  efectivo: "Efectivo",
+  pse: "PSE",
+  nequi: "Nequi",
+  contra_entrega: "Contra Entrega",
+};
+
+const obtenerNombreMetodo = (metodo) => {
+  const clave = String(metodo || "")
+    .trim()
+    .toLowerCase();
+
+  return NOMBRES_METODOS[clave] || metodo || "Sin especificar";
+};
+
 export default function DashboardSummary({ stats, formatoMoneda }) {
   const metodosPago = stats?.metodosPago || {};
-
-  const obtenerNombreMetodo = (metodo) => {
-    const nombres = {
-      tarjeta: "Tarjeta",
-      efectivo: "Efectivo",
-      pse: "PSE",
-      nequi: "Nequi",
-      contra_entrega: "Contra Entrega",
-    };
-
-    const clave = String(metodo || "")
-      .trim()
-      .toLowerCase();
-
-    return nombres[clave] || metodo || "Sin especificar";
-  };
 
   return (
     <div style={styles.summaryCard}>
@@ -44,8 +44,6 @@ export default function DashboardSummary({ stats, formatoMoneda }) {
           value={formatoMoneda(stats?.ingresosTotales)}
         />
       </div>
-
-      {/* ================= METODOS DE PAGO ================= */}
 
       <div style={styles.paymentSection}>
         <h4 style={styles.paymentTitle}>💳 Métodos de pago</h4>

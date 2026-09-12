@@ -1,13 +1,9 @@
 const styles = {
-  /* ==================== CONTENEDOR ==================== */
-
   container: {
     padding: "10px",
     minHeight: "100vh",
     color: "#fff",
   },
-
-  /* ==================== HERO ==================== */
 
   heroCard: {
     background:
@@ -45,8 +41,6 @@ const styles = {
   heroIcon: {
     fontSize: "80px",
   },
-
-  /* ==================== ESTADISTICAS ==================== */
 
   grid: {
     display: "grid",
@@ -98,8 +92,6 @@ const styles = {
     color: "#94a3b8",
     fontSize: "14px",
   },
-
-  /* ==================== PERIODOS ==================== */
 
   periodGrid: {
     display: "grid",
@@ -154,8 +146,6 @@ const styles = {
     color: "#64748b",
     fontSize: "12px",
   },
-
-  /* ==================== GRAFICA DE VENTAS ==================== */
 
   chartCard: {
     background: "rgba(255,255,255,0.05)",
@@ -225,16 +215,12 @@ const styles = {
     transition: "width 0.4s ease",
   },
 
-  /* ==================== PARTE INFERIOR ==================== */
-
   bottomGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
     gap: "25px",
     marginBottom: "35px",
   },
-
-  /* ==================== ACTIVIDAD ==================== */
 
   activityCard: {
     background: "rgba(255,255,255,0.05)",
@@ -304,8 +290,6 @@ const styles = {
     fontSize: "13px",
   },
 
-  /* ==================== RESUMEN ==================== */
-
   summaryCard: {
     background: "rgba(255,255,255,0.05)",
     border: "1px solid rgba(255,255,255,0.08)",
@@ -337,8 +321,6 @@ const styles = {
     fontWeight: "700",
     color: "#fff",
   },
-
-  /* ==================== METODOS DE PAGO ==================== */
 
   paymentSection: {
     marginTop: "28px",
@@ -381,8 +363,6 @@ const styles = {
     fontWeight: "700",
   },
 
-  /* ==================== LOADING ==================== */
-
   loadingContainer: {
     minHeight: "100vh",
     display: "flex",
@@ -390,11 +370,6 @@ const styles = {
     alignItems: "center",
     flexDirection: "column",
     color: "#fff",
-  },
-
-  loadingText: {
-    marginTop: "18px",
-    color: "#d1d5db",
   },
 
   loader: {

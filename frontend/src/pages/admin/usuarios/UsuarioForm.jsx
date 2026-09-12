@@ -8,20 +8,33 @@ export default function UsuarioForm({ visible, onClose, onGuardar }) {
   const [rol, setRol] = useState("cliente");
   const [error, setError] = useState("");
 
-  if (!visible) return null;
+  if (!visible) {
+    return null;
+  }
 
-  const enviar = (e) => {
-    e.preventDefault();
+  const limpiarFormulario = () => {
+    setNombre("");
+    setEmail("");
+    setPassword("");
+    setRol("cliente");
+    setError("");
+  };
+
+  const cerrarFormulario = () => {
+    limpiarFormulario();
+    onClose();
+  };
+
+  const enviar = (event) => {
+    event.preventDefault();
 
     setError("");
 
-    // Validar nombre
     if (nombre.trim().length < 3) {
       setError("El nombre debe tener mínimo 3 caracteres.");
       return;
     }
 
-    // Validar correo
     const expresionCorreo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!expresionCorreo.test(email.trim())) {
@@ -29,12 +42,7 @@ export default function UsuarioForm({ visible, onClose, onGuardar }) {
       return;
     }
 
-    // Validar contraseña
     const expresionPassword = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
-
-    console.log("Contraseña:", password);
-    console.log("Longitud:", password.length);
-    console.log("Resultado:", expresionPassword.test(password));
 
     if (!expresionPassword.test(password)) {
       setError(
@@ -50,26 +58,36 @@ export default function UsuarioForm({ visible, onClose, onGuardar }) {
       rol,
     });
 
-    setNombre("");
-    setEmail("");
-    setPassword("");
-    setRol("cliente");
-    setError("");
+    limpiarFormulario();
   };
 
   return (
     <div style={styles.modalOverlay}>
-      <div style={styles.modal}>
-        <h2 style={styles.modalTitle}>Crear Usuario</h2>
+      <div
+        style={styles.modal}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="titulo-nuevo-usuario"
+      >
+        <h2 id="titulo-nuevo-usuario" style={styles.modalTitle}>
+          Crear usuario
+        </h2>
 
-        {error && <div style={styles.errorBox}>{error}</div>}
+        {error && (
+          <div style={styles.errorBox} role="alert">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={enviar}>
           <input
+            type="text"
             style={styles.input}
             placeholder="Nombre"
             value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
+            onChange={(event) => setNombre(event.target.value)}
+            autoComplete="name"
+            minLength={3}
             required
           />
 
@@ -78,7 +96,8 @@ export default function UsuarioForm({ visible, onClose, onGuardar }) {
             placeholder="Correo"
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(event) => setEmail(event.target.value)}
+            autoComplete="email"
             required
           />
 
@@ -87,14 +106,18 @@ export default function UsuarioForm({ visible, onClose, onGuardar }) {
             placeholder="Contraseña"
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete="new-password"
+            minLength={8}
             required
           />
 
           <select
             style={styles.input}
             value={rol}
-            onChange={(e) => setRol(e.target.value)}
+            onChange={(event) => setRol(event.target.value)}
+            aria-label="Rol del usuario"
+            required
           >
             <option value="cliente">Cliente</option>
             <option value="empleado">Empleado</option>
@@ -102,7 +125,11 @@ export default function UsuarioForm({ visible, onClose, onGuardar }) {
           </select>
 
           <div style={styles.modalButtons}>
-            <button type="button" style={styles.cancelButton} onClick={onClose}>
+            <button
+              type="button"
+              style={styles.cancelButton}
+              onClick={cerrarFormulario}
+            >
               Cancelar
             </button>
 
