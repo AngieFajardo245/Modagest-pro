@@ -12,7 +12,7 @@ Código fuente e historial de desarrollo:
 
 ## Periodo de desarrollo
 
-El desarrollo de ModaGest Pro se realizó entre **mayo de 2026** y **septiembre de 2026**, mediante entregas incrementales registradas en Git.
+El desarrollo de ModaGest Pro se realizó entre **marzo de 2026** y **septiembre de 2026**, mediante entregas incrementales registradas en Git.
 
 ## Funcionalidades principales
 
