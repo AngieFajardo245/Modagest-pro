@@ -13,6 +13,7 @@ const Pago = sequelize.define(
     ventaId: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      unique: true,
       references: {
         model: "ventas",
         key: "id",
