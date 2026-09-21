@@ -351,4 +351,4 @@ Desarrollado por:
 
 Copyright © 2026. Todos los derechos reservados por la autora de ModaGest Pro.
 
-Este proyecto fue desarrollado con fines académicos. No se autoriza su reproducción, distribución, comercialización o modificación por terceros sin la autorización expresa de sus autoras.
+Este proyecto fue desarrollado con fines académicos. No se autoriza su reproducción, distribución, comercialización o modificación por terceros sin la autorización expresa de su autora.
