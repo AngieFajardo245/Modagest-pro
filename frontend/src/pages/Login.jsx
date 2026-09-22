@@ -1,26 +1,24 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FaEnvelope, FaEye, FaEyeSlash, FaLock, FaUser } from "react-icons/fa";
 import api from "../services/api";
-import { FaEnvelope, FaLock, FaUser, FaEye, FaEyeSlash } from "react-icons/fa";
 import logo from "../assets/Logo.png";
 
 function Login() {
   const navigate = useNavigate();
 
   const [view, setView] = useState("login");
-
   const [form, setForm] = useState({
     nombre: "",
     email: "",
     password: "",
   });
-
   const [viewPassword, setViewPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  const handleChange = (event) => {
+    const { name, value } = event.target;
 
     setForm((prev) => ({
       ...prev,
@@ -48,9 +46,7 @@ function Login() {
 
   const guardarSesion = (token, usuario) => {
     localStorage.setItem("token", token);
-
     localStorage.setItem("rol", usuario?.rol?.toLowerCase?.() || "cliente");
-
     localStorage.setItem("usuario", JSON.stringify(usuario || {}));
   };
 
@@ -137,8 +133,8 @@ function Login() {
     return true;
   };
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const handleLogin = async (event) => {
+    event.preventDefault();
 
     if (loading) {
       return;
@@ -182,8 +178,8 @@ function Login() {
     }
   };
 
-  const handleRegister = async (e) => {
-    e.preventDefault();
+  const handleRegister = async (event) => {
+    event.preventDefault();
 
     if (loading) {
       return;
@@ -240,6 +236,38 @@ function Login() {
 
   return (
     <div style={styles.container}>
+      <style>
+        {`
+          .login-input::selection {
+            color: #ffffff;
+            background: #7c3aed;
+          }
+
+          .login-input::-moz-selection {
+            color: #ffffff;
+            background: #7c3aed;
+          }
+
+          .login-input:-webkit-autofill,
+          .login-input:-webkit-autofill:hover,
+          .login-input:-webkit-autofill:focus,
+          .login-input:-webkit-autofill:active {
+            -webkit-text-fill-color: #ffffff !important;
+            caret-color: #ffffff;
+            -webkit-background-clip: text !important;
+            background-clip: text !important;
+            box-shadow: 0 0 0 1000px transparent inset !important;
+            -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+            transition: background-color 9999s ease-in-out 0s;
+          }
+
+          .login-input::placeholder {
+            color: #9ca3af;
+            opacity: 1;
+          }
+        `}
+      </style>
+
       <div style={styles.overlay} />
 
       <div style={styles.card}>
@@ -259,6 +287,7 @@ function Login() {
               <FaEnvelope style={styles.icon} />
 
               <input
+                className="login-input"
                 type="email"
                 name="email"
                 placeholder="Correo electrónico"
@@ -274,6 +303,7 @@ function Login() {
               <FaLock style={styles.icon} />
 
               <input
+                className="login-input"
                 type={viewPassword ? "text" : "password"}
                 name="password"
                 placeholder="Contraseña"
@@ -334,6 +364,7 @@ function Login() {
               <FaUser style={styles.icon} />
 
               <input
+                className="login-input"
                 type="text"
                 name="nombre"
                 placeholder="Nombre completo"
@@ -349,6 +380,7 @@ function Login() {
               <FaEnvelope style={styles.icon} />
 
               <input
+                className="login-input"
                 type="email"
                 name="email"
                 placeholder="Correo electrónico"
@@ -364,6 +396,7 @@ function Login() {
               <FaLock style={styles.icon} />
 
               <input
+                className="login-input"
                 type={viewPassword ? "text" : "password"}
                 name="password"
                 placeholder="Contraseña"
@@ -477,7 +510,7 @@ const styles = {
   },
 
   title: {
-    color: "#fff",
+    color: "#ffffff",
     margin: "0 0 10px",
     fontSize: "40px",
     fontWeight: "800",
@@ -515,8 +548,10 @@ const styles = {
     background: "transparent",
     border: "none",
     outline: "none",
-    color: "#fff",
+    color: "#ffffff",
     fontSize: "15px",
+    caretColor: "#ffffff",
+    colorScheme: "dark",
   },
 
   eye: {
@@ -537,7 +572,7 @@ const styles = {
     border: "none",
     borderRadius: "16px",
     background: "linear-gradient(135deg, #7c3aed, #9333ea)",
-    color: "#fff",
+    color: "#ffffff",
     fontWeight: "700",
     fontSize: "15px",
     cursor: "pointer",
