@@ -8,6 +8,7 @@ import {
   FaSyncAlt,
 } from "react-icons/fa";
 import api from "../../services/api";
+import { obtenerUrlImagen } from "../../utils/media";
 
 function ProductosEmpleado() {
   const [productos, setProductos] = useState([]);
@@ -74,15 +75,7 @@ function ProductosEmpleado() {
   };
 
   const obtenerImagen = (imagen) => {
-    if (!imagen) {
-      return "";
-    }
-
-    if (/^https?:\/\//i.test(imagen)) {
-      return imagen;
-    }
-
-    return `http://localhost:5000/uploads/${imagen}`;
+    return obtenerUrlImagen(imagen, "");
   };
 
   const productosFiltrados = useMemo(() => {

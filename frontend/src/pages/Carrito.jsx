@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { obtenerUrlImagen } from "../utils/media";
 
 const METODOS = [
   { value: "Tarjeta", icon: "💳", title: "Tarjeta", text: "Débito o crédito" },
@@ -444,15 +445,10 @@ function Carrito() {
   };
 
   const obtenerImagen = (imagen) => {
-    const predeterminada =
-      "https://placehold.co/180x180/111827/e5e7eb?text=ModaGest";
-    if (!imagen || typeof imagen !== "string") {
-      return predeterminada;
-    }
-    const limpia = imagen.trim();
-    return /^https?:\/\//i.test(limpia)
-      ? limpia
-      : `http://localhost:5000/uploads/${limpia}`;
+    return obtenerUrlImagen(
+      imagen,
+      "https://placehold.co/180x180/111827/e5e7eb?text=ModaGest",
+    );
   };
 
   if (cargando) {

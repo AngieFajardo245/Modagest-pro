@@ -25,9 +25,24 @@ const upload = require("./middlewares/upload");
 
 const app = express();
 
+const origenesPermitidos = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  ...(process.env.FRONTEND_URL || "")
+    .split(",")
+    .map((origen) => origen.trim())
+    .filter(Boolean),
+];
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin(origen, callback) {
+      if (!origen || origenesPermitidos.includes(origen)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Origen no permitido por CORS"));
+    },
     credentials: true,
   }),
 );
@@ -689,11 +704,7 @@ app.put(
 
       if (req.file) {
         if (producto.imagen) {
-          const rutaImagenAnterior = path.join(uploadPath, producto.imagen);
-
-          if (fs.existsSync(rutaImagenAnterior)) {
-            fs.unlinkSync(rutaImagenAnterior);
-          }
+          await upload.eliminarImagen(producto.imagen);
         }
 
         producto.imagen = req.file.filename;
@@ -741,11 +752,7 @@ app.delete(
       }
 
       if (producto.imagen) {
-        const rutaImagen = path.join(uploadPath, producto.imagen);
-
-        if (fs.existsSync(rutaImagen)) {
-          fs.unlinkSync(rutaImagen);
-        }
+        await upload.eliminarImagen(producto.imagen);
       }
 
       await producto.destroy();

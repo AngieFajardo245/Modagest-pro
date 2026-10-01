@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import PublicNavbar from "../components/PublicNavbar";
 import api from "../services/api";
+import { obtenerUrlImagen } from "../utils/media";
 
 import {
   FaShoppingCart,
@@ -76,21 +77,7 @@ function HomePage() {
   });
 
   const obtenerImagen = (producto) => {
-    const imagenFallback =
-      "https://placehold.co/300x300/161a2f/ffffff?text=ModaGest";
-
-    if (!producto.imagen) {
-      return imagenFallback;
-    }
-
-    if (
-      typeof producto.imagen === "string" &&
-      producto.imagen.startsWith("http")
-    ) {
-      return producto.imagen;
-    }
-
-    return `http://localhost:5000/uploads/${producto.imagen}`;
+    return obtenerUrlImagen(producto.imagen);
   };
 
   const agregarAlCarrito = (producto) => {

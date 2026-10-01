@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
+import { obtenerUrlImagen } from "../../utils/media";
 
 function ProductosCliente() {
   const navigate = useNavigate();
@@ -420,23 +421,10 @@ function ProductosCliente() {
     "Moda";
 
   const obtenerImagen = (producto) => {
-    const imagenFallback =
-      "https://placehold.co/600x500/161a2f/ffffff?text=ModaGest+Pro";
-
-    if (!producto?.imagen) {
-      return imagenFallback;
-    }
-
-    if (
-      typeof producto.imagen === "string" &&
-      producto.imagen.startsWith("http")
-    ) {
-      return producto.imagen;
-    }
-
-    const nombreImagen = String(producto.imagen).replace(/^\/+/, "");
-
-    return `http://localhost:5000/uploads/${nombreImagen}`;
+    return obtenerUrlImagen(
+      producto?.imagen,
+      "https://placehold.co/600x500/161a2f/ffffff?text=ModaGest+Pro",
+    );
   };
 
   if (loading) {

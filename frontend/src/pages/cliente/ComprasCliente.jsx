@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../../services/api";
+import { obtenerUrlImagen } from "../../utils/media";
 
 function ComprasCliente() {
   const [compras, setCompras] = useState([]);
@@ -56,20 +57,7 @@ function ComprasCliente() {
   };
 
   const obtenerImagen = (imagen) => {
-    const imagenFallback =
-      "https://placehold.co/300x220/161a2f/ffffff?text=ModaGest+Pro";
-
-    if (!imagen || typeof imagen !== "string") {
-      return imagenFallback;
-    }
-
-    if (imagen.startsWith("http://") || imagen.startsWith("https://")) {
-      return imagen;
-    }
-
-    const nombreImagen = imagen.replace(/^\/+/, "");
-
-    return `http://localhost:5000/uploads/${nombreImagen}`;
+    return obtenerUrlImagen(imagen);
   };
 
   const manejarErrorImagen = (event) => {

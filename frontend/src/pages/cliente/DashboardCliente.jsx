@@ -201,7 +201,7 @@ function DashboardCliente() {
                 Explorar productos
               </Link>
 
-              <Link to="/carrito" style={styles.secondaryLink}>
+              <Link to="/cliente/carrito" style={styles.secondaryLink}>
                 Ver carrito 🛒
               </Link>
             </div>
@@ -376,7 +376,7 @@ function DashboardCliente() {
                 <span style={styles.arrow}>→</span>
               </Link>
 
-              <Link to="/carrito" style={styles.quickAction}>
+              <Link to="/cliente/carrito" style={styles.quickAction}>
                 <div style={styles.quickIcon}>🛒</div>
 
                 <div>

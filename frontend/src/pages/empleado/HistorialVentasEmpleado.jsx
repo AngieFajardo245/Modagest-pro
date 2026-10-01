@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../../services/api";
+import { obtenerUrlImagen } from "../../utils/media";
 
 import {
   FaSyncAlt,
@@ -265,18 +266,7 @@ function HistorialVentasEmpleado() {
       return null;
     }
 
-    if (
-      imagenLimpia.startsWith("http://") ||
-      imagenLimpia.startsWith("https://")
-    ) {
-      return imagenLimpia;
-    }
-
-    if (imagenLimpia.startsWith("/")) {
-      return `http://localhost:5000${imagenLimpia}`;
-    }
-
-    return `http://localhost:5000/uploads/${imagenLimpia}`;
+    return obtenerUrlImagen(imagenLimpia, null);
   };
 
   const obtenerCantidad = (detalle) => {
