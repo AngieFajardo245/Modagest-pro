@@ -12,7 +12,7 @@ import Dashboard from "./pages/admin/Dashboard/Dashboard";
 import Productos from "./pages/admin/productos/Productos";
 import Usuarios from "./pages/admin/usuarios/Usuarios";
 import AdminVentas from "./pages/admin/ventas/Ventas";
-import Categorias from "./pages/admin/categorias/Categorias";
+import Categorias from "./pages/admin/Categorias/Categorias";
 
 import DashboardCliente from "./pages/cliente/DashboardCliente";
 import ProductosCliente from "./pages/cliente/ProductosCliente";
