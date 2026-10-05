@@ -271,6 +271,25 @@ export default function PublicNavbar() {
     }
   };
 
+  const irAProductos = (event) => {
+    if (rol || location.pathname !== "/") {
+      return;
+    }
+
+    const seccionProductos = document.getElementById("productos");
+
+    if (!seccionProductos) {
+      return;
+    }
+
+    event.preventDefault();
+    window.history.replaceState(null, "", "#productos");
+    seccionProductos.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
   const cerrarSesion = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("usuario");
@@ -317,7 +336,11 @@ export default function PublicNavbar() {
           Inicio
         </Link>
 
-        <Link to={rutaProductos()} style={linkStyle(rutaProductos())}>
+        <Link
+          to={rutaProductos()}
+          style={linkStyle(rutaProductos())}
+          onClick={irAProductos}
+        >
           Productos
         </Link>
       </div>
