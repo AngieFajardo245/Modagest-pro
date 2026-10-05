@@ -2,26 +2,20 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const { randomUUID } = require("crypto");
-const { v2: cloudinary } = require("cloudinary");
+const ImageKit = require("@imagekit/nodejs").default;
+const { toFile } = require("@imagekit/nodejs");
 
 const uploadPath = path.join(__dirname, "../uploads");
 
 fs.mkdirSync(uploadPath, { recursive: true });
 
-const usarCloudinary = Boolean(
-  process.env.CLOUDINARY_CLOUD_NAME &&
-  process.env.CLOUDINARY_API_KEY &&
-  process.env.CLOUDINARY_API_SECRET,
-);
+const usarImageKit = Boolean(process.env.IMAGEKIT_PRIVATE_KEY);
 
-if (usarCloudinary) {
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-    secure: true,
-  });
-}
+const imagekit = usarImageKit
+  ? new ImageKit({
+    privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
+  })
+  : null;
 
 const extensionesPermitidas = {
   "image/jpeg": [".jpg", ".jpeg"],
@@ -56,7 +50,7 @@ const fileFilter = (req, file, callback) => {
 };
 
 const multerUpload = multer({
-  storage: usarCloudinary ? multer.memoryStorage() : almacenamientoLocal,
+  storage: usarImageKit ? multer.memoryStorage() : almacenamientoLocal,
   fileFilter,
   limits: {
     fileSize: 2 * 1024 * 1024,
@@ -64,25 +58,17 @@ const multerUpload = multer({
   },
 });
 
-const subirACloudinary = (archivo) =>
-  new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: "modagest-pro/productos",
-        resource_type: "image",
-      },
-      (error, resultado) => {
-        if (error) {
-          reject(error);
-          return;
-        }
+const subirAImageKit = async (archivo) => {
+  const nombreArchivo = `${randomUUID()}${extensionesFinales[archivo.mimetype]}`;
+  const contenido = await toFile(archivo.buffer, nombreArchivo);
 
-        resolve(resultado);
-      },
-    );
-
-    stream.end(archivo.buffer);
+  return imagekit.files.upload({
+    file: contenido,
+    fileName: nombreArchivo,
+    folder: "/modagest-pro/productos",
+    useUniqueFileName: false,
   });
+};
 
 const single = (campo) => {
   const procesarArchivo = multerUpload.single(campo);
@@ -94,15 +80,17 @@ const single = (campo) => {
         return;
       }
 
-      if (!req.file || !usarCloudinary) {
+      if (!req.file || !usarImageKit) {
         next();
         return;
       }
 
       try {
-        const resultado = await subirACloudinary(req.file);
-        req.file.filename = resultado.secure_url;
-        req.file.publicId = resultado.public_id;
+        const resultado = await subirAImageKit(req.file);
+
+        req.file.filename = resultado.url;
+        req.file.fileId = resultado.fileId;
+
         next();
       } catch (uploadError) {
         next(uploadError);
@@ -111,41 +99,13 @@ const single = (campo) => {
   };
 };
 
-const obtenerPublicId = (imagen) => {
-  if (!imagen || !/^https?:\/\//i.test(imagen)) {
-    return null;
-  }
-
-  try {
-    const url = new URL(imagen);
-    const marcador = "/upload/";
-    const posicion = url.pathname.indexOf(marcador);
-
-    if (posicion === -1) {
-      return null;
-    }
-
-    return decodeURIComponent(url.pathname.slice(posicion + marcador.length))
-      .replace(/^v\d+\//, "")
-      .replace(/\.[^/.]+$/, "");
-  } catch {
-    return null;
-  }
-};
-
-const eliminarImagen = async (imagen) => {
-  if (!imagen) {
+const eliminarImagen = async (imagen, imagenId) => {
+  if (usarImageKit && imagenId) {
+    await imagekit.files.delete(imagenId);
     return;
   }
 
-  const publicId = obtenerPublicId(imagen);
-
-  if (usarCloudinary && publicId) {
-    await cloudinary.uploader.destroy(publicId);
-    return;
-  }
-
-  if (/^https?:\/\//i.test(imagen)) {
+  if (!imagen || /^https?:\/\//i.test(imagen)) {
     return;
   }
 

@@ -628,6 +628,7 @@ app.post(
       }
 
       const imagen = req.file ? req.file.filename : null;
+      const imagenId = req.file?.fileId || null;
 
       const producto = await Producto.create({
         nombre: nombre.trim(),
@@ -636,6 +637,7 @@ app.post(
         stock: stockNumerico,
         categoriaId,
         imagen,
+        imagenId,
       });
 
       res.status(201).json(producto);
@@ -704,10 +706,11 @@ app.put(
 
       if (req.file) {
         if (producto.imagen) {
-          await upload.eliminarImagen(producto.imagen);
+          await upload.eliminarImagen(producto.imagen, producto.imagenId);
         }
 
         producto.imagen = req.file.filename;
+        producto.imagenId = req.file.fileId || null;
       }
 
       await producto.save();
@@ -752,7 +755,7 @@ app.delete(
       }
 
       if (producto.imagen) {
-        await upload.eliminarImagen(producto.imagen);
+        await upload.eliminarImagen(producto.imagen, producto.imagenId);
       }
 
       await producto.destroy();

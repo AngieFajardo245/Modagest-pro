@@ -141,7 +141,13 @@ export default function ProductoTable({
                         ${Number(producto.precio || 0).toLocaleString("es-CO")}
                       </span>
 
-                      <span style={styles.currency}>COP</span>
+                      <span
+                        style={styles.currency}
+                        className="notranslate"
+                        translate="no"
+                      >
+                        COP
+                      </span>
                     </td>
 
                     <td style={styles.stockCell}>

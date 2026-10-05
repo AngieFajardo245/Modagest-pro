@@ -75,6 +75,11 @@ const Producto = sequelize.define(
       type: DataTypes.STRING(255),
       allowNull: true,
     },
+
+    imagenId: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
   },
   {
     tableName: "productos",
