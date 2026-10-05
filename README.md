@@ -1,34 +1,36 @@
 # ModaGest Pro
 
-ModaGest Pro es una aplicación web para la gestión integral de tiendas de moda, ropa, calzado y accesorios. El sistema permite administrar usuarios, productos, categorías, inventario y ventas, además de ofrecer a los clientes un catálogo, carrito de compras, direcciones de entrega, pagos simulados e historial de compras.
+ModaGest Pro es una aplicación web para la gestión integral de tiendas de moda, ropa, calzado y accesorios. Permite administrar usuarios, productos, categorías, inventario y ventas. También ofrece a los clientes un catálogo, carrito de compras, direcciones de entrega, pagos simulados e historial de compras.
 
-El proyecto fue desarrollado como solución académica aplicando una arquitectura cliente-servidor, una API REST y control de acceso basado en roles.
+El proyecto fue desarrollado como solución académica mediante una arquitectura cliente-servidor, una API REST y control de acceso basado en roles.
 
-## Repositorio
+## Aplicación desplegada
 
-Código fuente e historial de desarrollo:
+- Aplicación web: https://modagest-pro-frontend.onrender.com
+- API REST: https://modagest-pro.onrender.com
+- Repositorio público: https://github.com/AngieFajardo245/Modagest-pro
 
-[Repositorio público de ModaGest Pro](https://github.com/AngieFajardo245/Modagest-pro.git)
+El backend utiliza una instancia gratuita de Render, por lo que la primera solicitud puede tardar aproximadamente 50 segundos mientras el servicio se activa.
 
 ## Periodo de desarrollo
 
-El desarrollo de ModaGest Pro se realizó entre **marzo de 2026** y **septiembre de 2026**, mediante entregas incrementales registradas en Git.
+ModaGest Pro fue desarrollado entre **marzo de 2026** y **octubre de 2026**, mediante entregas incrementales registradas con Git.
 
 ## Funcionalidades principales
 
 ### Administrador
 
-- Consulta del dashboard general.
+- Consulta del panel administrativo.
 - Gestión de usuarios y roles.
 - Gestión de categorías.
 - Creación, consulta, actualización y eliminación de productos.
-- Administración del inventario y existencias.
+- Administración del inventario y las existencias.
 - Consulta de ventas y estadísticas.
 
 ### Empleado
 
-- Consulta del dashboard comercial.
-- Consulta del catálogo y existencias.
+- Consulta del panel comercial.
+- Consulta del catálogo y las existencias.
 - Registro de ventas.
 - Consulta del historial de ventas.
 
@@ -52,9 +54,11 @@ El desarrollo de ModaGest Pro se realizó entre **marzo de 2026** y **septiembre
 - Axios
 - Bootstrap
 - React Icons
-- Chart.js y React Chart.js 2
+- Chart.js
+- React Chart.js 2
 - Recharts
-- jsPDF y jsPDF AutoTable
+- jsPDF
+- jsPDF AutoTable
 - XLSX
 
 ### Backend
@@ -68,8 +72,16 @@ El desarrollo de ModaGest Pro se realizó entre **marzo de 2026** y **septiembre
 - Multer
 - CORS
 - dotenv
+- ImageKit
 
-### Herramientas
+### Servicios en la nube
+
+- Render: despliegue del frontend y backend.
+- Aiven: base de datos MySQL.
+- ImageKit: almacenamiento persistente de imágenes de productos.
+- GitHub: repositorio y control de versiones.
+
+### Herramientas de desarrollo
 
 - Visual Studio Code
 - MySQL Workbench
@@ -78,17 +90,18 @@ El desarrollo de ModaGest Pro se realizó entre **marzo de 2026** y **septiembre
 
 ## Arquitectura
 
-ModaGest Pro utiliza una arquitectura cliente-servidor dividida en dos aplicaciones:
+ModaGest Pro utiliza una arquitectura cliente-servidor:
 
 - `frontend`: interfaz web desarrollada con React y Vite.
 - `backend`: API REST desarrollada con Node.js y Express.
 - MySQL: almacenamiento persistente de usuarios, categorías, productos, ventas, detalles, pagos y direcciones.
+- ImageKit: almacenamiento persistente de las imágenes cargadas por el administrador.
 
-El frontend se comunica con el backend mediante solicitudes HTTP. Las rutas protegidas utilizan tokens JWT y autorización por roles.
+El frontend se comunica con el backend mediante solicitudes HTTP. Las rutas privadas utilizan tokens JWT y autorización basada en los roles administrador, empleado y cliente.
 
 ## Requisitos previos
 
-Antes de ejecutar el proyecto se requiere:
+Para ejecutar el proyecto localmente se requiere:
 
 - Node.js 20 o superior.
 - npm.
@@ -102,95 +115,99 @@ Antes de ejecutar el proyecto se requiere:
 
 ```bash
 git clone https://github.com/AngieFajardo245/Modagest-pro.git
-cd modagest-pro
+cd Modagest-pro
 ```
 
-Si la carpeta clonada utiliza otro nombre, ingrese a esa carpeta antes de continuar.
-
-### 2. Instalar las dependencias del backend
+### 2. Instalar las dependencias
 
 ```bash
 npm --prefix backend install
-```
-
-### 3. Instalar las dependencias del frontend
-
-```bash
 npm --prefix frontend install
 ```
 
 ## Configuración de la base de datos
 
-La entrega incluye dos scripts SQL:
+El repositorio incluye los siguientes scripts:
 
-1. `01_Modagest_pro_estructura_FINAL.sql`: crea la base de datos y sus tablas.
-2. `02_Modagest_pro_datos_iniciales_FINAL.sql`: carga los datos iniciales.
+1. `scripts/01_Modagest_pro_estructura_FINAL.sql`: crea la base de datos y sus tablas.
+2. `scripts/02_Modagest_pro_datos_iniciales_FINAL.sql`: carga los datos iniciales de demostración.
 
 ### Importación con MySQL Workbench
 
 1. Iniciar MySQL Server.
 2. Abrir MySQL Workbench.
-3. Conectarse al servidor local.
-4. Abrir y ejecutar `01_Modagest_pro_estructura_FINAL.sql`.
-5. Abrir y ejecutar `02_Modagest_pro_datos_iniciales_FINAL.sql`.
-6. Actualizar la lista de esquemas y comprobar que la base de datos fue creada.
+3. Conectarse al servidor MySQL.
+4. Ejecutar `scripts/01_Modagest_pro_estructura_FINAL.sql`.
+5. Ejecutar `scripts/02_Modagest_pro_datos_iniciales_FINAL.sql`.
+6. Actualizar la lista de esquemas y comprobar la creación de `modagest_pro`.
 
 ### Importación desde la terminal
 
-Ejecutar primero la estructura y después los datos iniciales:
-
 ```bash
-mysql -u root -p < 01_Modagest_pro_estructura_FINAL.sql
-mysql -u root -p < 02_Modagest_pro_datos_iniciales_FINAL.sql
+mysql -u root -p < scripts/01_Modagest_pro_estructura_FINAL.sql
+mysql -u root -p < scripts/02_Modagest_pro_datos_iniciales_FINAL.sql
 ```
-
-Los nombres o ubicaciones de los scripts pueden ajustarse según la carpeta en la que se encuentren.
 
 ## Variables de entorno
 
-Dentro de `backend`, crear el archivo `.env` a partir de `.env.example`:
+### Backend
+
+Crear `backend/.env` a partir de `backend/.env.example`:
 
 ```powershell
 Copy-Item backend/.env.example backend/.env
 ```
 
-Configurar las variables requeridas por el backend. No se deben publicar contraseñas reales ni secretos en GitHub.
-
-Ejemplo:
+Configurar las siguientes variables:
 
 ```env
-JWT_SECRET=GENERA_UNA_CLAVE_ALEATORIA_DE_AL_MENOS_32_CARACTERES
+DB_HOST=localhost
+DB_PORT=3306
+DB_SSL=false
+DB_NAME=modagest_pro
+DB_USER=TU_USUARIO_MYSQL
+DB_PASSWORD=TU_CONTRASENA_MYSQL
+
+JWT_SECRET=GENERA_UNA_CLAVE_ALEATORIA_SEGURA
 
 ADMIN_EMAIL=admin@modagest.com
-ADMIN_PASSWORD=DEFINE_UNA_CONTRASENA_DE_AL_MENOS_12_CARACTERES
+ADMIN_PASSWORD=DEFINE_UNA_CONTRASENA_SEGURA
 
 PORT=5000
+FRONTEND_URL=http://localhost:5173
+
+IMAGEKIT_PRIVATE_KEY=TU_CLAVE_PRIVADA_DE_IMAGEKIT
 ```
 
-También se deben conservar en `.env` las variables de conexión a MySQL que utilice `backend/config/database.js`.
+`IMAGEKIT_PRIVATE_KEY` permite almacenar las imágenes en ImageKit. Si no se configura durante el desarrollo local, el backend utiliza la carpeta local `backend/uploads`.
 
-El archivo `.env` debe permanecer excluido de Git mediante `.gitignore`. El archivo `.env.example` sí puede incluirse porque no contiene credenciales reales.
+### Frontend
 
-## Ejecución del sistema
+Crear `frontend/.env` a partir de `frontend/.env.example`:
 
-Se necesitan dos terminales abiertas.
+```powershell
+Copy-Item frontend/.env.example frontend/.env
+```
+
+Configurar:
+
+```env
+VITE_API_URL=http://localhost:5000
+```
+
+Los archivos `.env` contienen datos sensibles y deben permanecer excluidos de Git. Los archivos `.env.example` solo contienen valores de referencia.
+
+## Ejecución local
+
+Se necesitan dos terminales.
 
 ### Terminal 1: backend
 
-Desde la raíz del proyecto:
-
 ```bash
-npm --prefix backend run dev
+npm --prefix backend start
 ```
 
-También se puede ejecutar ingresando a su carpeta:
-
-```bash
-cd backend
-npm run dev
-```
-
-El backend estará disponible normalmente en:
+Backend local:
 
 ```text
 http://localhost:5000
@@ -198,26 +215,17 @@ http://localhost:5000
 
 ### Terminal 2: frontend
 
-Desde la raíz del proyecto:
-
 ```bash
 npm --prefix frontend run dev
 ```
 
-También se puede ejecutar ingresando a su carpeta:
-
-```bash
-cd frontend
-npm run dev
-```
-
-El frontend estará disponible normalmente en:
+Frontend local:
 
 ```text
 http://localhost:5173
 ```
 
-## Comandos disponibles
+## Comandos de validación
 
 ### Frontend
 
@@ -231,11 +239,11 @@ npm --prefix frontend run preview
 ### Backend
 
 ```bash
-npm --prefix backend run dev
+npm --prefix backend start
 npm --prefix backend test
 ```
 
-## Pruebas y validación
+## Pruebas realizadas
 
 El proyecto cuenta con las siguientes verificaciones:
 
@@ -244,21 +252,17 @@ El proyecto cuenta con las siguientes verificaciones:
 - Pruebas automatizadas del backend con Node Test Runner.
 - Pruebas de autenticación y autorización.
 - Pruebas de API realizadas con Postman.
-- Pruebas funcionales para administrador, empleado y cliente.
-
-Comandos de verificación:
-
-```bash
-npm --prefix frontend run lint
-npm --prefix frontend run build
-npm --prefix backend test
-```
+- Pruebas funcionales de los roles administrador, empleado y cliente.
+- Validación del flujo completo de compra y actualización de inventario.
+- Validación de creación, actualización y eliminación de imágenes con ImageKit.
+- Validación del despliegue en Render y la persistencia de datos en Aiven.
 
 Resultado de la última validación:
 
-- Frontend: cero errores y cero advertencias de ESLint.
+- Frontend: cero errores de ESLint.
 - Frontend: compilación de producción completada correctamente.
 - Backend: 10 pruebas aprobadas de 10 ejecutadas.
+- Despliegue: frontend y backend activos en Render.
 
 La advertencia de Vite relacionada con fragmentos mayores a 500 kB no impide la compilación ni la ejecución del sistema.
 
@@ -266,7 +270,7 @@ La advertencia de Vite relacionada con fragmentos mayores a 500 kB no impide la 
 
 ModaGest Pro dispone de cuentas de demostración para los roles administrador, empleado y cliente.
 
-Por seguridad, las credenciales de acceso se entregan al instructor mediante un documento privado independiente y no se publican en el repositorio.
+Por seguridad, las credenciales se entregan al instructor mediante un documento privado independiente y no se publican en el repositorio.
 
 | Rol | Disponibilidad |
 | --- | --- |
@@ -280,10 +284,8 @@ Por seguridad, las credenciales de acceso se entregan al instructor mediante un 
 modagest-pro/
 ├── backend/
 │   ├── config/
-│   ├── controllers/
 │   ├── middlewares/
 │   ├── models/
-│   ├── routes/
 │   ├── tests/
 │   ├── uploads/
 │   ├── .env.example
@@ -295,31 +297,36 @@ modagest-pro/
 │   │   ├── assets/
 │   │   ├── components/
 │   │   ├── pages/
-│   │   ├── routes/
 │   │   ├── services/
-│   │   ├── styles/
+│   │   ├── utils/
 │   │   ├── App.jsx
 │   │   └── main.jsx
+│   ├── .env.example
 │   ├── package.json
 │   └── vite.config.js
+├── scripts/
+│   ├── 01_Modagest_pro_estructura_FINAL.sql
+│   ├── 02_Modagest_pro_datos_iniciales_FINAL.sql
+│   └── respaldo_modagest.ps1
+├── .gitignore
 └── README.md
 ```
-
-La estructura puede incluir archivos adicionales correspondientes a documentación, scripts SQL y evidencias del proyecto.
 
 ## Seguridad
 
 - Las contraseñas se almacenan mediante hash con bcrypt.
 - La autenticación utiliza tokens JWT.
-- Las rutas privadas validan el token del usuario.
-- Los permisos se controlan según los roles administrador, empleado y cliente.
-- Las compras verifican la sesión, los productos, las cantidades y el stock.
-- La pasarela incluida es una simulación académica y no realiza cobros reales.
-- Los secretos y credenciales reales no deben subirse al repositorio.
+- Las rutas privadas validan la identidad del usuario.
+- Los permisos se controlan mediante roles.
+- CORS limita los orígenes autorizados.
+- Las compras validan sesión, productos, cantidades y existencias.
+- Las imágenes admitidas son JPG, PNG y WEBP, con un tamaño máximo de 2 MB.
+- La pasarela de pago es una simulación académica y no realiza cobros reales.
+- Los secretos y credenciales reales no se almacenan en el repositorio.
 
-## Documentación
+## Documentación académica
 
-La documentación académica de ModaGest Pro incluye:
+La documentación de ModaGest Pro incluye:
 
 - Especificación de requisitos IEEE 830.
 - Historias de usuario.
@@ -332,11 +339,11 @@ La documentación académica de ModaGest Pro incluye:
 - Manual técnico.
 - Manual de usuario.
 - Informe de resultados de pruebas.
-- Plan de migración, respaldo, mantenimiento, soporte y capacitación.
+- Planes de migración, respaldo, mantenimiento, soporte y capacitación.
 
 ## Estado del proyecto
 
-ModaGest Pro se encuentra funcional para fines académicos. Los módulos principales fueron implementados, verificados localmente y respaldados en el repositorio público.
+ModaGest Pro se encuentra funcional y desplegado en la nube para fines académicos. Sus módulos principales fueron implementados, probados y respaldados en el repositorio público.
 
 ## Autoría
 
@@ -344,7 +351,7 @@ Desarrollado por:
 
 - **ANGIE LORENA FAJARDO NUÑEZ**
 - **Servicio Nacional de Aprendizaje (SENA)**
-- Programa: **ANALISIS Y DESARROLLO DE SOFTWARE**
+- Programa: **ANÁLISIS Y DESARROLLO DE SOFTWARE**
 - Ficha: **2977373**
 
 ## Derechos de autor
