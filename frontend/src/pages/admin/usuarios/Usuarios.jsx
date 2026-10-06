@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { FaStar, FaUsers } from "react-icons/fa";
 import { toast } from "react-toastify";
 import api from "../../../services/api";
 import UsuarioFilters from "./UsuarioFilters";
@@ -108,7 +109,6 @@ export default function Usuarios() {
       const rol = String(usuario?.rol || "").toLowerCase();
 
       const coincideBusqueda = nombre.includes(texto) || email.includes(texto);
-
       const coincideRol = filtroRol === "todos" || rol === filtroRol;
 
       return coincideBusqueda && coincideRol;
@@ -157,9 +157,15 @@ export default function Usuarios() {
   return (
     <main style={styles.container}>
       <header style={styles.header}>
-        <p style={styles.badgeTop}>✨ Panel Administrativo</p>
+        <p style={styles.badgeTop}>
+          <FaStar style={{ marginRight: "8px", verticalAlign: "middle" }} />
+          Panel Administrativo
+        </p>
 
-        <h1 style={styles.title}>👥 Gestión de Usuarios</h1>
+        <h1 style={styles.title}>
+          <FaUsers style={{ marginRight: "12px", verticalAlign: "middle" }} />
+          Gestión de Usuarios
+        </h1>
 
         <p style={styles.subtitle}>
           Administra usuarios y permisos del sistema
