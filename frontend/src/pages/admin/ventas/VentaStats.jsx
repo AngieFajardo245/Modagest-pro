@@ -21,11 +21,15 @@ export default function VentaStats({
     return `$${Number(valor || 0).toLocaleString("es-CO")}`;
   };
 
+  const iconStyle = {
+    color: "#ffffff",
+  };
+
   return (
     <div style={styles.statsGrid}>
       <div style={styles.statCard}>
         <div style={styles.statIcon}>
-          <FaCoins />
+          <FaCoins style={iconStyle} />
         </div>
 
         <h4 style={styles.statTitle}>Ingresos Totales</h4>
@@ -35,7 +39,7 @@ export default function VentaStats({
 
       <div style={styles.statCard}>
         <div style={styles.statIcon}>
-          <FaShoppingCart />
+          <FaShoppingCart style={iconStyle} />
         </div>
 
         <h4 style={styles.statTitle}>Total Ventas</h4>
@@ -48,7 +52,7 @@ export default function VentaStats({
 
       <div style={styles.statCard}>
         <div style={styles.statIcon}>
-          <FaBoxOpen />
+          <FaBoxOpen style={iconStyle} />
         </div>
 
         <h4 style={styles.statTitle}>Productos Vendidos</h4>
@@ -61,7 +65,7 @@ export default function VentaStats({
 
       <div style={styles.statCard}>
         <div style={styles.statIcon}>
-          <FaChartLine />
+          <FaChartLine style={iconStyle} />
         </div>
 
         <h4 style={styles.statTitle}>Venta Promedio</h4>
