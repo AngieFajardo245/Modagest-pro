@@ -1,3 +1,4 @@
+import { FaCreditCard } from "react-icons/fa";
 import styles from "./dashboardStyles";
 import SummaryRow from "./SummaryRow";
 
@@ -46,7 +47,12 @@ export default function DashboardSummary({ stats, formatoMoneda }) {
       </div>
 
       <div style={styles.paymentSection}>
-        <h4 style={styles.paymentTitle}>💳 Métodos de pago</h4>
+        <h4 style={styles.paymentTitle}>
+          <FaCreditCard
+            style={{ marginRight: "8px", verticalAlign: "middle" }}
+          />
+          Métodos de pago
+        </h4>
 
         {Object.keys(metodosPago).length === 0 ? (
           <p style={styles.activityTime}>No hay pagos registrados.</p>

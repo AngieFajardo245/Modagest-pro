@@ -1,4 +1,18 @@
-import React from "react";
+import {
+  FaBoxOpen,
+  FaCalendarAlt,
+  FaCog,
+  FaCoins,
+  FaCreditCard,
+  FaEye,
+  FaReceipt,
+  FaUser,
+} from "react-icons/fa";
+
+const estiloIcono = {
+  marginRight: "6px",
+  verticalAlign: "middle",
+};
 
 export default function VentaTable({
   ventasFiltradas = [],
@@ -66,13 +80,40 @@ export default function VentaTable({
     <table style={styles.table}>
       <thead>
         <tr style={styles.thead}>
-          <th style={styles.th}>🧾 Venta</th>
-          <th style={styles.th}>👤 Cliente</th>
-          <th style={styles.th}>📦 Productos</th>
-          <th style={styles.th}>💳 Estado</th>
-          <th style={styles.th}>💰 Total</th>
-          <th style={styles.th}>📅 Fecha</th>
-          <th style={styles.th}>⚙️ Acción</th>
+          <th style={styles.th}>
+            <FaReceipt style={estiloIcono} />
+            Venta
+          </th>
+
+          <th style={styles.th}>
+            <FaUser style={estiloIcono} />
+            Cliente
+          </th>
+
+          <th style={styles.th}>
+            <FaBoxOpen style={estiloIcono} />
+            Productos
+          </th>
+
+          <th style={styles.th}>
+            <FaCreditCard style={estiloIcono} />
+            Estado
+          </th>
+
+          <th style={styles.th}>
+            <FaCoins style={estiloIcono} />
+            Total
+          </th>
+
+          <th style={styles.th}>
+            <FaCalendarAlt style={estiloIcono} />
+            Fecha
+          </th>
+
+          <th style={styles.th}>
+            <FaCog style={estiloIcono} />
+            Acción
+          </th>
         </tr>
       </thead>
 
@@ -108,7 +149,6 @@ export default function VentaTable({
 
                   <div>
                     <strong>{nombreCliente}</strong>
-
                     <p style={styles.email}>{emailCliente}</p>
                   </div>
                 </div>
@@ -132,7 +172,8 @@ export default function VentaTable({
                           style={styles.productItem}
                         >
                           <span style={styles.productName}>
-                            📦 {nombreProducto}
+                            <FaBoxOpen style={estiloIcono} />
+                            {nombreProducto}
                           </span>
 
                           <span style={styles.productQty}>× {cantidad}</span>
@@ -155,7 +196,10 @@ export default function VentaTable({
                   {estado}
                 </span>
 
-                <div style={styles.metodoPago}>💳 {metodoPago}</div>
+                <div style={styles.metodoPago}>
+                  <FaCreditCard style={estiloIcono} />
+                  {metodoPago}
+                </div>
               </td>
 
               <td style={styles.total}>{obtenerTotal(venta.total)}</td>
@@ -170,14 +214,15 @@ export default function VentaTable({
                 <button
                   type="button"
                   style={styles.viewBtn}
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={(event) => {
+                    event.stopPropagation();
                     abrirModal?.(venta);
                   }}
                   title={`Ver detalle de la venta #${venta.id}`}
                   aria-label={`Ver detalle de la venta #${venta.id}`}
                 >
-                  👁️ Ver detalle
+                  <FaEye style={estiloIcono} />
+                  Ver detalle
                 </button>
               </td>
             </tr>

@@ -1,3 +1,12 @@
+import {
+  FaBoxOpen,
+  FaCalendarAlt,
+  FaChartLine,
+  FaCoins,
+  FaMoneyBillWave,
+  FaShoppingCart,
+  FaUsers,
+} from "react-icons/fa";
 import styles from "./dashboardStyles";
 
 export default function DashboardStats({ stats, formatoMoneda }) {
@@ -21,28 +30,28 @@ export default function DashboardStats({ stats, formatoMoneda }) {
         <Card
           title="Usuarios"
           value={Number(datos.totalUsuarios || 0)}
-          icon="👥"
+          icon={<FaUsers />}
           description="Usuarios registrados"
         />
 
         <Card
           title="Productos"
           value={Number(datos.totalProductos || 0)}
-          icon="🛍️"
+          icon={<FaBoxOpen />}
           description="Productos activos"
         />
 
         <Card
           title="Ventas"
           value={Number(datos.totalVentas || 0)}
-          icon="📦"
+          icon={<FaShoppingCart />}
           description="Ventas realizadas"
         />
 
         <Card
           title="Ingresos"
           value={formatearMoneda(datos.ingresosTotales)}
-          icon="💸"
+          icon={<FaMoneyBillWave />}
           description="Total acumulado"
         />
       </div>
@@ -51,28 +60,28 @@ export default function DashboardStats({ stats, formatoMoneda }) {
         <PeriodCard
           title="Ventas de hoy"
           value={Number(datos.ventasHoy || 0)}
-          icon="🛒"
+          icon={<FaCalendarAlt />}
           description="Transacciones realizadas hoy"
         />
 
         <PeriodCard
           title="Ingresos de hoy"
           value={formatearMoneda(datos.ingresosHoy)}
-          icon="💰"
+          icon={<FaCoins />}
           description="Ingresos generados hoy"
         />
 
         <PeriodCard
           title="Ventas del mes"
           value={Number(datos.ventasMes || 0)}
-          icon="📈"
+          icon={<FaChartLine />}
           description="Transacciones realizadas este mes"
         />
 
         <PeriodCard
           title="Ingresos del mes"
           value={formatearMoneda(datos.ingresosMes)}
-          icon="💵"
+          icon={<FaMoneyBillWave />}
           description="Ingresos generados este mes"
         />
       </div>
@@ -88,9 +97,7 @@ function Card({ title, value, icon, description }) {
       </div>
 
       <p style={styles.cardTitle}>{title}</p>
-
       <h2 style={styles.cardValue}>{value}</h2>
-
       <p style={styles.cardDescription}>{description}</p>
     </div>
   );
@@ -105,9 +112,7 @@ function PeriodCard({ title, value, icon, description }) {
 
       <div>
         <p style={styles.periodTitle}>{title}</p>
-
         <h3 style={styles.periodValue}>{value}</h3>
-
         <p style={styles.periodDescription}>{description}</p>
       </div>
     </div>

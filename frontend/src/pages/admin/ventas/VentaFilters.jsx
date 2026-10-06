@@ -1,4 +1,4 @@
-import React from "react";
+import { FaCalendarAlt, FaSearch, FaSyncAlt } from "react-icons/fa";
 
 export default function VentaFilters({
   busqueda = "",
@@ -53,7 +53,10 @@ export default function VentaFilters({
   return (
     <div style={styles.filters}>
       <div style={styles.filterGroup}>
-        <label style={styles.filterLabel}>🔎 Buscar</label>
+        <label style={styles.filterLabel}>
+          <FaSearch style={{ marginRight: "6px", verticalAlign: "middle" }} />
+          Buscar
+        </label>
 
         <input
           type="text"
@@ -66,7 +69,12 @@ export default function VentaFilters({
       </div>
 
       <div style={styles.filterGroup}>
-        <label style={styles.filterLabel}>📅 Desde</label>
+        <label style={styles.filterLabel}>
+          <FaCalendarAlt
+            style={{ marginRight: "6px", verticalAlign: "middle" }}
+          />
+          Desde
+        </label>
 
         <input
           type="date"
@@ -78,7 +86,12 @@ export default function VentaFilters({
       </div>
 
       <div style={styles.filterGroup}>
-        <label style={styles.filterLabel}>📅 Hasta</label>
+        <label style={styles.filterLabel}>
+          <FaCalendarAlt
+            style={{ marginRight: "6px", verticalAlign: "middle" }}
+          />
+          Hasta
+        </label>
 
         <input
           type="date"
@@ -96,7 +109,8 @@ export default function VentaFilters({
           style={styles.filterBtn}
           title="Aplicar filtros"
         >
-          🔎 Filtrar
+          <FaSearch style={{ marginRight: "6px", verticalAlign: "middle" }} />
+          Filtrar
         </button>
 
         <button
@@ -105,7 +119,8 @@ export default function VentaFilters({
           style={styles.resetBtn}
           title="Limpiar todos los filtros"
         >
-          🔄 Limpiar
+          <FaSyncAlt style={{ marginRight: "6px", verticalAlign: "middle" }} />
+          Limpiar
         </button>
       </div>
     </div>

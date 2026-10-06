@@ -1,3 +1,4 @@
+import { FaCoins } from "react-icons/fa";
 import styles from "./dashboardStyles";
 
 export default function DashboardHero({ ingresos, formatoMoneda }) {
@@ -13,7 +14,9 @@ export default function DashboardHero({ ingresos, formatoMoneda }) {
         </p>
       </div>
 
-      <div style={styles.heroIcon}>💰</div>
+      <div style={styles.heroIcon}>
+        <FaCoins />
+      </div>
     </div>
   );
 }

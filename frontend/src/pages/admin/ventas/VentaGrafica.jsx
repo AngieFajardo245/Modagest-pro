@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
+import { FaChartLine } from "react-icons/fa";
 import {
   ResponsiveContainer,
   LineChart,
@@ -15,11 +16,15 @@ export default function VentaGrafica({ ventas = [], formatoMoneda, styles }) {
     const ventasPorFecha = {};
 
     ventas.forEach((venta) => {
-      if (!venta?.createdAt) return;
+      if (!venta?.createdAt) {
+        return;
+      }
 
       const fecha = new Date(venta.createdAt);
 
-      if (Number.isNaN(fecha.getTime())) return;
+      if (Number.isNaN(fecha.getTime())) {
+        return;
+      }
 
       const claveFecha = [
         fecha.getFullYear(),
@@ -58,7 +63,12 @@ export default function VentaGrafica({ ventas = [], formatoMoneda, styles }) {
   if (datosGrafica.length === 0) {
     return (
       <div style={styles.rankingCard}>
-        <h3 style={styles.rankingTitle}>📈 Evolución de ventas</h3>
+        <h3 style={styles.rankingTitle}>
+          <FaChartLine
+            style={{ marginRight: "8px", verticalAlign: "middle" }}
+          />
+          Evolución de ventas
+        </h3>
 
         <p style={styles.rankingEmpty}>
           No hay datos suficientes para mostrar la evolución de ventas.
@@ -85,7 +95,12 @@ export default function VentaGrafica({ ventas = [], formatoMoneda, styles }) {
     <div style={styles.rankingCard}>
       <div style={styles.rankingChartHeader}>
         <div>
-          <h3 style={styles.rankingTitle}>📈 Evolución de ventas</h3>
+          <h3 style={styles.rankingTitle}>
+            <FaChartLine
+              style={{ marginRight: "8px", verticalAlign: "middle" }}
+            />
+            Evolución de ventas
+          </h3>
 
           <p style={styles.rankingSubtitle}>
             Ingresos y cantidad de ventas por fecha
@@ -170,13 +185,13 @@ export default function VentaGrafica({ ventas = [], formatoMoneda, styles }) {
               }}
               formatter={(valor, nombre) => {
                 if (nombre === "Ingresos") {
-                  return [formatearMoneda(valor), "💰 Ingresos"];
+                  return [formatearMoneda(valor), "Ingresos"];
                 }
 
                 if (nombre === "Ventas") {
                   return [
                     `${valor} ${Number(valor) === 1 ? "venta" : "ventas"}`,
-                    "🛒 Ventas",
+                    "Ventas",
                   ];
                 }
 

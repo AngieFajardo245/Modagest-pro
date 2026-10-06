@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { FaChartBar, FaFileExcel, FaFilePdf, FaSyncAlt } from "react-icons/fa";
 import api from "../../../services/api";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -130,9 +131,7 @@ export default function AdminVentas() {
         : "";
 
       const metodoPago = String(venta?.Pago?.metodoPago || "").toLowerCase();
-
       const estadoPago = String(venta?.Pago?.estado || "").toLowerCase();
-
       const idVenta = String(venta?.id || "").toLowerCase();
 
       return (
@@ -207,7 +206,6 @@ export default function AdminVentas() {
 
       venta.Detalles.forEach((detalle) => {
         const nombre = detalle?.Producto?.nombre || "Producto eliminado";
-
         const cantidad = Number(detalle?.cantidad || 0);
 
         productos[nombre] = (productos[nombre] || 0) + cantidad;
@@ -324,7 +322,6 @@ export default function AdminVentas() {
     const libro = XLSX.utils.book_new();
 
     XLSX.utils.book_append_sheet(libro, hojaVentas, "Ventas");
-
     XLSX.utils.book_append_sheet(libro, hojaResumen, "Resumen");
 
     const fecha = new Date();
@@ -433,7 +430,6 @@ export default function AdminVentas() {
           "Fecha",
         ],
       ],
-
       body: ventasFiltradas.map((venta) => [
         `#${String(venta?.id || 0).padStart(5, "0")}`,
         obtenerNombreCliente(venta),
@@ -445,7 +441,6 @@ export default function AdminVentas() {
         formatoMoneda(venta?.total),
         formatearFecha(venta?.createdAt),
       ]),
-
       theme: "grid",
       styles: {
         font: "helvetica",
@@ -505,7 +500,6 @@ export default function AdminVentas() {
     doc.setFontSize(10);
 
     doc.text(`Total de ventas: ${totalVentas}`, 14, finalY + 10);
-
     doc.text(`Productos vendidos: ${productosVendidos}`, 14, finalY + 18);
 
     doc.text(
@@ -536,18 +530,29 @@ export default function AdminVentas() {
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>📊 Gestión de Ventas</h1>
+          <h1 style={styles.title}>
+            <FaChartBar
+              style={{ marginRight: "10px", verticalAlign: "middle" }}
+            />
+            Gestión de Ventas
+          </h1>
 
           <p style={styles.subtitle}>Historial completo de ventas realizadas</p>
         </div>
 
         <div style={styles.headerButtons}>
           <button type="button" style={styles.excelBtn} onClick={exportarExcel}>
-            📊 Exportar Excel
+            <FaFileExcel
+              style={{ marginRight: "7px", verticalAlign: "middle" }}
+            />
+            Exportar Excel
           </button>
 
           <button type="button" style={styles.pdfBtn} onClick={exportarPDF}>
-            📄 Exportar PDF
+            <FaFilePdf
+              style={{ marginRight: "7px", verticalAlign: "middle" }}
+            />
+            Exportar PDF
           </button>
 
           <button
@@ -556,7 +561,10 @@ export default function AdminVentas() {
             onClick={obtenerVentas}
             disabled={loading}
           >
-            🔄 {loading ? "Cargando..." : "Actualizar"}
+            <FaSyncAlt
+              style={{ marginRight: "7px", verticalAlign: "middle" }}
+            />
+            {loading ? "Cargando..." : "Actualizar"}
           </button>
         </div>
       </div>

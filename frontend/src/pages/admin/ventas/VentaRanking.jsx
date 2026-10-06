@@ -1,4 +1,4 @@
-import React from "react";
+import { FaTrophy } from "react-icons/fa";
 import {
   BarChart,
   Bar,
@@ -28,7 +28,10 @@ export default function VentaRanking({ rankingProductos = [], styles }) {
   if (datosGrafica.length === 0) {
     return (
       <div style={styles.rankingCard}>
-        <h3 style={styles.rankingTitle}>🏆 Productos más vendidos</h3>
+        <h3 style={styles.rankingTitle}>
+          <FaTrophy style={{ marginRight: "8px", verticalAlign: "middle" }} />
+          Productos más vendidos
+        </h3>
 
         <p style={styles.rankingEmpty}>No hay productos vendidos todavía.</p>
       </div>
@@ -39,7 +42,10 @@ export default function VentaRanking({ rankingProductos = [], styles }) {
     <div style={styles.rankingCard}>
       <div style={styles.rankingChartHeader}>
         <div>
-          <h3 style={styles.rankingTitle}>🏆 Productos más vendidos</h3>
+          <h3 style={styles.rankingTitle}>
+            <FaTrophy style={{ marginRight: "8px", verticalAlign: "middle" }} />
+            Productos más vendidos
+          </h3>
 
           <p style={styles.rankingSubtitle}>
             Comparación de productos por unidades vendidas

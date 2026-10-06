@@ -1,4 +1,9 @@
-import React from "react";
+import {
+  FaBoxOpen,
+  FaChartLine,
+  FaCoins,
+  FaShoppingCart,
+} from "react-icons/fa";
 
 export default function VentaStats({
   ingresosTotales = 0,
@@ -19,20 +24,21 @@ export default function VentaStats({
   return (
     <div style={styles.statsGrid}>
       <div style={styles.statCard}>
-        <div style={styles.statIcon}>💰</div>
+        <div style={styles.statIcon}>
+          <FaCoins />
+        </div>
 
         <h4 style={styles.statTitle}>Ingresos Totales</h4>
-
         <p style={styles.statValue}>{formatearMoneda(ingresosTotales)}</p>
-
         <p style={styles.statDescription}>Actualizado automáticamente</p>
       </div>
 
       <div style={styles.statCard}>
-        <div style={styles.statIcon}>🛒</div>
+        <div style={styles.statIcon}>
+          <FaShoppingCart />
+        </div>
 
         <h4 style={styles.statTitle}>Total Ventas</h4>
-
         <p style={styles.statValue}>{Number(totalVentas)}</p>
 
         <p style={styles.statDescription}>
@@ -41,10 +47,11 @@ export default function VentaStats({
       </div>
 
       <div style={styles.statCard}>
-        <div style={styles.statIcon}>📦</div>
+        <div style={styles.statIcon}>
+          <FaBoxOpen />
+        </div>
 
         <h4 style={styles.statTitle}>Productos Vendidos</h4>
-
         <p style={styles.statValue}>{Number(productosVendidos)}</p>
 
         <p style={styles.statDescription}>
@@ -53,12 +60,12 @@ export default function VentaStats({
       </div>
 
       <div style={styles.statCard}>
-        <div style={styles.statIcon}>📈</div>
+        <div style={styles.statIcon}>
+          <FaChartLine />
+        </div>
 
         <h4 style={styles.statTitle}>Venta Promedio</h4>
-
         <p style={styles.statValue}>{formatearMoneda(ventaPromedio)}</p>
-
         <p style={styles.statDescription}>Promedio de cada transacción</p>
       </div>
     </div>

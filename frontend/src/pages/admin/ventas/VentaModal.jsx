@@ -1,4 +1,17 @@
-import React from "react";
+import {
+  FaBoxOpen,
+  FaCircle,
+  FaCreditCard,
+  FaMapMarkerAlt,
+  FaReceipt,
+  FaTimes,
+  FaUser,
+} from "react-icons/fa";
+
+const estiloIconoTitulo = {
+  marginRight: "8px",
+  verticalAlign: "middle",
+};
 
 export default function VentaModal({
   ventaSeleccionada,
@@ -6,7 +19,9 @@ export default function VentaModal({
   formatoMoneda,
   styles,
 }) {
-  if (!ventaSeleccionada) return null;
+  if (!ventaSeleccionada) {
+    return null;
+  }
 
   const detalles = Array.isArray(ventaSeleccionada.Detalles)
     ? ventaSeleccionada.Detalles
@@ -44,35 +59,33 @@ export default function VentaModal({
       case "aprobado":
         return {
           color: "#22c55e",
-          icono: "🟢",
           texto: "Aprobado",
         };
 
       case "pendiente":
         return {
           color: "#facc15",
-          icono: "🟡",
           texto: "Pendiente",
         };
 
       case "rechazado":
         return {
           color: "#ef4444",
-          icono: "🔴",
           texto: "Rechazado",
         };
 
       default:
         return {
           color: "#94a3b8",
-          icono: "⚪",
           texto: "Sin estado",
         };
     }
   };
 
   const obtenerFecha = (fecha) => {
-    if (!fecha) return "Sin fecha registrada";
+    if (!fecha) {
+      return "Sin fecha registrada";
+    }
 
     const fechaObj = new Date(fecha);
 
@@ -113,7 +126,7 @@ export default function VentaModal({
     <div style={styles.modalOverlay} onClick={cerrarModal} role="presentation">
       <div
         style={styles.modal}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="venta-modal-title"
@@ -121,7 +134,8 @@ export default function VentaModal({
         <div style={styles.modalHeader}>
           <div>
             <h2 id="venta-modal-title" style={styles.modalTitle}>
-              🧾 Venta #{String(ventaSeleccionada.id).padStart(5, "0")}
+              <FaReceipt style={estiloIconoTitulo} />
+              Venta #{String(ventaSeleccionada.id).padStart(5, "0")}
             </h2>
 
             <p style={styles.modalSubtitle}>
@@ -136,12 +150,15 @@ export default function VentaModal({
             aria-label="Cerrar detalle de venta"
             title="Cerrar"
           >
-            ✕
+            <FaTimes />
           </button>
         </div>
 
         <div style={styles.modalCard}>
-          <h3>👤 Cliente</h3>
+          <h3>
+            <FaUser style={estiloIconoTitulo} />
+            Cliente
+          </h3>
 
           <p>
             <strong>Nombre:</strong> {nombreCliente}
@@ -161,7 +178,10 @@ export default function VentaModal({
         </div>
 
         <div style={styles.modalCard}>
-          <h3>📦 Productos</h3>
+          <h3>
+            <FaBoxOpen style={estiloIconoTitulo} />
+            Productos
+          </h3>
 
           {detalles.length === 0 ? (
             <p style={styles.modalEmpty}>
@@ -186,13 +206,11 @@ export default function VentaModal({
                 >
                   <div style={styles.productHeader}>
                     <strong>{nombreProducto}</strong>
-
                     <span style={styles.productQuantity}>x{cantidad}</span>
                   </div>
 
                   <div style={styles.productInfo}>
                     <span>Precio: {formatearMoneda(precio)}</span>
-
                     <span>Subtotal: {formatearMoneda(subtotal)}</span>
                   </div>
                 </div>
@@ -203,7 +221,10 @@ export default function VentaModal({
 
         {ventaSeleccionada.direccionEntrega && (
           <div style={styles.modalCard}>
-            <h3>📍 Información de Entrega</h3>
+            <h3>
+              <FaMapMarkerAlt style={estiloIconoTitulo} />
+              Información de Entrega
+            </h3>
 
             <p>
               <strong>Dirección:</strong> {ventaSeleccionada.direccionEntrega}
@@ -222,7 +243,10 @@ export default function VentaModal({
         )}
 
         <div style={styles.modalCard}>
-          <h3>💳 Información del Pago</h3>
+          <h3>
+            <FaCreditCard style={estiloIconoTitulo} />
+            Información del Pago
+          </h3>
 
           <p>
             <strong>Método:</strong>{" "}
@@ -237,7 +261,11 @@ export default function VentaModal({
                 fontWeight: "700",
               }}
             >
-              {estadoPago.icono} {estadoPago.texto}
+              <FaCircle
+                size={10}
+                style={{ marginRight: "6px", verticalAlign: "middle" }}
+              />
+              {estadoPago.texto}
             </span>
           </p>
 
@@ -250,7 +278,6 @@ export default function VentaModal({
 
         <div style={styles.modalTotal}>
           <span>Total de la Venta</span>
-
           <h2>{formatearMoneda(ventaSeleccionada.total)}</h2>
         </div>
       </div>
