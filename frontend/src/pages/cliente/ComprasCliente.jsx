@@ -1,4 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  FaBoxOpen,
+  FaClock,
+  FaCoins,
+  FaCreditCard,
+  FaExclamationTriangle,
+  FaMapMarkerAlt,
+  FaReceipt,
+  FaShoppingBag,
+  FaStar,
+} from "react-icons/fa";
 import api from "../../services/api";
 import { obtenerUrlImagen } from "../../utils/media";
 
@@ -89,10 +100,11 @@ function ComprasCliente() {
     return (
       <div style={styles.container}>
         <div style={styles.errorCard}>
-          <div style={styles.errorIcon}>⚠️</div>
+          <div style={styles.errorIcon}>
+            <FaExclamationTriangle />
+          </div>
 
           <h2 style={styles.errorTitle}>No pudimos cargar tus compras</h2>
-
           <p style={styles.errorText}>{error}</p>
 
           <button
@@ -111,7 +123,7 @@ function ComprasCliente() {
     <div style={styles.container}>
       <div style={styles.hero}>
         <div>
-          <p style={styles.badgeTop}>✨ Historial de compras</p>
+          <p style={styles.badgeTop}>Historial de compras</p>
 
           <h1 style={styles.title}>Mis Compras</h1>
 
@@ -121,32 +133,38 @@ function ComprasCliente() {
           </p>
         </div>
 
-        <div style={styles.heroIcon}>🧾</div>
+        <div style={styles.heroIcon}>
+          <FaReceipt />
+        </div>
       </div>
 
       <div style={styles.summaryGrid}>
         <div style={styles.summaryCard}>
-          <div style={styles.iconCircle}>📦</div>
+          <div style={styles.iconCircle}>
+            <FaBoxOpen />
+          </div>
 
           <div>
             <p style={styles.summaryLabel}>Compras realizadas</p>
-
             <h3 style={styles.summaryValue}>{totalCompras}</h3>
           </div>
         </div>
 
         <div style={styles.summaryCard}>
-          <div style={styles.iconCircle}>💰</div>
+          <div style={styles.iconCircle}>
+            <FaCoins />
+          </div>
 
           <div>
             <p style={styles.summaryLabel}>Total gastado</p>
-
             <h3 style={styles.summaryValue}>{formatearMoneda(totalGastado)}</h3>
           </div>
         </div>
 
         <div style={styles.summaryCard}>
-          <div style={styles.iconCircle}>🕒</div>
+          <div style={styles.iconCircle}>
+            <FaClock />
+          </div>
 
           <div>
             <p style={styles.summaryLabel}>Última compra</p>
@@ -162,7 +180,9 @@ function ComprasCliente() {
 
       {compras.length === 0 ? (
         <div style={styles.empty}>
-          <div style={styles.emptyIcon}>🛍️</div>
+          <div style={styles.emptyIcon}>
+            <FaShoppingBag />
+          </div>
 
           <h2 style={styles.emptyTitle}>Todavía no tienes compras</h2>
 
@@ -176,13 +196,15 @@ function ComprasCliente() {
           {compras.map((compra, index) => (
             <div key={compra.id} style={styles.orderCard}>
               {index === 0 && (
-                <div style={styles.latestBadge}>⭐ Compra más reciente</div>
+                <div style={styles.latestBadge}>
+                  <FaStar />
+                  Compra más reciente
+                </div>
               )}
 
               <div style={styles.orderHeader}>
                 <div>
                   <p style={styles.orderLabel}>Pedido #{compra.id}</p>
-
                   <p style={styles.date}>{formatearFecha(compra.createdAt)}</p>
                 </div>
 
@@ -203,7 +225,9 @@ function ComprasCliente() {
 
                 {compra.Pago && (
                   <div style={styles.paymentInfo}>
-                    <span style={styles.paymentIcon}>💳</span>
+                    <span style={styles.paymentIcon}>
+                      <FaCreditCard />
+                    </span>
 
                     <div>
                       <p style={styles.paymentLabel}>Método de pago</p>
@@ -218,7 +242,9 @@ function ComprasCliente() {
 
               {compra.direccionEntrega && (
                 <div style={styles.deliveryInfo}>
-                  <div style={styles.deliveryIcon}>📍</div>
+                  <div style={styles.deliveryIcon}>
+                    <FaMapMarkerAlt />
+                  </div>
 
                   <div>
                     <p style={styles.deliveryLabel}>Dirección de entrega</p>
@@ -303,8 +329,7 @@ function ComprasCliente() {
                   })
                 ) : (
                   <div style={styles.noDetails}>
-                    <span>📦</span>
-
+                    <FaBoxOpen />
                     <p>No hay detalles disponibles para este pedido.</p>
                   </div>
                 )}
@@ -370,6 +395,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    color: "#ffffff",
     fontSize: "38px",
     flexShrink: 0,
     background: "linear-gradient(135deg,#7c3aed,#9333ea)",
@@ -402,6 +428,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    color: "#ffffff",
     fontSize: "27px",
     flexShrink: 0,
     background: "linear-gradient(135deg,#7c3aed,#9333ea)",
@@ -520,6 +547,8 @@ const styles = {
   },
 
   paymentIcon: {
+    display: "flex",
+    color: "#93c5fd",
     fontSize: "23px",
   },
 
@@ -555,6 +584,7 @@ const styles = {
     placeItems: "center",
     borderRadius: "13px",
     background: "linear-gradient(135deg, #7c3aed, #9333ea)",
+    color: "#ffffff",
     fontSize: "19px",
   },
 
@@ -672,6 +702,9 @@ const styles = {
     position: "absolute",
     top: 0,
     left: 0,
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
     padding: "7px 14px",
     borderBottomRightRadius: "13px",
     background: "linear-gradient(135deg,#7c3aed,#9333ea)",
@@ -690,8 +723,11 @@ const styles = {
   },
 
   emptyIcon: {
-    fontSize: "65px",
+    display: "flex",
+    justifyContent: "center",
     marginBottom: "18px",
+    color: "#c4b5fd",
+    fontSize: "65px",
   },
 
   emptyTitle: {
@@ -716,6 +752,9 @@ const styles = {
   },
 
   errorIcon: {
+    display: "flex",
+    justifyContent: "center",
+    color: "#f87171",
     fontSize: "55px",
     marginBottom: "15px",
   },
