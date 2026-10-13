@@ -1,5 +1,15 @@
-import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  FaArrowRight,
+  FaBoxOpen,
+  FaClipboardList,
+  FaCoins,
+  FaExclamation,
+  FaReceipt,
+  FaShoppingBag,
+  FaShoppingCart,
+} from "react-icons/fa";
 import api from "../../services/api";
 
 function DashboardCliente() {
@@ -149,9 +159,7 @@ function DashboardCliente() {
       <div style={styles.loadingPage}>
         <div style={styles.loadingBox}>
           <div style={styles.spinner}></div>
-
           <h2 style={styles.loadingTitle}>Cargando tu panel</h2>
-
           <p style={styles.loadingText}>Estamos preparando tu información...</p>
         </div>
       </div>
@@ -162,10 +170,11 @@ function DashboardCliente() {
     return (
       <div style={styles.errorPage}>
         <div style={styles.errorBox}>
-          <div style={styles.errorIcon}>!</div>
+          <div style={styles.errorIcon}>
+            <FaExclamation />
+          </div>
 
           <h2 style={styles.errorTitle}>No pudimos cargar tu panel</h2>
-
           <p style={styles.errorText}>{error}</p>
 
           <button
@@ -183,12 +192,12 @@ function DashboardCliente() {
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        <section style={styles.hero}>
+        <section style={styles.hero} className="cliente-hero">
           <div style={styles.heroContent}>
             <span style={styles.badge}>Panel de cliente</span>
 
             <h1 style={styles.title}>
-              Hola, <span style={styles.highlight}>{nombre}</span> 👋
+              Hola, <span style={styles.highlight}>{nombre}</span>
             </h1>
 
             <p style={styles.subtitle}>
@@ -196,53 +205,62 @@ function DashboardCliente() {
               productos, administra tu carrito y consulta tus compras.
             </p>
 
-            <div style={styles.heroActions}>
+            <div style={styles.heroActions} className="cliente-hero-actions">
               <Link to="/cliente/productos" style={styles.primaryLink}>
+                <FaShoppingBag />
                 Explorar productos
               </Link>
 
               <Link to="/cliente/carrito" style={styles.secondaryLink}>
-                Ver carrito 🛒
+                <FaShoppingCart />
+                Ver carrito
               </Link>
             </div>
           </div>
 
-          <div style={styles.heroDecoration}>
+          <div
+            style={styles.heroDecoration}
+            className="cliente-hero-decoration"
+          >
             <div style={styles.decorationCircle}></div>
 
-            <div style={styles.decorationIcon}>🛍️</div>
+            <div style={styles.decorationIcon}>
+              <FaShoppingBag />
+            </div>
           </div>
         </section>
 
         <section style={styles.statsGrid}>
           <div style={styles.statCard}>
-            <div style={styles.statIcon}>🧾</div>
+            <div style={styles.statIcon}>
+              <FaReceipt />
+            </div>
 
             <div>
               <p style={styles.statLabel}>Compras realizadas</p>
-
               <h2 style={styles.statNumber}>{totalCompras}</h2>
-
               <p style={styles.statDescription}>Pedidos registrados</p>
             </div>
           </div>
 
           <div style={styles.statCard}>
-            <div style={styles.statIcon}>💰</div>
+            <div style={styles.statIcon}>
+              <FaCoins />
+            </div>
 
             <div>
               <p style={styles.statLabel}>Total gastado</p>
-
               <h2 style={styles.statNumberSmall}>
                 {formatearDinero(dineroGastado)}
               </h2>
-
               <p style={styles.statDescription}>Compras aprobadas</p>
             </div>
           </div>
 
           <div style={styles.statCard}>
-            <div style={styles.statIcon}>📦</div>
+            <div style={styles.statIcon}>
+              <FaBoxOpen />
+            </div>
 
             <div>
               <p style={styles.statLabel}>Última compra</p>
@@ -262,12 +280,11 @@ function DashboardCliente() {
           </div>
         </section>
 
-        <section style={styles.contentGrid}>
-          <div style={styles.sectionCard}>
+        <section style={styles.contentGrid} className="cliente-content-grid">
+          <div style={styles.sectionCard} className="cliente-section-card">
             <div style={styles.sectionHeader}>
               <div>
                 <span style={styles.sectionTag}>Actividad</span>
-
                 <h2 style={styles.sectionTitle}>Mis compras recientes</h2>
               </div>
 
@@ -278,7 +295,9 @@ function DashboardCliente() {
 
             {comprasRecientes.length === 0 ? (
               <div style={styles.emptyPurchases}>
-                <div style={styles.emptyIcon}>🛍️</div>
+                <div style={styles.emptyIcon}>
+                  <FaShoppingBag />
+                </div>
 
                 <h3 style={styles.emptyTitle}>Aún no tienes compras</h3>
 
@@ -296,8 +315,14 @@ function DashboardCliente() {
                   const estado = obtenerEstadoPago(compra);
 
                   return (
-                    <div key={compra.id} style={styles.purchaseItem}>
-                      <div style={styles.purchaseIcon}>📦</div>
+                    <div
+                      key={compra.id}
+                      style={styles.purchaseItem}
+                      className="cliente-sale-item"
+                    >
+                      <div style={styles.purchaseIcon}>
+                        <FaBoxOpen />
+                      </div>
 
                       <div style={styles.purchaseInfo}>
                         <h3 style={styles.purchaseTitle}>
@@ -313,7 +338,10 @@ function DashboardCliente() {
                         </p>
                       </div>
 
-                      <div style={styles.purchaseRight}>
+                      <div
+                        style={styles.purchaseRight}
+                        className="cliente-sale-right"
+                      >
                         <strong style={styles.purchaseTotal}>
                           {formatearDinero(compra.total)}
                         </strong>
@@ -346,52 +374,54 @@ function DashboardCliente() {
             )}
           </div>
 
-          <div style={styles.quickCard}>
+          <div style={styles.quickCard} className="cliente-quick-card">
             <span style={styles.sectionTag}>Accesos rápidos</span>
-
             <h2 style={styles.sectionTitle}>¿Qué deseas hacer?</h2>
 
             <div style={styles.quickActions}>
               <Link to="/cliente/productos" style={styles.quickAction}>
-                <div style={styles.quickIcon}>🛍️</div>
+                <div style={styles.quickIcon}>
+                  <FaShoppingBag />
+                </div>
 
                 <div>
                   <h3 style={styles.quickTitle}>Ver productos</h3>
-
                   <p style={styles.quickText}>Explora nuestro catálogo</p>
                 </div>
 
-                <span style={styles.arrow}>→</span>
+                <FaArrowRight style={styles.arrow} />
               </Link>
 
               <Link to="/cliente/compras" style={styles.quickAction}>
-                <div style={styles.quickIcon}>📋</div>
+                <div style={styles.quickIcon}>
+                  <FaClipboardList />
+                </div>
 
                 <div>
                   <h3 style={styles.quickTitle}>Mis compras</h3>
-
                   <p style={styles.quickText}>Consulta tus pedidos</p>
                 </div>
 
-                <span style={styles.arrow}>→</span>
+                <FaArrowRight style={styles.arrow} />
               </Link>
 
               <Link to="/cliente/carrito" style={styles.quickAction}>
-                <div style={styles.quickIcon}>🛒</div>
+                <div style={styles.quickIcon}>
+                  <FaShoppingCart />
+                </div>
 
                 <div>
                   <h3 style={styles.quickTitle}>Mi carrito</h3>
-
                   <p style={styles.quickText}>Revisa tus productos</p>
                 </div>
 
-                <span style={styles.arrow}>→</span>
+                <FaArrowRight style={styles.arrow} />
               </Link>
             </div>
           </div>
         </section>
 
-        <section style={styles.bottomBanner}>
+        <section style={styles.bottomBanner} className="cliente-banner">
           <div>
             <span style={styles.bannerTag}>ModaGest Pro</span>
 
@@ -405,7 +435,11 @@ function DashboardCliente() {
             </p>
           </div>
 
-          <Link to="/cliente/productos" style={styles.bannerButton}>
+          <Link
+            to="/cliente/productos"
+            style={styles.bannerButton}
+            className="cliente-banner-button"
+          >
             Ver catálogo
           </Link>
         </section>
@@ -566,6 +600,10 @@ const styles = {
   },
 
   primaryLink: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "9px",
     textDecoration: "none",
     color: "#fff",
     background: "linear-gradient(135deg, #7c3aed, #9333ea)",
@@ -576,6 +614,10 @@ const styles = {
   },
 
   secondaryLink: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "9px",
     textDecoration: "none",
     color: "#e2e8f0",
     background: "rgba(255,255,255,0.06)",
@@ -607,6 +649,8 @@ const styles = {
 
   decorationIcon: {
     position: "relative",
+    display: "flex",
+    color: "#ffffff",
     fontSize: "75px",
   },
 
@@ -638,6 +682,7 @@ const styles = {
     borderRadius: "17px",
     background:
       "linear-gradient(135deg, rgba(124,58,237,0.85), rgba(147,51,234,0.75))",
+    color: "#ffffff",
     fontSize: "26px",
   },
 
@@ -748,6 +793,7 @@ const styles = {
     flexShrink: 0,
     borderRadius: "14px",
     background: "rgba(124,58,237,0.16)",
+    color: "#c4b5fd",
     fontSize: "21px",
   },
 
@@ -808,8 +854,11 @@ const styles = {
   },
 
   emptyIcon: {
-    fontSize: "45px",
+    display: "flex",
+    justifyContent: "center",
     marginBottom: "12px",
+    color: "#c4b5fd",
+    fontSize: "45px",
   },
 
   emptyTitle: {
@@ -864,6 +913,7 @@ const styles = {
     flexShrink: 0,
     borderRadius: "13px",
     background: "rgba(124,58,237,0.18)",
+    color: "#c4b5fd",
     fontSize: "20px",
   },
 
@@ -882,8 +932,7 @@ const styles = {
   arrow: {
     marginLeft: "auto",
     color: "#a78bfa",
-    fontSize: "20px",
-    fontWeight: "700",
+    fontSize: "16px",
   },
 
   bottomBanner: {
@@ -1000,7 +1049,6 @@ const styles = {
     background: "rgba(239,68,68,0.15)",
     color: "#f87171",
     fontSize: "28px",
-    fontWeight: "800",
   },
 
   errorTitle: {
