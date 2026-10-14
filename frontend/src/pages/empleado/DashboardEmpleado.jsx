@@ -331,14 +331,7 @@ function DashboardEmpleado() {
             </div>
 
             <h1 style={styles.title}>
-              Hola, <span style={styles.titleSpan}>{nombre}</span>{" "}
-              <FaHandPaper
-                style={{
-                  color: "#f59e0b",
-                  fontSize: "0.8em",
-                  verticalAlign: "middle",
-                }}
-              />
+              Hola, <span style={styles.titleSpan}>{nombre}</span>
             </h1>
 
             <p style={styles.subtitle}>
