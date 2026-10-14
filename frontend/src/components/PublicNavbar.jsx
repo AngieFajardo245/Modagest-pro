@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
-
 import { Link, useLocation, useNavigate } from "react-router-dom";
-
-import { FaShoppingCart, FaUser } from "react-icons/fa";
-
+import {
+  FaBars,
+  FaShoppingCart,
+  FaSignInAlt,
+  FaSignOutAlt,
+  FaTimes,
+  FaUser,
+} from "react-icons/fa";
 import logo from "../assets/Logo.png";
 
 const leerUsuario = () => {
   try {
     const datos = JSON.parse(localStorage.getItem("usuario") || "null");
-
     return datos && typeof datos === "object" ? datos : null;
   } catch {
     return null;
@@ -18,9 +21,7 @@ const leerUsuario = () => {
 
 const leerSesion = () => ({
   token: localStorage.getItem("token"),
-
   rol: (localStorage.getItem("rol") || "").trim().toLowerCase(),
-
   usuario: leerUsuario(),
 });
 
@@ -52,14 +53,10 @@ const obtenerClienteId = (sesion) => {
     }
 
     const base64 = partes[1].replace(/-/g, "+").replace(/_/g, "/");
-
     const padding = base64.length % 4;
-
     const base64Completo =
       padding === 0 ? base64 : base64 + "=".repeat(4 - padding);
-
     const payload = JSON.parse(atob(base64Completo));
-
     const idToken =
       payload?.id ||
       payload?.usuarioId ||
@@ -88,20 +85,17 @@ const obtenerClaveCarrito = (sesion) => {
 const obtenerCarrito = (clave) => {
   try {
     const carrito = JSON.parse(localStorage.getItem(clave) || "[]");
-
     return Array.isArray(carrito) ? carrito : [];
   } catch {
     return [];
   }
 };
 
-const obtenerCantidadCarrito = (clave) => {
-  return obtenerCarrito(clave).reduce((total, producto) => {
+const obtenerCantidadCarrito = (clave) =>
+  obtenerCarrito(clave).reduce((total, producto) => {
     const cantidad = Number(producto?.cantidad || 0);
-
     return total + (cantidad > 0 ? cantidad : 0);
   }, 0);
-};
 
 const migrarCarritoPublico = (clienteId) => {
   if (!clienteId) {
@@ -115,9 +109,7 @@ const migrarCarritoPublico = (clienteId) => {
   }
 
   const claveCliente = `carrito_cliente_${clienteId}`;
-
   const carritoCliente = obtenerCarrito(claveCliente);
-
   const carritoFinal = carritoCliente.map((producto) => ({ ...producto }));
 
   carritoPublico.forEach((productoPublico) => {
@@ -128,7 +120,6 @@ const migrarCarritoPublico = (clienteId) => {
     if (indice >= 0) {
       carritoFinal[indice] = {
         ...carritoFinal[indice],
-
         cantidad:
           Number(carritoFinal[indice].cantidad || 0) +
           Number(productoPublico.cantidad || 0),
@@ -139,18 +130,14 @@ const migrarCarritoPublico = (clienteId) => {
   });
 
   localStorage.setItem(claveCliente, JSON.stringify(carritoFinal));
-
   localStorage.removeItem("carrito_publico");
 
   window.dispatchEvent(
     new CustomEvent("carritoActualizado", {
       detail: {
         clave: claveCliente,
-
         claveCarrito: claveCliente,
-
         clienteId,
-
         carrito: carritoFinal,
       },
     }),
@@ -159,59 +146,60 @@ const migrarCarritoPublico = (clienteId) => {
 
 const obtenerEstadoInicial = () => {
   const sesion = leerSesion();
-
   const clienteId = obtenerClienteId(sesion);
 
   if (sesion.rol === "cliente" && clienteId) {
     migrarCarritoPublico(clienteId);
   }
 
-  const claveCarrito = obtenerClaveCarrito(sesion);
-
   return {
     sesion,
-
-    cantidad: obtenerCantidadCarrito(claveCarrito),
+    cantidad: obtenerCantidadCarrito(obtenerClaveCarrito(sesion)),
   };
 };
 
 export default function PublicNavbar() {
   const navigate = useNavigate();
-
   const location = useLocation();
-
   const [estadoInicial] = useState(obtenerEstadoInicial);
-
   const [sesion, setSesion] = useState(estadoInicial.sesion);
-
   const [cantidad, setCantidad] = useState(estadoInicial.cantidad);
+  const [esMovil, setEsMovil] = useState(() => window.innerWidth <= 820);
+  const [menuAbierto, setMenuAbierto] = useState(false);
 
   const { token, rol, usuario } = sesion;
+  const nombre = usuario?.nombre || "Usuario";
 
-  const nombre = usuario?.nombre || "";
+  useEffect(() => {
+    const manejarTamano = () => {
+      const vistaMovil = window.innerWidth <= 820;
+      setEsMovil(vistaMovil);
+
+      if (!vistaMovil) {
+        setMenuAbierto(false);
+      }
+    };
+
+    window.addEventListener("resize", manejarTamano);
+    return () => window.removeEventListener("resize", manejarTamano);
+  }, []);
 
   useEffect(() => {
     const actualizarSesion = () => {
       const nuevaSesion = leerSesion();
-
       const nuevoClienteId = obtenerClienteId(nuevaSesion);
 
       if (nuevaSesion.rol === "cliente" && nuevoClienteId) {
         migrarCarritoPublico(nuevoClienteId);
       }
 
-      const nuevaClave = obtenerClaveCarrito(nuevaSesion);
-
       setSesion(nuevaSesion);
-
-      setCantidad(obtenerCantidadCarrito(nuevaClave));
+      setCantidad(obtenerCantidadCarrito(obtenerClaveCarrito(nuevaSesion)));
     };
 
     const manejarCarritoActualizado = (event) => {
       const sesionActual = leerSesion();
-
       const claveActual = obtenerClaveCarrito(sesionActual);
-
       const claveEvento =
         event?.detail?.clave || event?.detail?.claveCarrito || null;
 
@@ -224,12 +212,10 @@ export default function PublicNavbar() {
       if (Array.isArray(carritoEvento)) {
         const total = carritoEvento.reduce((acumulado, producto) => {
           const unidades = Number(producto?.cantidad || 0);
-
           return acumulado + (unidades > 0 ? unidades : 0);
         }, 0);
 
         setCantidad(total);
-
         return;
       }
 
@@ -237,18 +223,12 @@ export default function PublicNavbar() {
     };
 
     const manejarStorage = (event) => {
-      if (
-        event.key === "token" ||
-        event.key === "rol" ||
-        event.key === "usuario"
-      ) {
+      if (["token", "rol", "usuario"].includes(event.key)) {
         actualizarSesion();
-
         return;
       }
 
       const sesionActual = leerSesion();
-
       const claveActual = obtenerClaveCarrito(sesionActual);
 
       if (event.key === claveActual || event.key === "carrito_publico") {
@@ -257,24 +237,17 @@ export default function PublicNavbar() {
     };
 
     window.addEventListener("usuarioActualizado", actualizarSesion);
-
     window.addEventListener("authActualizado", actualizarSesion);
-
     window.addEventListener("carritoActualizado", manejarCarritoActualizado);
-
     window.addEventListener("storage", manejarStorage);
 
     return () => {
       window.removeEventListener("usuarioActualizado", actualizarSesion);
-
       window.removeEventListener("authActualizado", actualizarSesion);
-
       window.removeEventListener(
         "carritoActualizado",
-
         manejarCarritoActualizado,
       );
-
       window.removeEventListener("storage", manejarStorage);
     };
   }, []);
@@ -283,13 +256,10 @@ export default function PublicNavbar() {
     switch (rol) {
       case "administrador":
         return "/admin";
-
       case "empleado":
         return "/empleado";
-
       case "cliente":
         return "/cliente";
-
       default:
         return "/";
     }
@@ -299,13 +269,10 @@ export default function PublicNavbar() {
     switch (rol) {
       case "administrador":
         return "/admin/productos";
-
       case "empleado":
         return "/empleado/productos";
-
       case "cliente":
         return "/cliente/productos";
-
       default:
         return "/#productos";
     }
@@ -313,27 +280,27 @@ export default function PublicNavbar() {
 
   const volverAlInicioPublico = () => {
     navigate("/");
+    setMenuAbierto(false);
 
     window.requestAnimationFrame(() => {
-      window.scrollTo({
-        top: 0,
-
-        behavior: "smooth",
-      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     });
   };
 
   const irAInicio = (event) => {
+    setMenuAbierto(false);
+
     if (rol) {
       return;
     }
 
     event.preventDefault();
-
     volverAlInicioPublico();
   };
 
   const irAProductos = (event) => {
+    setMenuAbierto(false);
+
     if (rol || location.pathname !== "/") {
       return;
     }
@@ -345,129 +312,173 @@ export default function PublicNavbar() {
     }
 
     event.preventDefault();
-
     window.history.replaceState(null, "", "#productos");
-
-    seccionProductos.scrollIntoView({
-      behavior: "smooth",
-
-      block: "start",
-    });
+    seccionProductos.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const cerrarSesion = () => {
     localStorage.removeItem("token");
-
     localStorage.removeItem("usuario");
-
     localStorage.removeItem("rol");
-
     localStorage.removeItem("redirectAfterLogin");
 
     const nuevaSesion = leerSesion();
-
     setSesion(nuevaSesion);
-
     setCantidad(obtenerCantidadCarrito("carrito_publico"));
+    setMenuAbierto(false);
 
     window.dispatchEvent(new CustomEvent("usuarioActualizado"));
-
     window.dispatchEvent(new CustomEvent("authActualizado"));
-
     navigate("/", { replace: true });
   };
 
   const irAlCarrito = () => {
+    setMenuAbierto(false);
     navigate("/cliente/carrito");
   };
 
-  const linkStyle = (ruta) => ({
-    color: location.pathname === ruta ? "#a855f7" : "#ffffff",
-
-    textDecoration: "none",
-
-    fontWeight: "600",
-
-    fontSize: "15px",
-
-    transition: "0.3s",
+  const linkStyle = (ruta, movil = false) => ({
+    ...(movil ? styles.mobileLink : styles.link),
+    color: location.pathname === ruta ? "#c084fc" : "#ffffff",
   });
 
   return (
-    <nav style={styles.nav}>
-      <button
-        type="button"
-        style={styles.logoContainer}
-        onClick={() => {
-          if (rol) {
-            navigate(rutaInicio());
-
-            return;
-          }
-
-          volverAlInicioPublico();
-        }}
-        aria-label="Ir al inicio"
-      >
-        <img src={logo} alt="ModaGest Pro" style={styles.logoImage} />
-
-        <h2 style={styles.logoText}>ModaGest Pro</h2>
-      </button>
-
-      <div style={styles.menu}>
-        <Link
-          to={rutaInicio()}
-          style={linkStyle(rutaInicio())}
-          onClick={irAInicio}
-        >
-          Inicio
-        </Link>
-
-        <Link
-          to={rutaProductos()}
-          style={linkStyle(rutaProductos())}
-          onClick={irAProductos}
-        >
-          Productos
-        </Link>
-      </div>
-
-      <div style={styles.right}>
+    <nav style={{ ...styles.nav, ...(esMovil ? styles.navMovil : {}) }}>
+      <div style={styles.mainRow}>
         <button
           type="button"
-          style={styles.cart}
-          onClick={irAlCarrito}
-          aria-label="Ver carrito"
-        >
-          <FaShoppingCart size={20} />
+          style={styles.logoContainer}
+          onClick={() => {
+            setMenuAbierto(false);
 
-          {cantidad > 0 && (
-            <span style={styles.badge}>{cantidad > 99 ? "99+" : cantidad}</span>
-          )}
+            if (rol) {
+              navigate(rutaInicio());
+              return;
+            }
+
+            volverAlInicioPublico();
+          }}
+          aria-label="Ir al inicio"
+        >
+          <img
+            src={logo}
+            alt="ModaGest Pro"
+            style={{ ...styles.logoImage, ...(esMovil ? styles.logoImageMovil : {}) }}
+          />
+          <h2
+            style={{ ...styles.logoText, ...(esMovil ? styles.logoTextMovil : {}) }}
+          >
+            ModaGest Pro
+          </h2>
         </button>
 
-        {token && (
-          <div style={styles.userBox}>
-            <FaUser />
-
-            <span>{nombre}</span>
+        {!esMovil && (
+          <div style={styles.menu}>
+            <Link
+              to={rutaInicio()}
+              style={linkStyle(rutaInicio())}
+              onClick={irAInicio}
+            >
+              Inicio
+            </Link>
+            <Link
+              to={rutaProductos()}
+              style={linkStyle(rutaProductos())}
+              onClick={irAProductos}
+            >
+              Productos
+            </Link>
           </div>
         )}
 
-        {!token ? (
+        <div style={{ ...styles.right, ...(esMovil ? styles.rightMovil : {}) }}>
           <button
             type="button"
-            onClick={() => navigate("/login")}
-            style={styles.loginBtn}
+            style={styles.cart}
+            onClick={irAlCarrito}
+            aria-label="Ver carrito"
           >
-            Iniciar sesión
+            <FaShoppingCart size={esMovil ? 18 : 20} />
+            {cantidad > 0 && (
+              <span style={styles.badge}>
+                {cantidad > 99 ? "99+" : cantidad}
+              </span>
+            )}
           </button>
-        ) : (
-          <button type="button" onClick={cerrarSesion} style={styles.logoutBtn}>
-            Cerrar sesión
-          </button>
-        )}
+
+          {!esMovil && token && (
+            <div style={styles.userBox}>
+              <FaUser />
+              <span>{nombre}</span>
+            </div>
+          )}
+
+          {!token ? (
+            <button
+              type="button"
+              onClick={() => navigate("/login")}
+              style={{
+                ...styles.loginBtn,
+                ...(esMovil ? styles.sessionBtnMovil : {}),
+              }}
+              aria-label="Iniciar sesión"
+            >
+              {esMovil && <FaSignInAlt />}
+              <span>{esMovil ? "Entrar" : "Iniciar sesión"}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={cerrarSesion}
+              style={{
+                ...styles.logoutBtn,
+                ...(esMovil ? styles.sessionBtnMovil : {}),
+              }}
+              aria-label="Cerrar sesión"
+            >
+              {esMovil && <FaSignOutAlt />}
+              <span>{esMovil ? "Salir" : "Cerrar sesión"}</span>
+            </button>
+          )}
+
+          {esMovil && (
+            <button
+              type="button"
+              style={styles.menuBtn}
+              onClick={() => setMenuAbierto((abierto) => !abierto)}
+              aria-label={menuAbierto ? "Cerrar menú" : "Abrir menú"}
+              aria-expanded={menuAbierto}
+            >
+              {menuAbierto ? <FaTimes /> : <FaBars />}
+            </button>
+          )}
+        </div>
       </div>
+
+      {esMovil && menuAbierto && (
+        <div style={styles.mobileMenu}>
+          {token && (
+            <div style={styles.mobileUser}>
+              <FaUser />
+              <span>{nombre}</span>
+            </div>
+          )}
+          <Link
+            to={rutaInicio()}
+            style={linkStyle(rutaInicio(), true)}
+            onClick={irAInicio}
+          >
+            Inicio
+          </Link>
+          <Link
+            to={rutaProductos()}
+            style={linkStyle(rutaProductos(), true)}
+            onClick={irAProductos}
+          >
+            Productos
+          </Link>
+        </div>
+      )}
     </nav>
   );
 }
@@ -475,197 +486,208 @@ export default function PublicNavbar() {
 const styles = {
   nav: {
     position: "sticky",
-
     top: 0,
-
     zIndex: 999,
-
     width: "100%",
-
     boxSizing: "border-box",
-
-    display: "flex",
-
-    justifyContent: "space-between",
-
-    alignItems: "center",
-
-    padding: "16px 40px",
-
-    background: "rgba(5,5,15,0.92)",
-
-    backdropFilter: "blur(12px)",
-
+    padding: "12px 32px",
+    background: "rgba(5,5,15,0.94)",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)",
     borderBottom: "1px solid rgba(255,255,255,0.08)",
+    boxShadow: "0 8px 28px rgba(0,0,0,0.22)",
   },
-
-  logoContainer: {
+  navMovil: {
+    padding: "9px 12px",
+  },
+  mainRow: {
+    width: "100%",
     display: "flex",
-
+    justifyContent: "space-between",
     alignItems: "center",
-
-    gap: "16px",
-
+    gap: "14px",
+  },
+  logoContainer: {
+    minWidth: 0,
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
     padding: 0,
-
     border: "none",
-
     background: "transparent",
-
     cursor: "pointer",
-
     textAlign: "left",
   },
-
   logoImage: {
-    width: "78px",
-
-    height: "78px",
-
+    width: "62px",
+    height: "62px",
+    flexShrink: 0,
     objectFit: "cover",
-
-    borderRadius: "18px",
-
-    background: "transparent",
-
-    transform: "scale(1.35)",
-
-    filter: "drop-shadow(0 0 12px rgba(168,85,247,0.55))",
+    borderRadius: "16px",
+    filter: "drop-shadow(0 0 10px rgba(168,85,247,0.5))",
   },
-
+  logoImageMovil: {
+    width: "42px",
+    height: "42px",
+    borderRadius: "11px",
+  },
   logoText: {
     margin: 0,
-
-    color: "#fff",
-
-    fontSize: "36px",
-
+    color: "#ffffff",
+    fontSize: "28px",
     fontWeight: "700",
-
-    letterSpacing: "0.5px",
+    letterSpacing: "0.3px",
+    whiteSpace: "nowrap",
   },
-
+  logoTextMovil: {
+    maxWidth: "82px",
+    fontSize: "16px",
+    lineHeight: 1.1,
+    whiteSpace: "normal",
+  },
   menu: {
     display: "flex",
-
-    gap: "30px",
+    alignItems: "center",
+    gap: "28px",
   },
-
+  link: {
+    textDecoration: "none",
+    fontWeight: "600",
+    fontSize: "15px",
+    transition: "color 0.25s ease",
+  },
   right: {
     display: "flex",
-
     alignItems: "center",
-
-    gap: "18px",
+    justifyContent: "flex-end",
+    gap: "14px",
   },
-
+  rightMovil: {
+    gap: "6px",
+  },
   cart: {
     position: "relative",
-
-    width: "40px",
-
-    height: "40px",
-
+    width: "38px",
+    height: "38px",
+    flexShrink: 0,
     display: "flex",
-
     alignItems: "center",
-
     justifyContent: "center",
-
     padding: 0,
-
     border: "none",
-
     background: "transparent",
-
-    color: "#fff",
-
+    color: "#ffffff",
     cursor: "pointer",
   },
-
   badge: {
     position: "absolute",
-
-    top: "-5px",
-
-    right: "-5px",
-
-    minWidth: "20px",
-
-    height: "20px",
-
+    top: "-3px",
+    right: "-3px",
+    minWidth: "18px",
+    height: "18px",
     padding: "0 4px",
-
     boxSizing: "border-box",
-
     display: "flex",
-
     alignItems: "center",
-
     justifyContent: "center",
-
-    borderRadius: "50%",
-
+    borderRadius: "999px",
     background: "linear-gradient(135deg, #a855f7, #7c3aed)",
-
-    color: "#fff",
-
-    fontSize: "11px",
-
-    fontWeight: "bold",
+    color: "#ffffff",
+    fontSize: "10px",
+    fontWeight: "700",
   },
-
   userBox: {
+    maxWidth: "180px",
     display: "flex",
-
     alignItems: "center",
-
     gap: "8px",
-
-    padding: "10px 14px",
-
+    padding: "9px 12px",
     borderRadius: "12px",
-
     background: "rgba(255,255,255,0.06)",
-
-    color: "#fff",
-
+    color: "#ffffff",
     fontSize: "13px",
-
     fontWeight: "600",
+    overflow: "hidden",
+    whiteSpace: "nowrap",
+    textOverflow: "ellipsis",
   },
-
   loginBtn: {
-    padding: "12px 18px",
-
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "6px",
+    padding: "11px 16px",
     border: "none",
-
     borderRadius: "12px",
-
     background: "linear-gradient(135deg, #7c3aed, #9333ea)",
-
-    color: "#fff",
-
+    color: "#ffffff",
     fontWeight: "600",
-
     cursor: "pointer",
-
     boxShadow: "0 0 20px rgba(168,85,247,0.3)",
+    whiteSpace: "nowrap",
   },
-
   logoutBtn: {
-    padding: "12px 18px",
-
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "6px",
+    padding: "11px 16px",
     border: "1px solid rgba(239,68,68,0.4)",
-
     borderRadius: "12px",
-
     background: "rgba(239,68,68,0.15)",
-
-    color: "#ef4444",
-
+    color: "#f87171",
     fontWeight: "600",
-
     cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
+  sessionBtnMovil: {
+    minWidth: "auto",
+    padding: "9px 10px",
+    borderRadius: "10px",
+    fontSize: "12px",
+  },
+  menuBtn: {
+    width: "38px",
+    height: "38px",
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 0,
+    border: "1px solid rgba(255,255,255,0.12)",
+    borderRadius: "10px",
+    background: "rgba(255,255,255,0.07)",
+    color: "#ffffff",
+    fontSize: "17px",
+    cursor: "pointer",
+  },
+  mobileMenu: {
+    display: "grid",
+    gap: "8px",
+    marginTop: "9px",
+    paddingTop: "9px",
+    borderTop: "1px solid rgba(255,255,255,0.08)",
+  },
+  mobileUser: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "10px 12px",
+    borderRadius: "10px",
+    background: "rgba(255,255,255,0.06)",
+    color: "#d8b4fe",
+    fontSize: "13px",
+    fontWeight: "600",
+  },
+  mobileLink: {
+    display: "flex",
+    alignItems: "center",
+    minHeight: "42px",
+    padding: "0 13px",
+    borderRadius: "10px",
+    background: "rgba(255,255,255,0.05)",
+    textDecoration: "none",
+    fontSize: "14px",
+    fontWeight: "600",
   },
 };
