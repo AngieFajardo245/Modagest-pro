@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+
 import {
   FaBoxOpen,
   FaBoxes,
@@ -7,15 +8,22 @@ import {
   FaSearch,
   FaSyncAlt,
 } from "react-icons/fa";
+
 import api from "../../services/api";
+
 import { obtenerUrlImagen } from "../../utils/media";
 
 function ProductosEmpleado() {
   const [productos, setProductos] = useState([]);
+
   const [loading, setLoading] = useState(true);
+
   const [actualizando, setActualizando] = useState(false);
+
   const [busqueda, setBusqueda] = useState("");
+
   const [soloDisponibles, setSoloDisponibles] = useState(false);
+
   const [error, setError] = useState("");
 
   const obtenerProductos = async (mostrarActualizando = false) => {
@@ -29,12 +37,15 @@ function ProductosEmpleado() {
       }
 
       const respuesta = await api.get("/productos");
+
       setProductos(Array.isArray(respuesta.data) ? respuesta.data : []);
     } catch (err) {
       console.error("Error cargando productos:", err);
+
       setError("No fue posible cargar los productos.");
     } finally {
       setLoading(false);
+
       setActualizando(false);
     }
   };
@@ -46,7 +57,9 @@ function ProductosEmpleado() {
   const formatearMoneda = (valor) =>
     Number(valor || 0).toLocaleString("es-CO", {
       style: "currency",
+
       currency: "COP",
+
       maximumFractionDigits: 0,
     });
 
@@ -54,7 +67,9 @@ function ProductosEmpleado() {
     if (stock <= 0) {
       return {
         texto: "Agotado",
+
         estilo: styles.stockEmpty,
+
         icono: <FaExclamationTriangle />,
       };
     }
@@ -62,14 +77,18 @@ function ProductosEmpleado() {
     if (stock <= 5) {
       return {
         texto: "Stock bajo",
+
         estilo: styles.stockLow,
+
         icono: <FaExclamationTriangle />,
       };
     }
 
     return {
       texto: "Disponible",
+
       estilo: styles.stockAvailable,
+
       icono: <FaCheckCircle />,
     };
   };
@@ -83,7 +102,9 @@ function ProductosEmpleado() {
 
     return productos.filter((producto) => {
       const nombre = String(producto?.nombre || "").toLowerCase();
+
       const descripcion = String(producto?.descripcion || "").toLowerCase();
+
       const stock = Number(producto?.stock || 0);
 
       const coincideBusqueda =
@@ -99,6 +120,7 @@ function ProductosEmpleado() {
     return (
       <div style={styles.loadingContainer}>
         <div style={styles.loader}></div>
+
         <p style={styles.loadingText}>Cargando productos...</p>
       </div>
     );
@@ -127,6 +149,7 @@ function ProductosEmpleado() {
             <strong style={styles.headerBadgeStrong}>
               {productos.length} productos
             </strong>
+
             <span style={styles.headerBadgeSpan}>Registrados actualmente</span>
           </div>
         </div>
@@ -151,6 +174,7 @@ function ProductosEmpleado() {
             checked={soloDisponibles}
             onChange={(event) => setSoloDisponibles(event.target.checked)}
           />
+
           <span>Solo disponibles</span>
         </label>
 
@@ -158,12 +182,14 @@ function ProductosEmpleado() {
           type="button"
           style={{
             ...styles.refreshButton,
+
             opacity: actualizando ? 0.7 : 1,
           }}
           onClick={() => obtenerProductos(true)}
           disabled={actualizando}
         >
           <FaSyncAlt />
+
           {actualizando ? "Actualizando..." : "Actualizar"}
         </button>
       </section>
@@ -171,7 +197,9 @@ function ProductosEmpleado() {
       {error && (
         <section style={styles.errorBox}>
           <FaExclamationTriangle />
+
           <span>{error}</span>
+
           <button type="button" onClick={() => obtenerProductos()}>
             Reintentar
           </button>
@@ -206,7 +234,9 @@ function ProductosEmpleado() {
             <section style={styles.grid}>
               {productosFiltrados.map((producto) => {
                 const stock = Number(producto?.stock || 0);
+
                 const estadoStock = obtenerEstadoStock(stock);
+
                 const imagen = obtenerImagen(producto?.imagen);
 
                 return (
@@ -219,6 +249,7 @@ function ProductosEmpleado() {
                           style={styles.image}
                           onError={(event) => {
                             event.currentTarget.style.display = "none";
+
                             const fallback =
                               event.currentTarget.parentElement?.querySelector(
                                 ".image-fallback",
@@ -235,6 +266,7 @@ function ProductosEmpleado() {
                         className="image-fallback"
                         style={{
                           ...styles.imageFallback,
+
                           display: imagen ? "none" : "block",
                         }}
                       />
@@ -242,10 +274,12 @@ function ProductosEmpleado() {
                       <div
                         style={{
                           ...styles.stockBadge,
+
                           ...estadoStock.estilo,
                         }}
                       >
                         {estadoStock.icono}
+
                         {estadoStock.texto}
                       </div>
                     </div>
@@ -260,6 +294,7 @@ function ProductosEmpleado() {
                       <div style={styles.infoGrid}>
                         <div style={styles.infoItem}>
                           <span style={styles.infoLabel}>Precio</span>
+
                           <strong style={styles.price}>
                             {formatearMoneda(producto.precio)}
                           </strong>
@@ -267,9 +302,11 @@ function ProductosEmpleado() {
 
                         <div style={styles.infoItem}>
                           <span style={styles.infoLabel}>Existencias</span>
+
                           <strong
                             style={{
                               ...styles.stockNumber,
+
                               color:
                                 stock <= 0
                                   ? "#f87171"
@@ -299,291 +336,531 @@ export default ProductosEmpleado;
 const styles = {
   container: {
     minHeight: "100vh",
+
     padding: "clamp(20px, 4vw, 42px)",
+
     color: "#ffffff",
   },
+
   header: {
     display: "flex",
+
     justifyContent: "space-between",
+
     alignItems: "center",
+
     flexWrap: "wrap",
+
     gap: "24px",
+
     marginBottom: "30px",
   },
+
   eyebrow: {
     display: "flex",
+
     alignItems: "center",
+
     gap: "8px",
+
     marginBottom: "10px",
+
     color: "#a78bfa",
+
     fontSize: "11px",
+
     fontWeight: "800",
+
     letterSpacing: "1.5px",
   },
+
   title: {
     margin: 0,
+
     color: "#ffffff",
+
     fontSize: "clamp(30px, 4vw, 42px)",
+
     fontWeight: "800",
   },
+
   subtitle: {
     maxWidth: "650px",
+
     margin: "10px 0 0",
+
     color: "#94a3b8",
+
     fontSize: "15px",
+
     lineHeight: "1.6",
   },
+
   headerBadge: {
     display: "flex",
+
     alignItems: "center",
+
     gap: "12px",
+
     padding: "15px 20px",
+
     border: "1px solid rgba(255,255,255,0.08)",
+
     borderRadius: "18px",
+
     background: "rgba(255,255,255,0.045)",
   },
+
   headerBadgeIcon: {
     color: "#a78bfa",
+
     fontSize: "24px",
   },
+
   headerBadgeStrong: {
     display: "block",
+
     color: "#ffffff",
+
     fontSize: "14px",
   },
+
   headerBadgeSpan: {
     display: "block",
+
     marginTop: "3px",
+
     color: "#64748b",
+
     fontSize: "12px",
   },
+
   filters: {
     display: "flex",
+
     alignItems: "center",
+
     flexWrap: "wrap",
+
     gap: "15px",
+
     marginBottom: "15px",
+
     padding: "18px",
+
     border: "1px solid rgba(255,255,255,0.07)",
+
     borderRadius: "20px",
+
     background: "rgba(255,255,255,0.035)",
   },
+
   searchBox: {
     position: "relative",
+
     flex: 1,
+
     minWidth: "240px",
   },
+
   searchIcon: {
     position: "absolute",
+
     top: "50%",
+
     left: "14px",
+
     transform: "translateY(-50%)",
+
     color: "#64748b",
+
     fontSize: "13px",
   },
+
   searchInput: {
     width: "100%",
+
     boxSizing: "border-box",
+
     padding: "12px 14px 12px 42px",
+
     border: "1px solid rgba(255,255,255,0.08)",
+
     borderRadius: "13px",
+
     outline: "none",
+
     background: "rgba(255,255,255,0.045)",
+
     color: "#ffffff",
+
     fontSize: "13px",
   },
+
   checkboxLabel: {
     display: "flex",
+
     alignItems: "center",
+
     gap: "8px",
+
     color: "#cbd5e1",
+
     fontSize: "13px",
+
     cursor: "pointer",
   },
+
   refreshButton: {
     display: "flex",
+
     alignItems: "center",
+
     justifyContent: "center",
+
     gap: "8px",
+
     padding: "12px 16px",
+
     border: "1px solid rgba(255,255,255,0.08)",
+
     borderRadius: "13px",
+
     background: "rgba(124,58,237,0.12)",
+
     color: "#c4b5fd",
+
     cursor: "pointer",
+
     fontSize: "12px",
+
     fontWeight: "700",
   },
+
   resultsInfo: {
     margin: "0 0 20px",
+
     color: "#64748b",
+
     fontSize: "13px",
   },
+
   resultsStrong: {
     color: "#c4b5fd",
   },
+
   grid: {
     display: "grid",
+
     gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+
     gap: "24px",
+
+    alignItems: "stretch",
   },
+
   card: {
+    display: "flex",
+
+    flexDirection: "column",
+
+    height: "100%",
+
     overflow: "hidden",
+
     border: "1px solid rgba(255,255,255,0.08)",
+
     borderRadius: "24px",
+
     background: "rgba(255,255,255,0.045)",
+
     boxShadow: "0 15px 40px rgba(0,0,0,0.22)",
   },
+
   imageBox: {
     position: "relative",
+
     display: "flex",
+
     alignItems: "center",
+
     justifyContent: "center",
+
     height: "230px",
+
     padding: "18px",
+
     background: "rgba(255,255,255,0.025)",
   },
+
   image: {
     width: "100%",
+
     height: "100%",
+
     objectFit: "contain",
   },
+
   imageFallback: {
     color: "#a78bfa",
+
     fontSize: "48px",
+
     opacity: 0.7,
   },
+
   stockBadge: {
     position: "absolute",
+
     top: "15px",
+
     right: "15px",
+
     display: "flex",
+
     alignItems: "center",
+
     gap: "6px",
+
     padding: "7px 11px",
+
     borderRadius: "999px",
+
     fontSize: "11px",
+
     fontWeight: "800",
   },
+
   stockAvailable: {
     border: "1px solid rgba(16,185,129,0.25)",
+
     background: "rgba(16,185,129,0.14)",
+
     color: "#6ee7b7",
   },
+
   stockLow: {
     border: "1px solid rgba(245,158,11,0.25)",
+
     background: "rgba(245,158,11,0.14)",
+
     color: "#fbbf24",
   },
+
   stockEmpty: {
     border: "1px solid rgba(239,68,68,0.25)",
+
     background: "rgba(239,68,68,0.14)",
+
     color: "#f87171",
   },
+
   body: {
+    display: "flex",
+
+    flex: 1,
+
+    flexDirection: "column",
+
     padding: "22px",
   },
+
   productName: {
+    display: "-webkit-box",
+
+    minHeight: "48px",
+
     margin: 0,
+
     color: "#ffffff",
+
     fontSize: "20px",
+
     fontWeight: "800",
+
+    lineHeight: "1.2",
+
+    overflow: "hidden",
+
+    WebkitBoxOrient: "vertical",
+
+    WebkitLineClamp: 2,
   },
+
   description: {
-    minHeight: "40px",
+    display: "-webkit-box",
+
+    height: "98px",
+
     margin: "8px 0 18px",
+
     color: "#94a3b8",
+
     fontSize: "13px",
+
     lineHeight: "1.5",
+
+    overflow: "hidden",
+
+    WebkitBoxOrient: "vertical",
+
+    WebkitLineClamp: 5,
   },
+
   infoGrid: {
     display: "grid",
+
     gridTemplateColumns: "1fr 1fr",
+
     gap: "12px",
+
+    marginTop: "auto",
   },
+
   infoItem: {
     padding: "13px",
+
     border: "1px solid rgba(255,255,255,0.055)",
+
     borderRadius: "15px",
+
     background: "rgba(255,255,255,0.035)",
   },
+
   infoLabel: {
     display: "block",
+
     marginBottom: "5px",
+
     color: "#64748b",
+
     fontSize: "11px",
   },
+
   price: {
     color: "#38bdf8",
+
     fontSize: "17px",
   },
+
   stockNumber: {
     fontSize: "18px",
   },
+
   errorBox: {
     display: "flex",
+
     alignItems: "center",
+
     justifyContent: "center",
+
     flexWrap: "wrap",
+
     gap: "12px",
+
     padding: "24px",
+
     border: "1px solid rgba(239,68,68,0.25)",
+
     borderRadius: "18px",
+
     background: "rgba(239,68,68,0.08)",
+
     color: "#fca5a5",
   },
+
   empty: {
     display: "flex",
+
     flexDirection: "column",
+
     alignItems: "center",
+
     justifyContent: "center",
+
     padding: "80px 30px",
+
     border: "1px solid rgba(255,255,255,0.07)",
+
     borderRadius: "26px",
+
     background: "rgba(255,255,255,0.04)",
+
     textAlign: "center",
   },
+
   emptyIcon: {
     display: "flex",
+
     alignItems: "center",
+
     justifyContent: "center",
+
     width: "80px",
+
     height: "80px",
+
     borderRadius: "24px",
+
     background: "rgba(124,58,237,0.12)",
+
     color: "#a78bfa",
+
     fontSize: "32px",
   },
+
   emptyTitle: {
     margin: "20px 0 8px",
+
     color: "#ffffff",
+
     fontSize: "20px",
   },
+
   emptyText: {
     maxWidth: "450px",
+
     margin: 0,
+
     color: "#64748b",
+
     fontSize: "13px",
+
     lineHeight: "1.6",
   },
+
   loadingContainer: {
     display: "flex",
+
     minHeight: "75vh",
+
     flexDirection: "column",
+
     alignItems: "center",
+
     justifyContent: "center",
+
     gap: "18px",
   },
+
   loader: {
     width: "52px",
+
     height: "52px",
+
     border: "4px solid rgba(255,255,255,0.1)",
+
     borderTopColor: "#8b5cf6",
+
     borderRadius: "50%",
   },
+
   loadingText: {
     margin: 0,
+
     color: "#94a3b8",
+
     fontSize: "15px",
   },
 };
