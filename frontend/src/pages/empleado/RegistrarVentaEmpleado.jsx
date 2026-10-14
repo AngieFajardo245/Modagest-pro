@@ -17,17 +17,18 @@ export default function RegistrarVentaEmpleado() {
   const [cargando, setCargando] = useState(true);
   const [procesando, setProcesando] = useState(false);
   const [error, setError] = useState("");
+  const [esMovil, setEsMovil] = useState(() => window.innerWidth <= 640);
 
   const cargarProductos = async () => {
     try {
       setCargando(true);
 
       const respuesta = await api.get("/productos");
-      const productosDisponibles = Array.isArray(respuesta.data)
+      const disponibles = Array.isArray(respuesta.data)
         ? respuesta.data.filter((producto) => Number(producto.stock) > 0)
         : [];
 
-      setProductos(productosDisponibles);
+      setProductos(disponibles);
     } catch (err) {
       console.error("Error cargando productos:", err);
       toast.error("No se pudieron cargar los productos");
@@ -40,12 +41,18 @@ export default function RegistrarVentaEmpleado() {
     cargarProductos();
   }, []);
 
+  useEffect(() => {
+    const actualizarVista = () => setEsMovil(window.innerWidth <= 640);
+
+    window.addEventListener("resize", actualizarVista);
+
+    return () => window.removeEventListener("resize", actualizarVista);
+  }, []);
+
   const productosFiltrados = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
 
-    if (!texto) {
-      return productos;
-    }
+    if (!texto) return productos;
 
     return productos.filter((producto) =>
       String(producto.nombre || "")
@@ -128,10 +135,12 @@ export default function RegistrarVentaEmpleado() {
     }
   };
 
+  const styles = crearEstilos(esMovil);
+
   return (
     <main style={styles.container}>
       <header style={styles.header}>
-        <div>
+        <div style={styles.headerContent}>
           <p style={styles.eyebrow}>PUNTO DE VENTA</p>
           <h1 style={styles.title}>Registrar venta</h1>
           <p style={styles.subtitle}>
@@ -163,7 +172,7 @@ export default function RegistrarVentaEmpleado() {
                   type="search"
                   value={busqueda}
                   onChange={(event) => actualizarBusqueda(event.target.value)}
-                  placeholder="Escribe el nombre del producto..."
+                  placeholder="Nombre del producto..."
                   style={styles.searchInput}
                   disabled={procesando}
                 />
@@ -224,21 +233,25 @@ export default function RegistrarVentaEmpleado() {
 
             {productoSeleccionado && (
               <div style={styles.summary}>
-                <div style={styles.productIcon}>
-                  <FaBoxOpen />
-                </div>
+                <div style={styles.summaryProduct}>
+                  <div style={styles.productIcon}>
+                    <FaBoxOpen />
+                  </div>
 
-                <div style={styles.productData}>
-                  <span style={styles.summaryLabel}>Producto seleccionado</span>
+                  <div style={styles.productData}>
+                    <span style={styles.summaryLabel}>
+                      Producto seleccionado
+                    </span>
 
-                  <strong style={styles.productName}>
-                    {productoSeleccionado.nombre}
-                  </strong>
+                    <strong style={styles.productName}>
+                      {productoSeleccionado.nombre}
+                    </strong>
 
-                  <span style={styles.stock}>
-                    <FaCubes />
-                    {productoSeleccionado.stock} unidades disponibles
-                  </span>
+                    <span style={styles.stock}>
+                      <FaCubes />
+                      {productoSeleccionado.stock} unidades disponibles
+                    </span>
+                  </div>
                 </div>
 
                 <div style={styles.total}>
@@ -249,11 +262,10 @@ export default function RegistrarVentaEmpleado() {
             )}
 
             <div style={styles.payment}>
-              <FaCheckCircle />
+              <FaCheckCircle style={styles.paymentIcon} />
 
               <div style={styles.paymentContent}>
                 <strong>Pago en efectivo</strong>
-
                 <span>
                   La venta quedará registrada automáticamente como aprobada.
                 </span>
@@ -265,6 +277,10 @@ export default function RegistrarVentaEmpleado() {
               style={{
                 ...styles.submit,
                 opacity: procesando || !productoSeleccionado ? 0.6 : 1,
+                cursor:
+                  procesando || !productoSeleccionado
+                    ? "not-allowed"
+                    : "pointer",
               }}
               disabled={procesando || !productoSeleccionado}
             >
@@ -278,93 +294,114 @@ export default function RegistrarVentaEmpleado() {
   );
 }
 
-const styles = {
+const crearEstilos = (esMovil) => ({
   container: {
     width: "100%",
+    minWidth: 0,
     minHeight: "100%",
-    padding: "clamp(20px, 4vw, 36px)",
+    padding: esMovil ? "18px 14px 28px" : "clamp(20px, 4vw, 36px)",
     boxSizing: "border-box",
     color: "#f8fafc",
+    overflowX: "hidden",
   },
   header: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: "20px",
-    marginBottom: "28px",
+    alignItems: esMovil ? "flex-start" : "center",
+    gap: esMovil ? "14px" : "20px",
+    marginBottom: esMovil ? "20px" : "28px",
+  },
+  headerContent: {
+    minWidth: 0,
+    flex: 1,
   },
   eyebrow: {
     margin: "0 0 8px",
     color: "#a78bfa",
-    fontSize: "12px",
+    fontSize: esMovil ? "10px" : "12px",
     fontWeight: "800",
-    letterSpacing: "1.5px",
+    letterSpacing: "1.3px",
   },
   title: {
     margin: 0,
-    fontSize: "clamp(30px, 4vw, 34px)",
+    color: "#ffffff",
+    fontSize: esMovil ? "clamp(27px, 9vw, 32px)" : "clamp(30px, 4vw, 34px)",
+    lineHeight: 1.05,
     fontWeight: "900",
+    overflowWrap: "anywhere",
   },
   subtitle: {
-    margin: "8px 0 0",
+    margin: "9px 0 0",
+    maxWidth: "520px",
     color: "#94a3b8",
-    fontSize: "15px",
+    fontSize: esMovil ? "13px" : "15px",
+    lineHeight: 1.55,
   },
   headerIcon: {
     display: "grid",
     placeItems: "center",
-    width: "64px",
-    height: "64px",
+    width: esMovil ? "48px" : "64px",
+    height: esMovil ? "48px" : "64px",
     flexShrink: 0,
-    borderRadius: "20px",
+    marginTop: esMovil ? "2px" : 0,
+    borderRadius: esMovil ? "15px" : "20px",
     background: "linear-gradient(135deg, #7c3aed, #ec4899)",
     boxShadow: "0 12px 30px rgba(124,58,237,0.35)",
-    fontSize: "27px",
+    fontSize: esMovil ? "20px" : "27px",
   },
   panel: {
+    width: "100%",
     maxWidth: "900px",
-    padding: "clamp(20px, 4vw, 28px)",
+    minWidth: 0,
+    padding: esMovil ? "16px" : "clamp(20px, 4vw, 28px)",
+    boxSizing: "border-box",
     border: "1px solid rgba(167,139,250,0.18)",
-    borderRadius: "24px",
+    borderRadius: esMovil ? "18px" : "24px",
     background: "linear-gradient(145deg, #172033, #111827)",
     boxShadow: "0 18px 45px rgba(0,0,0,0.28)",
   },
   form: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-    gap: "20px",
+    gridTemplateColumns: esMovil
+      ? "minmax(0, 1fr)"
+      : "repeat(auto-fit, minmax(240px, 1fr))",
+    gap: esMovil ? "16px" : "20px",
+    minWidth: 0,
   },
   searchField: {
     gridColumn: "1 / -1",
     display: "flex",
+    minWidth: 0,
     flexDirection: "column",
     gap: "8px",
   },
   searchWrapper: {
     position: "relative",
+    minWidth: 0,
   },
   searchIcon: {
     position: "absolute",
     top: "50%",
-    left: "15px",
+    left: "14px",
     transform: "translateY(-50%)",
     color: "#94a3b8",
     pointerEvents: "none",
   },
   searchInput: {
     width: "100%",
-    padding: "14px 15px 14px 44px",
+    minWidth: 0,
+    padding: esMovil ? "13px 12px 13px 40px" : "14px 15px 14px 44px",
     boxSizing: "border-box",
     border: "1px solid rgba(255,255,255,0.1)",
     borderRadius: "13px",
     outline: "none",
     background: "#252f42",
     color: "#ffffff",
-    fontSize: "15px",
+    fontSize: esMovil ? "14px" : "15px",
   },
   field: {
     display: "flex",
+    minWidth: 0,
     flexDirection: "column",
     gap: "8px",
   },
@@ -375,14 +412,15 @@ const styles = {
   },
   input: {
     width: "100%",
-    padding: "14px 15px",
+    minWidth: 0,
+    padding: esMovil ? "13px 12px" : "14px 15px",
     boxSizing: "border-box",
     border: "1px solid rgba(255,255,255,0.1)",
     borderRadius: "13px",
     outline: "none",
     background: "#252f42",
     color: "#ffffff",
-    fontSize: "15px",
+    fontSize: esMovil ? "14px" : "15px",
   },
   resultText: {
     color: "#94a3b8",
@@ -396,31 +434,40 @@ const styles = {
     background: "rgba(127,29,29,0.8)",
     color: "#ffffff",
     fontWeight: "600",
+    fontSize: esMovil ? "13px" : "14px",
   },
   summary: {
     gridColumn: "1 / -1",
     display: "flex",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: "16px",
-    padding: "20px",
+    alignItems: esMovil ? "stretch" : "center",
+    flexDirection: esMovil ? "column" : "row",
+    gap: esMovil ? "14px" : "16px",
+    minWidth: 0,
+    padding: esMovil ? "15px" : "20px",
     border: "1px solid rgba(167,139,250,0.2)",
     borderRadius: "18px",
     background: "rgba(124,58,237,0.1)",
   },
+  summaryProduct: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    minWidth: 0,
+    flex: 1,
+  },
   productIcon: {
     display: "grid",
     placeItems: "center",
-    width: "52px",
-    height: "52px",
+    width: esMovil ? "44px" : "52px",
+    height: esMovil ? "44px" : "52px",
     flexShrink: 0,
     borderRadius: "15px",
     background: "linear-gradient(135deg, #7c3aed, #9333ea)",
-    fontSize: "22px",
+    fontSize: esMovil ? "18px" : "22px",
   },
   productData: {
     display: "flex",
-    flex: "1 1 220px",
+    minWidth: 0,
     flexDirection: "column",
     gap: "4px",
   },
@@ -430,37 +477,49 @@ const styles = {
   },
   productName: {
     color: "#ffffff",
-    fontSize: "17px",
+    fontSize: esMovil ? "15px" : "17px",
+    overflowWrap: "anywhere",
   },
   stock: {
     display: "flex",
     alignItems: "center",
     gap: "7px",
     color: "#34d399",
-    fontSize: "13px",
+    fontSize: esMovil ? "12px" : "13px",
   },
   total: {
     display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-end",
-    gap: "4px",
+    flexDirection: esMovil ? "row" : "column",
+    alignItems: esMovil ? "center" : "flex-end",
+    justifyContent: esMovil ? "space-between" : "center",
+    gap: "5px",
+    paddingTop: esMovil ? "12px" : 0,
+    borderTop: esMovil ? "1px solid rgba(255,255,255,0.08)" : "none",
     color: "#94a3b8",
   },
   payment: {
     gridColumn: "1 / -1",
     display: "flex",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: "12px",
-    padding: "16px",
+    minWidth: 0,
+    padding: esMovil ? "14px" : "16px",
     border: "1px solid rgba(52,211,153,0.18)",
     borderRadius: "15px",
     background: "rgba(16,185,129,0.09)",
     color: "#34d399",
   },
+  paymentIcon: {
+    flexShrink: 0,
+    marginTop: "2px",
+  },
   paymentContent: {
     display: "flex",
+    minWidth: 0,
     flexDirection: "column",
     gap: "4px",
+    fontSize: esMovil ? "12px" : "14px",
+    lineHeight: 1.45,
   },
   submit: {
     gridColumn: "1 / -1",
@@ -468,19 +527,20 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     gap: "9px",
-    padding: "15px",
+    width: "100%",
+    minHeight: "48px",
+    padding: "14px",
     border: "none",
     borderRadius: "14px",
     background: "linear-gradient(135deg, #7c3aed, #9333ea)",
     boxShadow: "0 10px 25px rgba(124,58,237,0.3)",
     color: "#ffffff",
-    cursor: "pointer",
     fontSize: "15px",
     fontWeight: "800",
   },
   state: {
-    padding: "60px 20px",
+    padding: esMovil ? "40px 12px" : "60px 20px",
     color: "#94a3b8",
     textAlign: "center",
   },
-};
+});
