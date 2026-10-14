@@ -10,6 +10,7 @@ import {
   FaArrowRight,
   FaMoneyBillWave,
   FaUserTie,
+  FaHandPaper,
   FaClock,
   FaCheckCircle,
   FaCalendarDay,
@@ -330,7 +331,14 @@ function DashboardEmpleado() {
             </div>
 
             <h1 style={styles.title}>
-              Hola, <span style={styles.titleSpan}>{nombre}</span> 👋
+              Hola, <span style={styles.titleSpan}>{nombre}</span>{" "}
+              <FaHandPaper
+                style={{
+                  color: "#f59e0b",
+                  fontSize: "0.8em",
+                  verticalAlign: "middle",
+                }}
+              />
             </h1>
 
             <p style={styles.subtitle}>

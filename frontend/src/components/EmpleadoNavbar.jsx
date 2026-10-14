@@ -110,7 +110,9 @@ export default function EmpleadoNavbar() {
     >
       <div style={styles.mainBar}>
         <Link to="/empleado" style={styles.logoContainer} onClick={cerrarMenu}>
-          <div style={styles.logoIcon}>👨‍💼</div>
+          <div style={styles.logoIcon}>
+            <FaUserTie />
+          </div>
 
           <div>
             <h2 style={styles.logo}>ModaGest Pro</h2>
