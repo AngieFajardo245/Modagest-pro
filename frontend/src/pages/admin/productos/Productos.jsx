@@ -30,7 +30,6 @@ export default function Productos() {
   const obtenerProductos = async () => {
     try {
       const respuesta = await api.get("/productos");
-
       setProductos(Array.isArray(respuesta.data) ? respuesta.data : []);
     } catch (error) {
       console.error("Error obteniendo productos:", error);
@@ -48,14 +47,11 @@ export default function Productos() {
           api.get("/categorias"),
         ]);
 
-        if (!componenteActivo) {
-          return;
-        }
+        if (!componenteActivo) return;
 
         setProductos(
           Array.isArray(respuestaProductos.data) ? respuestaProductos.data : [],
         );
-
         setCategorias(
           Array.isArray(respuestaCategorias.data)
             ? respuestaCategorias.data
@@ -80,9 +76,7 @@ export default function Productos() {
   const productosFiltrados = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
 
-    if (!texto) {
-      return productos;
-    }
+    if (!texto) return productos;
 
     return productos.filter((producto) => {
       const nombre = String(producto?.nombre || "").toLowerCase();
@@ -122,12 +116,7 @@ export default function Productos() {
     const archivo = event.target.files?.[0] || null;
 
     liberarVistaPrevia();
-
-    setFormulario((actual) => ({
-      ...actual,
-      imagen: archivo,
-    }));
-
+    setFormulario((actual) => ({ ...actual, imagen: archivo }));
     setPreviewImagen(archivo ? URL.createObjectURL(archivo) : null);
   };
 
@@ -140,9 +129,7 @@ export default function Productos() {
     datos.append("stock", formulario.stock);
     datos.append("categoriaId", formulario.categoriaId);
 
-    if (formulario.imagen) {
-      datos.append("imagen", formulario.imagen);
-    }
+    if (formulario.imagen) datos.append("imagen", formulario.imagen);
 
     return datos;
   };
@@ -152,13 +139,11 @@ export default function Productos() {
 
     try {
       await api.post("/productos", crearFormData());
-
       toast.success("Producto creado correctamente");
       limpiarFormulario();
       await obtenerProductos();
     } catch (error) {
       console.error("Error creando producto:", error);
-
       toast.error(
         error.response?.data?.message ||
           error.response?.data?.error ||
@@ -169,9 +154,7 @@ export default function Productos() {
 
   const editarProducto = (producto) => {
     liberarVistaPrevia();
-
     setEditando(producto.id);
-
     setFormulario({
       nombre: producto.nombre || "",
       descripcion: producto.descripcion || "",
@@ -182,11 +165,11 @@ export default function Productos() {
     });
 
     if (producto.imagen) {
-      const imagenUrl = producto.imagen.startsWith("http")
-        ? producto.imagen
-        : `${API_BASE_URL}/uploads/${producto.imagen}`;
-
-      setPreviewImagen(imagenUrl);
+      setPreviewImagen(
+        producto.imagen.startsWith("http")
+          ? producto.imagen
+          : `${API_BASE_URL}/uploads/${producto.imagen}`,
+      );
     } else {
       setPreviewImagen(null);
     }
@@ -204,7 +187,6 @@ export default function Productos() {
 
     try {
       await api.put(`/productos/${editando}`, crearFormData());
-
       toast.success("Producto actualizado correctamente");
       setEditando(null);
       setMostrarModal(false);
@@ -212,7 +194,6 @@ export default function Productos() {
       await obtenerProductos();
     } catch (error) {
       console.error("Error actualizando producto:", error);
-
       toast.error(
         error.response?.data?.message ||
           error.response?.data?.error ||
@@ -226,18 +207,14 @@ export default function Productos() {
       "¿Estás seguro de que deseas eliminar este producto?",
     );
 
-    if (!confirmar) {
-      return;
-    }
+    if (!confirmar) return;
 
     try {
       await api.delete(`/productos/${id}`);
-
       toast.success("Producto eliminado correctamente");
       await obtenerProductos();
     } catch (error) {
       console.error("Error eliminando producto:", error);
-
       toast.error(
         error.response?.data?.message ||
           error.response?.data?.error ||
@@ -251,7 +228,7 @@ export default function Productos() {
       <header style={styles.header}>
         <h1 style={styles.title}>
           <FaBoxOpen />
-          Gestión de Productos
+          <span>Gestión de Productos</span>
         </h1>
       </header>
 
@@ -298,34 +275,39 @@ export default function Productos() {
 
 const styles = {
   container: {
+    width: "100%",
+    minWidth: 0,
     minHeight: "100vh",
-    padding: "40px",
-    fontFamily: "Arial",
+    boxSizing: "border-box",
+    padding: "clamp(16px, 4vw, 40px)",
+    overflowX: "hidden",
+    fontFamily: "Arial, sans-serif",
     background:
       "radial-gradient(circle at top left, #312e81 0%, #0f172a 35%, #020617 100%)",
   },
   header: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: "30px",
+    marginBottom: "clamp(22px, 4vw, 30px)",
   },
   title: {
+    minWidth: 0,
     display: "flex",
     alignItems: "center",
-    gap: "12px",
+    gap: "clamp(9px, 2vw, 12px)",
     margin: 0,
     color: "#ffffff",
-    fontSize: "38px",
+    fontSize: "clamp(26px, 7vw, 38px)",
     fontWeight: "800",
+    lineHeight: 1.15,
   },
   search: {
     width: "100%",
     boxSizing: "border-box",
-    marginBottom: "30px",
-    padding: "16px",
-    border: "none",
-    borderRadius: "18px",
+    marginBottom: "clamp(22px, 4vw, 30px)",
+    padding: "clamp(13px, 3vw, 16px)",
+    border: "1px solid rgba(255,255,255,0.1)",
+    borderRadius: "clamp(14px, 3vw, 18px)",
     outline: "none",
     fontSize: "15px",
   },
