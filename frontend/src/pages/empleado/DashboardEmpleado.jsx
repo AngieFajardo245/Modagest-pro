@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
-
 import {
   FaBoxOpen,
   FaShoppingBag,
@@ -10,7 +9,6 @@ import {
   FaArrowRight,
   FaMoneyBillWave,
   FaUserTie,
-  FaHandPaper,
   FaClock,
   FaCheckCircle,
   FaCalendarDay,
@@ -20,24 +18,36 @@ import {
   FaSyncAlt,
 } from "react-icons/fa";
 
+const ESTADISTICAS_INICIALES = {
+  productos: 0,
+  ventas: 0,
+  totalVendido: 0,
+  ventasHoy: 0,
+  totalHoy: 0,
+  ventasMes: 0,
+  totalMes: 0,
+  unidadesVendidas: 0,
+};
+
+const moneda = new Intl.NumberFormat("es-CO", {
+  style: "currency",
+  currency: "COP",
+  maximumFractionDigits: 0,
+});
+
+const formatoMoneda = (valor) => moneda.format(Number(valor) || 0);
+
 const obtenerNombreUsuario = () => {
   try {
     const usuario = JSON.parse(localStorage.getItem("usuario") || "null");
     return usuario?.nombre || "Empleado";
-  } catch (error) {
-    console.error("Error leyendo usuario:", error);
+  } catch {
     return "Empleado";
   }
 };
 
-const obtenerPago = (venta) => {
-  if (!venta) return null;
-  if (venta.Pago) return venta.Pago;
-  if (Array.isArray(venta.Pagos) && venta.Pagos.length > 0) {
-    return venta.Pagos[0];
-  }
-  return null;
-};
+const obtenerPago = (venta) =>
+  venta?.Pago || (Array.isArray(venta?.Pagos) ? venta.Pagos[0] : null);
 
 const ventaAprobada = (venta) => {
   const pago = obtenerPago(venta);
@@ -45,203 +55,177 @@ const ventaAprobada = (venta) => {
   if (!pago) return true;
 
   const estado = String(pago.estado || "")
-    .toLowerCase()
-    .trim();
-
+    .trim()
+    .toLowerCase();
   return ["aprobado", "aprobada", "approved"].includes(estado);
 };
 
-const esMismoDia = (fecha, referencia) => {
-  if (!fecha) return false;
+const esMismoMes = (fecha, referencia) =>
+  fecha.getFullYear() === referencia.getFullYear() &&
+  fecha.getMonth() === referencia.getMonth();
 
-  const fechaVenta = new Date(fecha);
+const formatoFecha = (valor) => {
+  if (!valor) return "Sin fecha";
 
-  if (Number.isNaN(fechaVenta.getTime())) return false;
+  const fecha = new Date(valor);
 
-  return (
-    fechaVenta.getDate() === referencia.getDate() &&
-    fechaVenta.getMonth() === referencia.getMonth() &&
-    fechaVenta.getFullYear() === referencia.getFullYear()
-  );
-};
+  if (Number.isNaN(fecha.getTime())) return "Fecha inválida";
 
-const esMismoMes = (fecha, referencia) => {
-  if (!fecha) return false;
-
-  const fechaVenta = new Date(fecha);
-
-  if (Number.isNaN(fechaVenta.getTime())) return false;
-
-  return (
-    fechaVenta.getMonth() === referencia.getMonth() &&
-    fechaVenta.getFullYear() === referencia.getFullYear()
-  );
-};
-
-function DashboardEmpleado() {
-  const navigate = useNavigate();
-
-  const [nombre] = useState(obtenerNombreUsuario);
-
-  const [stats, setStats] = useState({
-    productos: 0,
-    ventas: 0,
-    totalVendido: 0,
-    ventasHoy: 0,
-    totalHoy: 0,
-    ventasMes: 0,
-    totalMes: 0,
-    unidadesVendidas: 0,
+  return fecha.toLocaleString("es-CO", {
+    dateStyle: "medium",
+    timeStyle: "short",
   });
+};
 
+function Indicador({ icono: Icono, color, titulo, valor, descripcion }) {
+  return (
+    <div style={styles.statCard}>
+      <div
+        style={{
+          ...styles.iconBox,
+          background: color,
+          color: "#fff",
+        }}
+      >
+        <Icono aria-hidden="true" />
+      </div>
+
+      <div style={styles.flexContent}>
+        <p style={styles.statLabel}>{titulo}</p>
+        <h2 style={styles.statValue}>{valor}</h2>
+        <span style={styles.description}>{descripcion}</span>
+      </div>
+    </div>
+  );
+}
+
+function Rendimiento({ icono: Icono, color, titulo, valor, descripcion }) {
+  return (
+    <div style={styles.performanceCard}>
+      <div
+        style={{
+          ...styles.iconBox,
+          background: `${color}20`,
+          color,
+        }}
+      >
+        <Icono aria-hidden="true" />
+      </div>
+
+      <div style={styles.flexContent}>
+        <span style={styles.statLabel}>{titulo}</span>
+        <strong style={styles.performanceValue}>{valor}</strong>
+        <span style={styles.description}>{descripcion}</span>
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardEmpleado() {
+  const navigate = useNavigate();
+  const [nombre] = useState(obtenerNombreUsuario);
+  const [stats, setStats] = useState(ESTADISTICAS_INICIALES);
   const [productoMasVendido, setProductoMasVendido] = useState(null);
   const [ultimaVenta, setUltimaVenta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actualizando, setActualizando] = useState(false);
+  const [error, setError] = useState("");
 
   const obtenerDatos = useCallback(async () => {
-    try {
-      setActualizando(true);
+    setActualizando(true);
+    setError("");
 
+    try {
       const [productosRes, ventasRes] = await Promise.all([
         api.get("/productos"),
         api.get("/empleado/ventas"),
       ]);
 
-      const productosData = Array.isArray(productosRes.data)
+      const productos = Array.isArray(productosRes.data)
         ? productosRes.data
         : [];
 
-      const ventasData = Array.isArray(ventasRes.data) ? ventasRes.data : [];
-
-      const ventasAprobadas = ventasData.filter(ventaAprobada);
+      const ventas = (
+        Array.isArray(ventasRes.data) ? ventasRes.data : []
+      ).filter(ventaAprobada);
 
       const ahora = new Date();
-
-      const ventasOrdenadas = [...ventasAprobadas].sort(
-        (a, b) =>
-          new Date(b?.createdAt || 0).getTime() -
-          new Date(a?.createdAt || 0).getTime(),
-      );
-
-      const ultimaVentaData =
-        ventasOrdenadas.length > 0 ? ventasOrdenadas[0] : null;
-
-      const ingresosTotales = ventasAprobadas.reduce(
-        (total, venta) => total + Number(venta?.total || 0),
-        0,
-      );
-
-      const ventasHoy = ventasAprobadas.filter((venta) =>
-        esMismoDia(venta?.createdAt, ahora),
-      );
-
-      const totalHoy = ventasHoy.reduce(
-        (total, venta) => total + Number(venta?.total || 0),
-        0,
-      );
-
-      const ventasMes = ventasAprobadas.filter((venta) =>
-        esMismoMes(venta?.createdAt, ahora),
-      );
-
-      const totalMes = ventasMes.reduce(
-        (total, venta) => total + Number(venta?.total || 0),
-        0,
-      );
-
-      const unidadesVendidas = ventasAprobadas.reduce((totalVenta, venta) => {
-        if (!Array.isArray(venta?.Detalles)) {
-          return totalVenta;
-        }
-
-        return (
-          totalVenta +
-          venta.Detalles.reduce(
-            (totalDetalle, detalle) =>
-              totalDetalle + Number(detalle?.cantidad || 0),
-            0,
-          )
-        );
-      }, 0);
-
       const productosVendidos = {};
+      let totalVendido = 0;
+      let ventasHoy = 0;
+      let totalHoy = 0;
+      let ventasMes = 0;
+      let totalMes = 0;
+      let unidadesVendidas = 0;
 
-      ventasAprobadas.forEach((venta) => {
-        if (!Array.isArray(venta?.Detalles)) {
-          return;
+      ventas.forEach((venta) => {
+        const total = Number(venta?.total) || 0;
+        const fecha = new Date(venta?.createdAt);
+        totalVendido += total;
+
+        if (!Number.isNaN(fecha.getTime()) && esMismoMes(fecha, ahora)) {
+          ventasMes += 1;
+          totalMes += total;
+
+          if (fecha.getDate() === ahora.getDate()) {
+            ventasHoy += 1;
+            totalHoy += total;
+          }
         }
 
-        venta.Detalles.forEach((detalle) => {
-          const productoId = detalle?.productoId;
+        const detalles = Array.isArray(venta?.Detalles) ? venta.Detalles : [];
 
-          if (!productoId) {
-            return;
-          }
+        detalles.forEach((detalle) => {
+          const cantidad = Number(detalle?.cantidad) || 0;
+          unidadesVendidas += cantidad;
 
-          const cantidad = Number(detalle?.cantidad || 0);
+          const id = detalle?.productoId;
 
-          if (cantidad <= 0) {
-            return;
-          }
+          if (!id || cantidad <= 0) return;
 
-          const nombreProducto =
-            detalle?.Producto?.nombre || `Producto #${productoId}`;
-
-          if (!productosVendidos[productoId]) {
-            productosVendidos[productoId] = {
-              id: productoId,
-              nombre: nombreProducto,
+          if (!productosVendidos[id]) {
+            productosVendidos[id] = {
+              id,
+              nombre: detalle?.Producto?.nombre || `Producto #${id}`,
               cantidad: 0,
             };
           }
 
-          productosVendidos[productoId].cantidad += cantidad;
+          productosVendidos[id].cantidad += cantidad;
         });
       });
 
-      const rankingProductos = Object.values(productosVendidos).sort(
+      const ranking = Object.values(productosVendidos).sort(
         (a, b) => b.cantidad - a.cantidad,
       );
 
+      const ventasOrdenadas = [...ventas].sort(
+        (a, b) =>
+          (new Date(b?.createdAt).getTime() || 0) -
+          (new Date(a?.createdAt).getTime() || 0),
+      );
+
       setStats({
-        productos: productosData.length,
-        ventas: ventasAprobadas.length,
-        totalVendido: ingresosTotales,
-        ventasHoy: ventasHoy.length,
+        productos: productos.length,
+        ventas: ventas.length,
+        totalVendido,
+        ventasHoy,
         totalHoy,
-        ventasMes: ventasMes.length,
+        ventasMes,
         totalMes,
         unidadesVendidas,
       });
 
-      setProductoMasVendido(
-        rankingProductos.length > 0 ? rankingProductos[0] : null,
-      );
-
-      setUltimaVenta(ultimaVentaData);
+      setProductoMasVendido(ranking[0] || null);
+      setUltimaVenta(ventasOrdenadas[0] || null);
     } catch (error) {
       console.error("Error cargando datos del empleado:", error);
-
-      setStats({
-        productos: 0,
-        ventas: 0,
-        totalVendido: 0,
-        ventasHoy: 0,
-        totalHoy: 0,
-        ventasMes: 0,
-        totalMes: 0,
-        unidadesVendidas: 0,
-      });
-
-      setProductoMasVendido(null);
-      setUltimaVenta(null);
+      setError(
+        "No se pudieron actualizar los datos. Revisa tu conexión e inténtalo nuevamente.",
+      );
     } finally {
       setLoading(false);
-
-      setTimeout(() => {
-        setActualizando(false);
-      }, 400);
+      setActualizando(false);
     }
   }, []);
 
@@ -253,65 +237,34 @@ function DashboardEmpleado() {
     return () => window.clearTimeout(temporizador);
   }, [obtenerDatos]);
 
-  const formatoMoneda = (valor) => {
-    return new Intl.NumberFormat("es-CO", {
-      style: "currency",
-      currency: "COP",
-      maximumFractionDigits: 0,
-    }).format(Number(valor) || 0);
-  };
+  const porcentajeHoyVsMes = useMemo(() => {
+    if (stats.totalMes <= 0 || stats.totalHoy <= 0) return 0;
 
-  const formatoFecha = (fecha) => {
-    if (!fecha) {
-      return "Sin fecha";
-    }
+    return Math.min(100, Math.round((stats.totalHoy / stats.totalMes) * 100));
+  }, [stats.totalHoy, stats.totalMes]);
 
-    const fechaObj = new Date(fecha);
+  const productoUltimaVenta = useMemo(() => {
+    const detalles = ultimaVenta?.Detalles;
 
-    if (Number.isNaN(fechaObj.getTime())) {
-      return "Fecha inválida";
-    }
-
-    return fechaObj.toLocaleString("es-CO", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
-  };
-
-  const obtenerProductoUltimaVenta = () => {
-    if (
-      !ultimaVenta ||
-      !Array.isArray(ultimaVenta.Detalles) ||
-      ultimaVenta.Detalles.length === 0
-    ) {
+    if (!Array.isArray(detalles) || detalles.length === 0) {
       return "Venta registrada";
     }
 
-    const nombres = ultimaVenta.Detalles.map(
+    const nombres = detalles.map(
       (detalle) =>
         detalle?.Producto?.nombre ||
         `Producto #${detalle?.productoId || "N/A"}`,
     );
 
-    if (nombres.length === 1) {
-      return nombres[0];
-    }
-
-    return `${nombres[0]} y ${nombres.length - 1} producto(s) más`;
-  };
-
-  const porcentajeHoyVsMes = useMemo(() => {
-    if (stats.totalMes <= 0 || stats.totalHoy <= 0) {
-      return 0;
-    }
-
-    return Math.min(100, Math.round((stats.totalHoy / stats.totalMes) * 100));
-  }, [stats.totalHoy, stats.totalMes]);
+    return nombres.length === 1
+      ? nombres[0]
+      : `${nombres[0]} y ${nombres.length - 1} producto(s) más`;
+  }, [ultimaVenta]);
 
   if (loading) {
     return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.loader}></div>
+      <div style={styles.loadingContainer} role="status">
+        <FaSyncAlt style={styles.loadingIcon} aria-hidden="true" />
         <p style={styles.loadingText}>Cargando panel del empleado...</p>
       </div>
     );
@@ -319,14 +272,11 @@ function DashboardEmpleado() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.backgroundGlowOne}></div>
-      <div style={styles.backgroundGlowTwo}></div>
-
       <div style={styles.content}>
         <header style={styles.header}>
-          <div>
+          <div style={styles.flexContent}>
             <div style={styles.welcomeBadge}>
-              <FaUserTie />
+              <FaUserTie aria-hidden="true" />
               Panel de empleado
             </div>
 
@@ -343,13 +293,12 @@ function DashboardEmpleado() {
           <div style={styles.headerActions}>
             <div style={styles.commercialBadge}>
               <div style={styles.commercialIcon}>
-                <FaChartLine />
+                <FaChartLine aria-hidden="true" />
               </div>
 
-              <div>
+              <div style={styles.flexContent}>
                 <strong style={styles.commercialStrong}>Área Comercial</strong>
-
-                <small style={styles.commercialSmall}>Gestión de ventas</small>
+                <span style={styles.description}>Gestión de ventas</span>
               </div>
             </div>
 
@@ -357,168 +306,102 @@ function DashboardEmpleado() {
               type="button"
               style={{
                 ...styles.refreshButton,
-                opacity: actualizando ? 0.75 : 1,
+                opacity: actualizando ? 0.7 : 1,
                 cursor: actualizando ? "wait" : "pointer",
               }}
-              onClick={actualizando ? undefined : obtenerDatos}
+              onClick={obtenerDatos}
               disabled={actualizando}
             >
-              <FaSyncAlt
-                style={{
-                  animation: actualizando
-                    ? "spin 0.8s linear infinite"
-                    : "none",
-                }}
-              />
-
+              <FaSyncAlt aria-hidden="true" />
               {actualizando ? "Actualizando..." : "Actualizar"}
             </button>
           </div>
         </header>
 
-        <section style={styles.statsGrid}>
-          <div style={styles.statCard}>
-            <div style={styles.statIconPurple}>
-              <FaBoxOpen />
-            </div>
-
-            <div>
-              <p style={styles.statLabel}>Productos disponibles</p>
-
-              <h2 style={styles.statNumber}>{stats.productos}</h2>
-
-              <span style={styles.statDescription}>Productos registrados</span>
-            </div>
+        {error && (
+          <div style={styles.error} role="alert">
+            {error}
           </div>
+        )}
 
-          <div style={styles.statCard}>
-            <div style={styles.statIconBlue}>
-              <FaShoppingBag />
-            </div>
+        <section style={styles.statsGrid} aria-label="Indicadores generales">
+          <Indicador
+            icono={FaBoxOpen}
+            color="linear-gradient(135deg, #7c3aed, #8b5cf6)"
+            titulo="Productos disponibles"
+            valor={stats.productos}
+            descripcion="Productos registrados"
+          />
 
-            <div>
-              <p style={styles.statLabel}>Ventas realizadas</p>
+          <Indicador
+            icono={FaShoppingBag}
+            color="linear-gradient(135deg, #2563eb, #3b82f6)"
+            titulo="Ventas realizadas"
+            valor={stats.ventas}
+            descripcion="Ventas aprobadas"
+          />
 
-              <h2 style={styles.statNumber}>{stats.ventas}</h2>
-
-              <span style={styles.statDescription}>Ventas aprobadas</span>
-            </div>
-          </div>
-
-          <div style={styles.statCard}>
-            <div style={styles.statIconGreen}>
-              <FaMoneyBillWave />
-            </div>
-
-            <div style={{ minWidth: 0 }}>
-              <p style={styles.statLabel}>Total vendido</p>
-
-              <h2 style={styles.statMoney}>
-                {formatoMoneda(stats.totalVendido)}
-              </h2>
-
-              <span style={styles.statDescription}>Acumulado general</span>
-            </div>
-          </div>
+          <Indicador
+            icono={FaMoneyBillWave}
+            color="linear-gradient(135deg, #059669, #10b981)"
+            titulo="Total vendido"
+            valor={formatoMoneda(stats.totalVendido)}
+            descripcion="Acumulado general"
+          />
         </section>
 
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
-            <div>
-              <span style={styles.eyebrow}>RENDIMIENTO</span>
-
-              <h2 style={styles.sectionTitle}>Tu actividad comercial</h2>
-
-              <p style={styles.sectionSubtitle}>
-                Una vista rápida de tus principales indicadores.
-              </p>
-            </div>
+            <span style={styles.eyebrow}>RENDIMIENTO</span>
+            <h2 style={styles.sectionTitle}>Tu actividad comercial</h2>
+            <p style={styles.sectionSubtitle}>
+              Una vista rápida de tus principales indicadores.
+            </p>
           </div>
 
           <div style={styles.performanceGrid}>
-            <div style={styles.performanceCard}>
-              <div style={styles.performanceIconBlue}>
-                <FaCalendarDay />
-              </div>
+            <Rendimiento
+              icono={FaCalendarDay}
+              color="#60a5fa"
+              titulo="Ventas de hoy"
+              valor={stats.ventasHoy}
+              descripcion={formatoMoneda(stats.totalHoy)}
+            />
 
-              <div style={styles.performanceContent}>
-                <span style={styles.performanceLabel}>Ventas de hoy</span>
+            <Rendimiento
+              icono={FaCalendarAlt}
+              color="#a78bfa"
+              titulo="Ventas del mes"
+              valor={stats.ventasMes}
+              descripcion={formatoMoneda(stats.totalMes)}
+            />
 
-                <strong style={styles.performanceNumber}>
-                  {stats.ventasHoy}
-                </strong>
+            <Rendimiento
+              icono={FaBoxes}
+              color="#fbbf24"
+              titulo="Unidades vendidas"
+              valor={stats.unidadesVendidas}
+              descripcion="Productos vendidos"
+            />
 
-                <span style={styles.performanceDescription}>
-                  {formatoMoneda(stats.totalHoy)}
-                </span>
-              </div>
-            </div>
-
-            <div style={styles.performanceCard}>
-              <div style={styles.performanceIconPurple}>
-                <FaCalendarAlt />
-              </div>
-
-              <div style={styles.performanceContent}>
-                <span style={styles.performanceLabel}>Ventas del mes</span>
-
-                <strong style={styles.performanceNumber}>
-                  {stats.ventasMes}
-                </strong>
-
-                <span style={styles.performanceDescription}>
-                  {formatoMoneda(stats.totalMes)}
-                </span>
-              </div>
-            </div>
-
-            <div style={styles.performanceCard}>
-              <div style={styles.performanceIconOrange}>
-                <FaBoxes />
-              </div>
-
-              <div style={styles.performanceContent}>
-                <span style={styles.performanceLabel}>Unidades vendidas</span>
-
-                <strong style={styles.performanceNumber}>
-                  {stats.unidadesVendidas}
-                </strong>
-
-                <span style={styles.performanceDescription}>
-                  Productos vendidos
-                </span>
-              </div>
-            </div>
-
-            <div style={styles.performanceCard}>
-              <div style={styles.performanceIconGold}>
-                <FaTrophy />
-              </div>
-
-              <div style={styles.performanceContent}>
-                <span style={styles.performanceLabel}>Producto destacado</span>
-
-                <strong style={styles.bestProductName}>
-                  {productoMasVendido
-                    ? productoMasVendido.nombre
-                    : "Sin ventas"}
-                </strong>
-
-                <span style={styles.performanceDescription}>
-                  {productoMasVendido
-                    ? `${productoMasVendido.cantidad} unidad(es)`
-                    : "Aún no hay datos"}
-                </span>
-              </div>
-            </div>
+            <Rendimiento
+              icono={FaTrophy}
+              color="#fcd34d"
+              titulo="Producto destacado"
+              valor={productoMasVendido?.nombre || "Sin ventas"}
+              descripcion={
+                productoMasVendido
+                  ? `${productoMasVendido.cantidad} unidad(es)`
+                  : "Aún no hay datos"
+              }
+            />
           </div>
         </section>
 
         <section style={styles.monthCard}>
           <div style={styles.monthTop}>
-            <div>
+            <div style={styles.flexContent}>
               <span style={styles.eyebrow}>RESUMEN DEL MES</span>
-
               <h2 style={styles.monthTitle}>Actividad de hoy</h2>
             </div>
 
@@ -526,12 +409,18 @@ function DashboardEmpleado() {
               <strong style={styles.percentageStrong}>
                 {porcentajeHoyVsMes}%
               </strong>
-
-              <span style={styles.percentageSpan}>del mes</span>
+              <span style={styles.description}>del mes</span>
             </div>
           </div>
 
-          <div style={styles.progressBackground}>
+          <div
+            style={styles.progressBackground}
+            role="progressbar"
+            aria-label="Porcentaje de ingresos de hoy respecto al mes"
+            aria-valuenow={porcentajeHoyVsMes}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
             <div
               style={{
                 ...styles.progressFill,
@@ -548,15 +437,11 @@ function DashboardEmpleado() {
 
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
-            <div>
-              <span style={styles.eyebrow}>GESTIÓN COMERCIAL</span>
-
-              <h2 style={styles.sectionTitle}>Acciones rápidas</h2>
-
-              <p style={styles.sectionSubtitle}>
-                Accede a las funciones principales de tu panel.
-              </p>
-            </div>
+            <span style={styles.eyebrow}>GESTIÓN COMERCIAL</span>
+            <h2 style={styles.sectionTitle}>Acciones rápidas</h2>
+            <p style={styles.sectionSubtitle}>
+              Accede a las funciones principales de tu panel.
+            </p>
           </div>
 
           <div style={styles.actionsGrid}>
@@ -567,18 +452,13 @@ function DashboardEmpleado() {
             >
               <div style={styles.actionTop}>
                 <div style={styles.actionIcon}>
-                  <FaCashRegister />
+                  <FaCashRegister aria-hidden="true" />
                 </div>
-
-                <div style={styles.actionCircle}>
-                  <FaArrowRight />
-                </div>
+                <FaArrowRight aria-hidden="true" />
               </div>
 
               <span style={styles.actionTag}>VENTAS</span>
-
               <h3 style={styles.actionTitle}>Registrar una venta</h3>
-
               <p style={styles.actionText}>
                 Selecciona productos, indica cantidades y registra una nueva
                 venta rápidamente.
@@ -586,7 +466,7 @@ function DashboardEmpleado() {
 
               <div style={styles.actionFooter}>
                 <span>Ir a productos</span>
-                <FaArrowRight />
+                <FaArrowRight aria-hidden="true" />
               </div>
             </button>
 
@@ -597,18 +477,13 @@ function DashboardEmpleado() {
             >
               <div style={styles.actionTop}>
                 <div style={styles.actionIconBlue}>
-                  <FaShoppingBag />
+                  <FaShoppingBag aria-hidden="true" />
                 </div>
-
-                <div style={styles.actionCircle}>
-                  <FaArrowRight />
-                </div>
+                <FaArrowRight aria-hidden="true" />
               </div>
 
               <span style={styles.actionTagBlue}>HISTORIAL</span>
-
               <h3 style={styles.actionTitle}>Historial de ventas</h3>
-
               <p style={styles.actionText}>
                 Consulta tus ventas realizadas y revisa los detalles de cada
                 operación.
@@ -616,7 +491,7 @@ function DashboardEmpleado() {
 
               <div style={styles.actionFooterBlue}>
                 <span>Ver ventas</span>
-                <FaArrowRight />
+                <FaArrowRight aria-hidden="true" />
               </div>
             </button>
           </div>
@@ -624,13 +499,12 @@ function DashboardEmpleado() {
 
         <section style={styles.section}>
           <div style={styles.lastSaleHeader}>
-            <div style={styles.lastSaleIcon}>
-              <FaClock />
+            <div style={styles.commercialIcon}>
+              <FaClock aria-hidden="true" />
             </div>
 
-            <div>
+            <div style={styles.flexContent}>
               <span style={styles.eyebrow}>ACTIVIDAD RECIENTE</span>
-
               <h2 style={styles.lastSaleTitle}>Última venta realizada</h2>
             </div>
           </div>
@@ -639,12 +513,10 @@ function DashboardEmpleado() {
             <div style={styles.saleCard}>
               <div style={styles.saleMain}>
                 <span style={styles.saleLabel}>Venta #{ultimaVenta.id}</span>
-
                 <strong style={styles.saleProduct}>
-                  {obtenerProductoUltimaVenta()}
+                  {productoUltimaVenta}
                 </strong>
-
-                <span style={styles.saleDate}>
+                <span style={styles.description}>
                   {formatoFecha(ultimaVenta.createdAt)}
                 </span>
               </div>
@@ -653,35 +525,31 @@ function DashboardEmpleado() {
                 <strong style={styles.saleTotal}>
                   {formatoMoneda(ultimaVenta.total)}
                 </strong>
-
                 <span style={styles.saleStatus}>
-                  <FaCheckCircle />
+                  <FaCheckCircle aria-hidden="true" />
                   Aprobada
                 </span>
               </div>
             </div>
           ) : (
             <div style={styles.noSale}>
-              <FaShoppingBag />
-
+              <FaShoppingBag aria-hidden="true" />
               <span>Todavía no has realizado ventas aprobadas.</span>
             </div>
           )}
         </section>
 
         <section style={styles.summarySection}>
-          <div style={styles.summaryIcon}>
-            <FaChartLine />
+          <div style={styles.commercialIcon}>
+            <FaChartLine aria-hidden="true" />
           </div>
 
-          <div>
+          <div style={styles.flexContent}>
             <span style={styles.eyebrow}>RESUMEN DE ACTIVIDAD</span>
-
             <h3 style={styles.summaryTitle}>Tu desempeño comercial</h3>
-
             <p style={styles.summaryText}>
               Actualmente tienes <strong>{stats.ventas}</strong> ventas
-              registradas, has vendido <strong>{stats.unidadesVendidas}</strong>{" "}
+              aprobadas, has vendido <strong>{stats.unidadesVendidas}</strong>{" "}
               unidades y has generado{" "}
               <strong>{formatoMoneda(stats.totalVendido)}</strong>.
             </p>
@@ -692,81 +560,107 @@ function DashboardEmpleado() {
   );
 }
 
-export default DashboardEmpleado;
+const panel = {
+  minWidth: 0,
+  boxSizing: "border-box",
+  border: "1px solid rgba(255,255,255,0.08)",
+  background: "rgba(255,255,255,0.04)",
+  borderRadius: "20px",
+  padding: "clamp(14px, 2vw, 22px)",
+};
+
+const icono = {
+  width: "44px",
+  height: "44px",
+  flexShrink: 0,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: "13px",
+  fontSize: "20px",
+};
+
+const accion = {
+  ...panel,
+  width: "100%",
+  textAlign: "left",
+  color: "#fff",
+  cursor: "pointer",
+  fontFamily: "inherit",
+  overflowWrap: "anywhere",
+  boxShadow: "0 12px 30px rgba(0,0,0,0.16)",
+};
+
+const pieAccion = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "10px",
+  marginTop: "18px",
+  paddingTop: "14px",
+  borderTop: "1px solid rgba(255,255,255,0.08)",
+  fontSize: "12px",
+  fontWeight: 700,
+};
 
 const styles = {
   container: {
     position: "relative",
+    width: "100%",
+    minWidth: 0,
     minHeight: "100vh",
-    padding: "30px",
+    boxSizing: "border-box",
+    padding: "clamp(8px, 2vw, 24px)",
     background:
       "linear-gradient(145deg, #080b14 0%, #0d1220 48%, #090d18 100%)",
-    color: "#ffffff",
-    overflow: "hidden",
+    color: "#fff",
+    overflowWrap: "anywhere",
   },
 
   content: {
-    position: "relative",
-    zIndex: 2,
+    width: "100%",
+    minWidth: 0,
     maxWidth: "1450px",
     margin: "0 auto",
   },
 
-  backgroundGlowOne: {
-    position: "absolute",
-    width: "420px",
-    height: "420px",
-    top: "-180px",
-    right: "-100px",
-    borderRadius: "50%",
-    background: "rgba(124,58,237,0.10)",
-    filter: "blur(100px)",
-    pointerEvents: "none",
-  },
-
-  backgroundGlowTwo: {
-    position: "absolute",
-    width: "350px",
-    height: "350px",
-    bottom: "5%",
-    left: "-180px",
-    borderRadius: "50%",
-    background: "rgba(37,99,235,0.08)",
-    filter: "blur(100px)",
-    pointerEvents: "none",
+  flexContent: {
+    minWidth: 0,
   },
 
   header: {
-    display: "flex",
-    justifyContent: "space-between",
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))",
     alignItems: "center",
-    gap: "30px",
-    flexWrap: "wrap",
-    marginBottom: "35px",
+    gap: "18px",
+    marginBottom: "24px",
+    minWidth: 0,
   },
 
   welcomeBadge: {
     display: "inline-flex",
     alignItems: "center",
     gap: "8px",
-    padding: "8px 14px",
+    maxWidth: "100%",
+    boxSizing: "border-box",
+    padding: "8px 12px",
     borderRadius: "999px",
     background: "rgba(139,92,246,0.10)",
     border: "1px solid rgba(139,92,246,0.20)",
     color: "#c4b5fd",
     fontSize: "12px",
-    fontWeight: "800",
-    letterSpacing: "0.3px",
-    marginBottom: "15px",
+    fontWeight: 800,
+    marginBottom: "12px",
   },
 
   title: {
     margin: 0,
-    fontSize: "clamp(32px, 4vw, 48px)",
-    fontWeight: "850",
-    letterSpacing: "-1.5px",
-    lineHeight: "1.1",
+    fontSize: "clamp(24px, 3vw, 42px)",
+    fontWeight: 800,
+    letterSpacing: "-0.5px",
+    lineHeight: 1.2,
     color: "#f8fafc",
+    overflowWrap: "anywhere",
   },
 
   titleSpan: {
@@ -775,53 +669,40 @@ const styles = {
 
   subtitle: {
     maxWidth: "650px",
-    margin: "13px 0 0",
+    margin: "10px 0 0",
     color: "#94a3b8",
-    fontSize: "15px",
-    lineHeight: "1.7",
+    fontSize: "14px",
+    lineHeight: 1.6,
   },
 
   headerActions: {
     display: "flex",
     alignItems: "center",
-    gap: "12px",
     flexWrap: "wrap",
+    gap: "10px",
+    minWidth: 0,
   },
 
   commercialBadge: {
+    ...panel,
     display: "flex",
     alignItems: "center",
-    gap: "12px",
-    padding: "13px 17px",
-    borderRadius: "17px",
-    background: "rgba(255,255,255,0.045)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    backdropFilter: "blur(16px)",
+    gap: "10px",
+    padding: "12px",
+    flex: "1 1 180px",
   },
 
   commercialIcon: {
-    width: "42px",
-    height: "42px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: "13px",
+    ...icono,
     background: "rgba(139,92,246,0.14)",
     color: "#a78bfa",
-    fontSize: "18px",
   },
 
   commercialStrong: {
     display: "block",
-    color: "#ffffff",
+    marginBottom: "4px",
+    color: "#fff",
     fontSize: "13px",
-  },
-
-  commercialSmall: {
-    display: "block",
-    marginTop: "3px",
-    color: "#64748b",
-    fontSize: "10px",
   },
 
   refreshButton: {
@@ -829,282 +710,161 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     gap: "8px",
-    padding: "13px 17px",
+    minHeight: "44px",
+    maxWidth: "100%",
+    boxSizing: "border-box",
+    padding: "12px 16px",
     border: "1px solid rgba(139,92,246,0.25)",
     borderRadius: "14px",
-    background:
-      "linear-gradient(135deg, rgba(124,58,237,0.95), rgba(37,99,235,0.95))",
-    color: "#ffffff",
-    fontSize: "12px",
-    fontWeight: "800",
+    background: "linear-gradient(135deg, #7c3aed, #2563eb)",
+    color: "#fff",
+    fontFamily: "inherit",
+    fontSize: "13px",
+    fontWeight: 700,
     boxShadow: "0 10px 25px rgba(79,70,229,0.20)",
   },
 
   statsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-    gap: "18px",
-    marginBottom: "42px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
+    gap: "12px",
+    marginBottom: "28px",
+    minWidth: 0,
   },
 
   statCard: {
-    display: "flex",
+    ...panel,
+    display: "grid",
+    gridTemplateColumns: "44px minmax(0, 1fr)",
     alignItems: "center",
-    gap: "17px",
-    padding: "23px",
-    borderRadius: "22px",
+    gap: "12px",
     background:
       "linear-gradient(145deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025))",
-    border: "1px solid rgba(255,255,255,0.08)",
-    boxShadow: "0 18px 45px rgba(0,0,0,0.16)",
-    backdropFilter: "blur(18px)",
+    boxShadow: "0 12px 30px rgba(0,0,0,0.16)",
   },
 
-  statIconPurple: {
-    width: "58px",
-    height: "58px",
-    flexShrink: 0,
-    borderRadius: "17px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "linear-gradient(135deg, #7c3aed, #8b5cf6)",
-    color: "#ffffff",
-    fontSize: "23px",
-    boxShadow: "0 10px 25px rgba(124,58,237,0.22)",
-  },
-
-  statIconBlue: {
-    width: "58px",
-    height: "58px",
-    flexShrink: 0,
-    borderRadius: "17px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "linear-gradient(135deg, #2563eb, #3b82f6)",
-    color: "#ffffff",
-    fontSize: "23px",
-    boxShadow: "0 10px 25px rgba(37,99,235,0.22)",
-  },
-
-  statIconGreen: {
-    width: "58px",
-    height: "58px",
-    flexShrink: 0,
-    borderRadius: "17px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "linear-gradient(135deg, #059669, #10b981)",
-    color: "#ffffff",
-    fontSize: "23px",
-    boxShadow: "0 10px 25px rgba(16,185,129,0.20)",
+  iconBox: {
+    ...icono,
   },
 
   statLabel: {
+    display: "block",
     margin: 0,
     color: "#94a3b8",
-    fontSize: "12px",
-    fontWeight: "700",
+    fontSize: "13px",
+    fontWeight: 600,
+    lineHeight: 1.4,
   },
 
-  statNumber: {
-    margin: "5px 0 2px",
+  statValue: {
+    margin: "5px 0",
     color: "#f8fafc",
-    fontSize: "30px",
-    fontWeight: "850",
+    fontSize: "clamp(22px, 2.5vw, 30px)",
+    fontWeight: 800,
+    lineHeight: 1.3,
+    overflowWrap: "anywhere",
   },
 
-  statMoney: {
-    margin: "5px 0 2px",
-    color: "#34d399",
-    fontSize: "22px",
-    fontWeight: "850",
-    whiteSpace: "nowrap",
-  },
-
-  statDescription: {
-    color: "#64748b",
-    fontSize: "11px",
+  description: {
+    display: "block",
+    color: "#94a3b8",
+    fontSize: "12px",
+    lineHeight: 1.5,
   },
 
   section: {
-    marginBottom: "40px",
+    minWidth: 0,
+    marginBottom: "28px",
   },
 
   sectionHeader: {
-    marginBottom: "20px",
+    marginBottom: "16px",
   },
 
   eyebrow: {
     display: "block",
     marginBottom: "6px",
-    color: "#8b5cf6",
+    color: "#a78bfa",
     fontSize: "10px",
-    fontWeight: "850",
-    letterSpacing: "1.6px",
+    fontWeight: 800,
+    letterSpacing: "1.2px",
+    lineHeight: 1.5,
   },
 
   sectionTitle: {
     margin: 0,
     color: "#f8fafc",
-    fontSize: "26px",
-    fontWeight: "850",
-    letterSpacing: "-0.5px",
+    fontSize: "clamp(20px, 2.5vw, 26px)",
+    fontWeight: 800,
+    lineHeight: 1.3,
   },
 
   sectionSubtitle: {
     margin: "6px 0 0",
-    color: "#64748b",
+    color: "#94a3b8",
     fontSize: "13px",
+    lineHeight: 1.5,
   },
 
   performanceGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
-    gap: "15px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
+    gap: "12px",
+    minWidth: 0,
   },
 
   performanceCard: {
-    display: "flex",
+    ...panel,
+    display: "grid",
+    gridTemplateColumns: "44px minmax(0, 1fr)",
     alignItems: "center",
-    gap: "14px",
-    minWidth: 0,
-    padding: "19px",
-    borderRadius: "19px",
-    background: "rgba(255,255,255,0.035)",
-    border: "1px solid rgba(255,255,255,0.065)",
-    backdropFilter: "blur(15px)",
+    gap: "12px",
   },
 
-  performanceIconBlue: {
-    width: "48px",
-    height: "48px",
-    flexShrink: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: "15px",
-    background: "rgba(37,99,235,0.13)",
-    color: "#60a5fa",
-    fontSize: "18px",
-  },
-
-  performanceIconPurple: {
-    width: "48px",
-    height: "48px",
-    flexShrink: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: "15px",
-    background: "rgba(124,58,237,0.13)",
-    color: "#a78bfa",
-    fontSize: "18px",
-  },
-
-  performanceIconOrange: {
-    width: "48px",
-    height: "48px",
-    flexShrink: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: "15px",
-    background: "rgba(245,158,11,0.12)",
-    color: "#fbbf24",
-    fontSize: "18px",
-  },
-
-  performanceIconGold: {
-    width: "48px",
-    height: "48px",
-    flexShrink: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: "15px",
-    background: "rgba(251,191,36,0.12)",
-    color: "#fcd34d",
-    fontSize: "18px",
-  },
-
-  performanceContent: {
-    minWidth: 0,
-    display: "flex",
-    flexDirection: "column",
-    gap: "3px",
-  },
-
-  performanceLabel: {
-    color: "#94a3b8",
-    fontSize: "10px",
-    fontWeight: "750",
-  },
-
-  performanceNumber: {
+  performanceValue: {
+    display: "block",
+    margin: "5px 0",
     color: "#f8fafc",
-    fontSize: "24px",
-    fontWeight: "850",
-  },
-
-  performanceDescription: {
-    color: "#64748b",
-    fontSize: "10px",
-  },
-
-  bestProductName: {
-    maxWidth: "180px",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    color: "#f8fafc",
-    fontSize: "14px",
-    fontWeight: "850",
+    fontSize: "20px",
+    fontWeight: 800,
+    lineHeight: 1.4,
+    overflowWrap: "anywhere",
   },
 
   monthCard: {
-    marginBottom: "42px",
-    padding: "23px",
-    borderRadius: "22px",
+    ...panel,
+    marginBottom: "28px",
     background:
       "linear-gradient(145deg, rgba(124,58,237,0.10), rgba(37,99,235,0.045))",
-    border: "1px solid rgba(139,92,246,0.16)",
-    boxShadow: "0 18px 45px rgba(0,0,0,0.12)",
+    borderColor: "rgba(139,92,246,0.16)",
   },
 
   monthTop: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: "20px",
-    marginBottom: "18px",
+    flexWrap: "wrap",
+    gap: "12px",
+    marginBottom: "16px",
   },
 
   monthTitle: {
     margin: 0,
     color: "#f8fafc",
     fontSize: "20px",
-    fontWeight: "800",
+    fontWeight: 800,
   },
 
   percentageBox: {
     display: "flex",
-    alignItems: "flex-end",
+    alignItems: "baseline",
     gap: "5px",
     color: "#a78bfa",
   },
 
   percentageStrong: {
     fontSize: "25px",
-    fontWeight: "850",
-  },
-
-  percentageSpan: {
-    fontSize: "11px",
-    color: "#64748b",
-    paddingBottom: "4px",
+    fontWeight: 800,
   },
 
   progressBackground: {
@@ -1124,218 +884,152 @@ const styles = {
 
   monthDescription: {
     margin: "12px 0 0",
-    color: "#64748b",
-    fontSize: "11px",
+    color: "#94a3b8",
+    fontSize: "12px",
+    lineHeight: 1.6,
   },
 
   actionsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))",
-    gap: "18px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
+    gap: "12px",
+    minWidth: 0,
   },
 
   actionCard: {
-    width: "100%",
-    textAlign: "left",
-    border: "1px solid rgba(139,92,246,0.16)",
-    borderRadius: "23px",
-    padding: "25px",
+    ...accion,
+    borderColor: "rgba(139,92,246,0.16)",
     background:
       "linear-gradient(145deg, rgba(124,58,237,0.15), rgba(37,99,235,0.07))",
-    color: "#ffffff",
-    cursor: "pointer",
-    backdropFilter: "blur(16px)",
-    boxShadow: "0 18px 40px rgba(0,0,0,0.16)",
   },
 
   actionCardBlue: {
-    width: "100%",
-    textAlign: "left",
-    border: "1px solid rgba(59,130,246,0.16)",
-    borderRadius: "23px",
-    padding: "25px",
+    ...accion,
+    borderColor: "rgba(59,130,246,0.16)",
     background:
       "linear-gradient(145deg, rgba(37,99,235,0.15), rgba(14,165,233,0.06))",
-    color: "#ffffff",
-    cursor: "pointer",
-    backdropFilter: "blur(16px)",
-    boxShadow: "0 18px 40px rgba(0,0,0,0.16)",
   },
 
   actionTop: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: "20px",
+    gap: "12px",
+    marginBottom: "16px",
   },
 
   actionIcon: {
-    width: "56px",
-    height: "56px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: "17px",
+    ...icono,
     background: "linear-gradient(135deg, #7c3aed, #2563eb)",
-    color: "#ffffff",
-    fontSize: "23px",
+    color: "#fff",
   },
 
   actionIconBlue: {
-    width: "56px",
-    height: "56px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: "17px",
+    ...icono,
     background: "linear-gradient(135deg, #2563eb, #0ea5e9)",
-    color: "#ffffff",
-    fontSize: "23px",
-  },
-
-  actionCircle: {
-    width: "34px",
-    height: "34px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: "50%",
-    background: "rgba(255,255,255,0.06)",
-    color: "#94a3b8",
-    fontSize: "12px",
+    color: "#fff",
   },
 
   actionTag: {
     color: "#a78bfa",
-    fontSize: "9px",
-    fontWeight: "850",
-    letterSpacing: "1.5px",
+    fontSize: "10px",
+    fontWeight: 800,
+    letterSpacing: "1.2px",
   },
 
   actionTagBlue: {
     color: "#60a5fa",
-    fontSize: "9px",
-    fontWeight: "850",
-    letterSpacing: "1.5px",
+    fontSize: "10px",
+    fontWeight: 800,
+    letterSpacing: "1.2px",
   },
 
   actionTitle: {
     margin: "7px 0 0",
     color: "#f8fafc",
     fontSize: "20px",
-    fontWeight: "850",
+    fontWeight: 800,
+    lineHeight: 1.3,
   },
 
   actionText: {
     margin: "9px 0 0",
     color: "#94a3b8",
     fontSize: "13px",
-    lineHeight: "1.65",
+    lineHeight: 1.6,
   },
 
   actionFooter: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: "22px",
-    paddingTop: "15px",
-    borderTop: "1px solid rgba(255,255,255,0.07)",
+    ...pieAccion,
     color: "#a78bfa",
-    fontSize: "12px",
-    fontWeight: "750",
   },
 
   actionFooterBlue: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: "22px",
-    paddingTop: "15px",
-    borderTop: "1px solid rgba(255,255,255,0.07)",
+    ...pieAccion,
     color: "#60a5fa",
-    fontSize: "12px",
-    fontWeight: "750",
   },
 
   lastSaleHeader: {
-    display: "flex",
+    display: "grid",
+    gridTemplateColumns: "44px minmax(0, 1fr)",
     alignItems: "center",
-    gap: "14px",
-    marginBottom: "18px",
-  },
-
-  lastSaleIcon: {
-    width: "48px",
-    height: "48px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: "15px",
-    background: "rgba(59,130,246,0.12)",
-    color: "#60a5fa",
-    fontSize: "18px",
+    gap: "12px",
+    marginBottom: "16px",
   },
 
   lastSaleTitle: {
     margin: 0,
     color: "#f8fafc",
-    fontSize: "21px",
-    fontWeight: "850",
+    fontSize: "clamp(18px, 2vw, 21px)",
+    fontWeight: 800,
+    lineHeight: 1.3,
   },
 
   saleCard: {
+    ...panel,
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: "20px",
     flexWrap: "wrap",
-    padding: "21px",
-    borderRadius: "20px",
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.07)",
-    backdropFilter: "blur(15px)",
+    gap: "16px",
   },
 
   saleMain: {
     minWidth: 0,
+    flex: "1 1 180px",
     display: "flex",
     flexDirection: "column",
-    gap: "5px",
+    gap: "6px",
   },
 
   saleLabel: {
-    color: "#8b5cf6",
-    fontSize: "11px",
-    fontWeight: "850",
+    color: "#a78bfa",
+    fontSize: "12px",
+    fontWeight: 800,
   },
 
   saleProduct: {
-    maxWidth: "700px",
     color: "#f8fafc",
-    fontSize: "17px",
-    fontWeight: "750",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  },
-
-  saleDate: {
-    color: "#64748b",
-    fontSize: "11px",
+    fontSize: "16px",
+    fontWeight: 700,
+    lineHeight: 1.4,
+    overflowWrap: "anywhere",
   },
 
   saleRight: {
     display: "flex",
     flexDirection: "column",
-    alignItems: "flex-end",
+    alignItems: "flex-start",
     gap: "6px",
-    flexShrink: 0,
+    minWidth: 0,
+    maxWidth: "100%",
   },
 
   saleTotal: {
     color: "#34d399",
     fontSize: "21px",
-    fontWeight: "850",
+    fontWeight: 800,
+    overflowWrap: "anywhere",
   },
 
   saleStatus: {
@@ -1343,60 +1037,55 @@ const styles = {
     alignItems: "center",
     gap: "5px",
     color: "#6ee7b7",
-    fontSize: "11px",
-    fontWeight: "750",
+    fontSize: "12px",
+    fontWeight: 700,
   },
 
   noSale: {
+    ...panel,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: "9px",
-    padding: "28px",
-    borderRadius: "20px",
-    background: "rgba(255,255,255,0.035)",
-    border: "1px solid rgba(255,255,255,0.06)",
-    color: "#64748b",
+    flexWrap: "wrap",
+    gap: "10px",
+    color: "#94a3b8",
     fontSize: "13px",
     textAlign: "center",
+    lineHeight: 1.5,
   },
 
   summarySection: {
-    display: "flex",
-    alignItems: "center",
-    gap: "18px",
-    marginTop: "40px",
-    padding: "22px",
-    borderRadius: "21px",
-    background: "rgba(255,255,255,0.03)",
-    border: "1px solid rgba(255,255,255,0.06)",
-  },
-
-  summaryIcon: {
-    width: "52px",
-    height: "52px",
-    flexShrink: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: "16px",
-    background: "rgba(124,58,237,0.13)",
-    color: "#a78bfa",
-    fontSize: "21px",
+    ...panel,
+    display: "grid",
+    gridTemplateColumns: "44px minmax(0, 1fr)",
+    alignItems: "start",
+    gap: "12px",
+    marginTop: "28px",
   },
 
   summaryTitle: {
     margin: "5px 0",
     color: "#f8fafc",
     fontSize: "17px",
-    fontWeight: "800",
+    fontWeight: 800,
+    lineHeight: 1.4,
   },
 
   summaryText: {
     margin: 0,
     color: "#94a3b8",
     fontSize: "13px",
-    lineHeight: "1.65",
+    lineHeight: 1.6,
+  },
+
+  error: {
+    ...panel,
+    marginBottom: "20px",
+    borderColor: "rgba(248,113,113,0.35)",
+    background: "rgba(127,29,29,0.20)",
+    color: "#fecaca",
+    fontSize: "14px",
+    lineHeight: 1.5,
   },
 
   loadingContainer: {
@@ -1406,21 +1095,20 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     gap: "17px",
+    padding: "16px",
+    boxSizing: "border-box",
     background: "#080b14",
   },
 
-  loader: {
-    width: "48px",
-    height: "48px",
-    borderRadius: "50%",
-    border: "4px solid rgba(255,255,255,0.08)",
-    borderTop: "4px solid #8b5cf6",
-    animation: "spin 1s linear infinite",
+  loadingIcon: {
+    fontSize: "36px",
+    color: "#a78bfa",
   },
 
   loadingText: {
     margin: 0,
     color: "#94a3b8",
     fontSize: "14px",
+    textAlign: "center",
   },
 };
