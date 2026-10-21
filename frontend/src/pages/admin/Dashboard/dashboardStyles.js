@@ -1,19 +1,24 @@
-Object.assign(styles, {
+const styles = {
   container: {
-    ...styles.container,
     width: "100%",
     minWidth: 0,
+    minHeight: "100vh",
     boxSizing: "border-box",
     padding: "clamp(8px, 2vw, 20px)",
+    color: "#fff",
   },
 
   heroCard: {
-    ...styles.heroCard,
-    padding: "clamp(18px, 3vw, 32px)",
+    background:
+      "linear-gradient(135deg, rgba(124,58,237,0.95), rgba(37,99,235,0.95))",
     borderRadius: "22px",
+    padding: "clamp(18px, 3vw, 32px)",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: "20px",
+    boxShadow: "0 20px 45px rgba(0,0,0,0.35)",
     gap: "12px",
-    flexWrap: "nowrap",
     minWidth: 0,
   },
 
@@ -53,7 +58,7 @@ Object.assign(styles, {
   },
 
   grid: {
-    ...styles.grid,
+    display: "grid",
     gridTemplateColumns:
       "repeat(auto-fit, minmax(min(100%, 155px), 1fr))",
     gap: "14px",
@@ -61,18 +66,25 @@ Object.assign(styles, {
   },
 
   card: {
-    ...styles.card,
-    minWidth: 0,
-    padding: "clamp(16px, 2.5vw, 26px)",
+    background: "rgba(255,255,255,0.05)",
     borderRadius: "20px",
+    padding: "clamp(16px, 2.5vw, 26px)",
+    minWidth: 0,
+    backdropFilter: "blur(14px)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    boxShadow: "0 10px 35px rgba(0,0,0,0.25)",
+    transition: "transform .25s ease",
   },
 
   iconBox: {
-    ...styles.iconBox,
     width: "44px",
     height: "44px",
     borderRadius: "13px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: "12px",
+    background: "rgba(124,58,237,0.18)",
   },
 
   icon: {
@@ -80,27 +92,29 @@ Object.assign(styles, {
   },
 
   cardTitle: {
-    ...styles.cardTitle,
+    color: "#94a3b8",
     fontSize: "13px",
     margin: "0 0 8px",
   },
 
   cardValue: {
-    ...styles.cardValue,
     fontSize: "clamp(22px, 3vw, 32px)",
+    margin: 0,
+    fontWeight: 800,
+    color: "#fff",
     lineHeight: 1.2,
     overflowWrap: "anywhere",
   },
 
   cardDescription: {
-    ...styles.cardDescription,
-    fontSize: "12px",
     marginTop: "8px",
+    color: "#94a3b8",
+    fontSize: "12px",
     lineHeight: 1.4,
   },
 
   periodGrid: {
-    ...styles.periodGrid,
+    display: "grid",
     gridTemplateColumns:
       "repeat(auto-fit, minmax(min(100%, 200px), 1fr))",
     gap: "12px",
@@ -109,28 +123,127 @@ Object.assign(styles, {
   },
 
   periodCard: {
-    ...styles.periodCard,
-    minWidth: 0,
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "20px",
     padding: "16px",
-    gap: "12px",
+    display: "flex",
+    alignItems: "center",
     flexWrap: "wrap",
+    gap: "12px",
+    minWidth: 0,
+    backdropFilter: "blur(12px)",
+  },
+
+  periodIconBox: {
+    width: "52px",
+    height: "52px",
+    minWidth: "52px",
+    borderRadius: "15px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "rgba(124,58,237,0.16)",
+  },
+
+  periodIcon: {
+    fontSize: "24px",
+  },
+
+  periodTitle: {
+    margin: 0,
+    color: "#94a3b8",
+    fontSize: "13px",
+    fontWeight: 600,
   },
 
   periodValue: {
-    ...styles.periodValue,
+    margin: "5px 0 0",
+    color: "#fff",
     fontSize: "clamp(20px, 3vw, 24px)",
+    fontWeight: 800,
     overflowWrap: "anywhere",
   },
 
+  periodDescription: {
+    margin: "4px 0 0",
+    color: "#94a3b8",
+    fontSize: "12px",
+  },
+
   chartCard: {
-    ...styles.chartCard,
-    minWidth: 0,
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "24px",
     padding: "clamp(16px, 2.5vw, 28px)",
     marginBottom: "20px",
+    minWidth: 0,
+    backdropFilter: "blur(14px)",
+    boxShadow: "0 10px 35px rgba(0,0,0,0.20)",
+  },
+
+  chartSubtitle: {
+    margin: "6px 0 0",
+    color: "#94a3b8",
+    fontSize: "14px",
+  },
+
+  chartEmpty: {
+    margin: 0,
+    color: "#94a3b8",
+    fontSize: "14px",
+  },
+
+  chartList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "20px",
+  },
+
+  chartItem: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+    minWidth: 0,
+  },
+
+  chartInfo: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "15px",
+    flexWrap: "wrap",
+  },
+
+  chartDate: {
+    color: "#94a3b8",
+    fontSize: "14px",
+  },
+
+  chartValue: {
+    color: "#fff",
+    fontSize: "15px",
+    fontWeight: 700,
+    overflowWrap: "anywhere",
+  },
+
+  chartBarBackground: {
+    width: "100%",
+    height: "12px",
+    background: "rgba(255,255,255,0.08)",
+    borderRadius: "999px",
+    overflow: "hidden",
+  },
+
+  chartBar: {
+    height: "100%",
+    background: "linear-gradient(90deg, #7c3aed, #2563eb)",
+    borderRadius: "999px",
+    transition: "width 0.4s ease",
   },
 
   bottomGrid: {
-    ...styles.bottomGrid,
+    display: "grid",
     gridTemplateColumns:
       "repeat(auto-fit, minmax(min(100%, 300px), 1fr))",
     gap: "16px",
@@ -138,48 +251,178 @@ Object.assign(styles, {
   },
 
   activityCard: {
-    ...styles.activityCard,
-    minWidth: 0,
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "24px",
     padding: "clamp(16px, 2.5vw, 28px)",
-  },
-
-  summaryCard: {
-    ...styles.summaryCard,
     minWidth: 0,
-    padding: "clamp(16px, 2.5vw, 28px)",
+    backdropFilter: "blur(14px)",
   },
 
   sectionHeader: {
-    ...styles.sectionHeader,
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
     flexWrap: "wrap",
     gap: "10px",
     marginBottom: "18px",
   },
 
   sectionTitle: {
-    ...styles.sectionTitle,
+    margin: 0,
     fontSize: "clamp(18px, 2.5vw, 22px)",
+    fontWeight: 700,
   },
 
-  summaryRow: {
-    ...styles.summaryRow,
-    flexWrap: "wrap",
-    gap: "8px",
+  sectionBadge: {
+    background: "rgba(16,185,129,0.18)",
+    color: "#10b981",
+    padding: "8px 14px",
+    borderRadius: "999px",
+    fontSize: "13px",
+    fontWeight: 700,
   },
 
-  summaryValue: {
-    ...styles.summaryValue,
+  activityList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "18px",
+  },
+
+  activityItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+    padding: "14px",
+    borderRadius: "18px",
+    background: "rgba(255,255,255,0.04)",
+    minWidth: 0,
     overflowWrap: "anywhere",
   },
 
-  paymentRow: {
-    ...styles.paymentRow,
-    flexWrap: "wrap",
-    gap: "8px",
+  activityIcon: {
+    width: "50px",
+    height: "50px",
+    borderRadius: "14px",
+    background: "rgba(124,58,237,0.18)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "22px",
+    flexShrink: 0,
   },
 
   activityText: {
-    ...styles.activityText,
+    margin: 0,
+    color: "#fff",
+    fontWeight: 600,
     overflowWrap: "anywhere",
   },
-});
+
+  activityTime: {
+    color: "#94a3b8",
+    fontSize: "13px",
+  },
+
+  summaryCard: {
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "24px",
+    padding: "clamp(16px, 2.5vw, 28px)",
+    minWidth: 0,
+    backdropFilter: "blur(14px)",
+  },
+
+  summaryList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px",
+  },
+
+  summaryRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "8px",
+    paddingBottom: "12px",
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+  },
+
+  summaryLabel: {
+    color: "#94a3b8",
+  },
+
+  summaryValue: {
+    fontWeight: 700,
+    color: "#fff",
+    overflowWrap: "anywhere",
+  },
+
+  paymentSection: {
+    marginTop: "28px",
+    paddingTop: "22px",
+    borderTop: "1px solid rgba(255,255,255,0.08)",
+  },
+
+  paymentTitle: {
+    margin: "0 0 16px",
+    color: "#fff",
+    fontSize: "16px",
+    fontWeight: 700,
+  },
+
+  paymentList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+  },
+
+  paymentRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "8px",
+    padding: "10px 12px",
+    borderRadius: "12px",
+    background: "rgba(255,255,255,0.04)",
+  },
+
+  paymentLabel: {
+    color: "#cbd5e1",
+    fontSize: "14px",
+  },
+
+  paymentValue: {
+    color: "#10b981",
+    fontSize: "14px",
+    fontWeight: 700,
+  },
+
+  loadingContainer: {
+    minHeight: "100vh",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "column",
+    color: "#fff",
+  },
+
+  loader: {
+    width: "60px",
+    height: "60px",
+    border: "6px solid rgba(255,255,255,0.1)",
+    borderTop: "6px solid #8b5cf6",
+    borderRadius: "50%",
+    animation: "dashboardSpin 1s linear infinite",
+  },
+
+  error: {
+    color: "#ef4444",
+    fontWeight: 700,
+    fontSize: "18px",
+  },
+};
+
+export default styles;
